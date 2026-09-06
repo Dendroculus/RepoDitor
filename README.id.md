@@ -1,11 +1,38 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Electron-43.3.0-47848F?logo=electron&logoColor=white" alt="Electron 43.3.0">
-  <img src="https://img.shields.io/badge/React-19.2.8-61DAFB?logo=react&logoColor=white" alt="React 19.2.8">
-  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11 or newer">
-  <img src="https://img.shields.io/github/v/release/Yoruxyv/RepoDitor?label=release" alt="Latest release">
-  <img src="https://img.shields.io/github/actions/workflow/status/Yoruxyv/RepoDitor/quality.yml?branch=main&label=Quality" alt="Quality workflow">
-  <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows11&logoColor=white" alt="Windows x64">
-  <img src="https://img.shields.io/badge/license-MIT-22C55E" alt="MIT License">
+  <img src="https://img.shields.io/badge/Electron-43.3.0-47848F?style=flat-square&labelColor=1a1a2e&logo=electron&logoColor=white" alt="Electron 43.3.0">
+  <img src="https://img.shields.io/badge/React-19.2.8-61DAFB?style=flat-square&labelColor=1a1a2e&logo=react&logoColor=white" alt="React 19.2.8">
+  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&labelColor=1a1a2e&logo=python&logoColor=white" alt="Python 3.11 or newer">
+  <img src="https://img.shields.io/github/v/release/Yoruxyv/RepoDitor?style=flat-square&label=release&labelColor=1a1a2e" alt="Latest release">
+  <img src="https://img.shields.io/github/actions/workflow/status/Yoruxyv/RepoDitor/quality.yml?branch=main&style=flat-square&label=Quality&labelColor=1a1a2e" alt="Quality workflow">
+  <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?style=flat-square&labelColor=1a1a2e&logo=windows11&logoColor=white" alt="Windows x64">
+  <img src="https://img.shields.io/badge/license-MIT-22C55E?style=flat-square&labelColor=1a1a2e" alt="MIT License">
+</p>
+
+<p align="center">
+  <a href="https://www.nexusmods.com/repo/mods/319">
+    <img src="https://img.shields.io/badge/Nexus%20Mods-Official-E6832B?style=flat-square&labelColor=1a1a2e" alt="Nexus Mods">
+  </a>
+  <a href="https://thunderstore.io/c/repo/p/RepoDitor/RepoDitor/">
+    <img src="https://img.shields.io/badge/Thunderstore-Official-23FFB0?style=flat-square&labelColor=1a1a2e&logo=thunderstore&logoColor=white" alt="Thunderstore">
+  </a>
+</p>
+
+<p align="center">
+  <a href="README.md">
+    <img src="https://img.shields.io/badge/🇺🇸%20English-1a0a2e?style=for-the-badge" alt="English">
+  </a>
+  <a href="README.ja.md">
+    <img src="https://img.shields.io/badge/🇯🇵%20日本語-1a0a2e?style=for-the-badge" alt="日本語">
+  </a>
+  <a href="README.ko.md">
+    <img src="https://img.shields.io/badge/🇰🇷%20한국어-1a0a2e?style=for-the-badge" alt="한국어">
+  </a>
+  <a href="README.zh-CN.md">
+    <img src="https://img.shields.io/badge/🇨🇳%20简体中文-1a0a2e?style=for-the-badge" alt="简体中文">
+  </a>
+  <a href="README.id.md">
+    <img src="https://img.shields.io/badge/🇮🇩%20Bahasa%20Indonesia-1a0a2e?style=for-the-badge" alt="Bahasa Indonesia">
+  </a>
 </p>
 
 <div align="center">
@@ -26,24 +53,31 @@ RepoDitor berjalan terpisah dari game dan tidak memerlukan BepInEx, mod loader, 
 
 </div>
 
-<p align="center">
-  <a href="README.md">
-    <img src="https://img.shields.io/badge/EN-English-555?style=flat-square" alt="English">
-  </a>
-  <a href="README.zh-CN.md">
-    <img src="https://img.shields.io/badge/ZH-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-555?style=flat-square" alt="简体中文">
-  </a>
-  <a href="README.id.md">
-    <img src="https://img.shields.io/badge/ID-Bahasa%20Indonesia-555?style=flat-square" alt="Bahasa Indonesia">
-  </a>
-</p>
-
 ---
 
 > [!IMPORTANT]
 > Tutup R.E.P.O. sebelum membuka atau mengedit save. RepoDitor adalah tool komunitas
 > tidak resmi dan tidak berafiliasi dengan semiwork. Sebaiknya backup data penting;
 > update game dapat mengubah format atau perilaku save.
+
+## 📥 Download Resmi
+
+RepoDitor Desktop didistribusikan secara resmi melalui:
+
+- **GitHub Releases (kanonis):** https://github.com/Yoruxyv/RepoDitor/releases
+- **Nexus Mods:** https://www.nexusmods.com/repo/mods/319
+- **Thunderstore:** https://thunderstore.io/c/repo/p/RepoDitor/RepoDitor/
+
+GitHub Releases adalah sumber release kanonis untuk RepoDitor Desktop. Nexus
+Mods dan Thunderstore adalah kanal distribusi resmi. RepoDitor Desktop saat ini
+tidak ditandatangani secara digital, sehingga Windows SmartScreen dapat
+menampilkan **Unknown Publisher** atau peringatan aplikasi yang tidak dikenal.
+Dapatkan RepoDitor hanya dari sumber resmi di atas dan verifikasi informasi
+SHA-256 yang dipublikasikan bersama GitHub Releases jika tersedia.
+
+Paket RepoDitor v0.2.1 ditinjau secara manual dan disetujui untuk distribusi
+oleh Nexus Mods dan Thunderstore. Persetujuan distribusi tersebut bukan
+sertifikasi, endorsement, atau jaminan keamanan dari kedua platform.
 
 ## ✨ Fitur
 
@@ -159,11 +193,12 @@ format game di masa depan atau semua bentuk kehilangan data.
 
 ## ✅ Memverifikasi Download Windows
 
+RepoDitor Desktop saat ini tidak ditandatangani secara digital. Karena itu,
 Windows SmartScreen dapat menampilkan **Unknown Publisher** atau peringatan
-aplikasi tidak dikenal untuk build yang tidak ditandatangani atau reputasinya
-masih rendah. Unduh hanya dari halaman resmi GitHub Releases RepoDitor.
-Source dan workflow build tersedia secara publik, dan installer yang
-dipublikasikan menyertakan file checksum SHA-256.
+aplikasi yang tidak dikenal. Dapatkan RepoDitor hanya dari sumber distribusi
+resmi yang tercantum di atas. GitHub Releases adalah sumber Desktop kanonis.
+Source dan workflow build tersedia secara publik, dan release GitHub yang
+dipublikasikan menyediakan informasi verifikasi SHA-256 jika tersedia.
 
 Di PowerShell, tempatkan kedua file dalam direktori yang sama lalu jalankan:
 
@@ -174,11 +209,11 @@ Get-Content .\RepoDitor-Setup-<version>-x64.exe.sha256
 
 Hash heksadesimalnya harus sama persis, dengan kapitalisasi huruf diabaikan.
 Checksum yang cocok memastikan file tersebut sama dengan artifact yang
-dipublikasikan; checksum saja tidak membuktikan identitas publisher. Installer
-v0.1.0 historis tidak ditandatangani. Workflow release saat ini sudah disiapkan
-untuk mewajibkan Microsoft cloud signing pada build resmi bertag, tetapi
-repository tidak dapat membuktikan apakah kredensial signing milik maintainer
-sudah dikonfigurasi.
+dipublikasikan; checksum saja tidak membuktikan identitas publisher atau
+keamanan kode. RepoDitor Desktop saat ini tidak ditandatangani; installer
+historis v0.1.0 juga tidak ditandatangani. Repository juga memiliki workflow
+Microsoft cloud signing untuk release bertag yang ditandatangani, tetapi
+workflow tersebut bukan bukti bahwa installer saat ini sudah ditandatangani.
 
 ## 🔐 Model Keamanan
 
@@ -277,7 +312,7 @@ lokalisasi UI RepoDitor. Antarmuka juga menghormati preferensi reduced motion;
 suara interaksi lokal hanya bersifat dekoratif dan tidak diperlukan untuk
 memahami status aplikasi.
 
-## 🧠 Cara Kerja
+## 🧠 Cara Kerja RepoDitor Desktop
 
 ```text
 React renderer
@@ -293,8 +328,8 @@ Services → core/storage → encrypted .es3 data
 
 Save Run dan MetaSave menggunakan fingerprint, perubahan tertunda, backup,
 dan session save masing-masing secara independen sambil memakai repository
-terenkripsi tervalidasi yang sama. Python tetap menjadi sumber otoritatif untuk
-semantik game dan save.
+terenkripsi tervalidasi yang sama. Untuk RepoDitor Desktop, Python tetap menjadi
+sumber otoritatif untuk semantik game dan save.
 
 Penemuan save dan konten terpasang dilakukan secara dinamis jika struktur yang
 sudah diverifikasi mendukungnya. Reader game terpasang yang spesifik terhadap

@@ -12,19 +12,51 @@ and safe for users' local saves.
   usernames, or local paths. Use generated/sanitized fixtures and temporary
   copies.
 
-## Architecture boundary
+## Contribution areas
 
-RepoDitor intentionally uses this dependency direction:
+Identify the product or responsibility your change belongs to:
+
+- **Desktop** — the existing Windows Electron/React application and bundled
+  Python backend.
+- **Web** — the future browser-based product with manual local file
+  import/export and a focused feature set.
+- **Save format / research / shared semantics** — evidence, fixtures, format
+  compatibility, and behavior that both products must agree on.
+- **Translations** — RepoDitor-owned interface localization and language assets.
+
+Desktop and Web are independent implementations. Do not make either product
+import implementation code from the other. Where behavior overlaps, both must
+follow the same evidence-backed save semantics.
+
+## Desktop architecture boundary
+
+RepoDitor Desktop intentionally uses this dependency direction:
 
 ```text
 React renderer → sandboxed preload → typed Electron IPC → Electron main
 → Python desktop API → services → core/storage → encrypted save
 ```
 
-Python owns game and save semantics. Do not move encryption, raw-save parsing,
-filesystem writes, or game-mechanics calculations into React or Electron.
-Preserve `contextIsolation: true`, `nodeIntegration: false`, renderer sandboxing,
-and narrow preload methods.
+Within Desktop, Python owns game and save semantics. Do not move encryption,
+raw-save parsing, filesystem writes, or game-mechanics calculations into React
+or Electron. Preserve `contextIsolation: true`, `nodeIntegration: false`,
+renderer sandboxing, and narrow preload methods.
+
+### Future Web architecture boundary
+
+RepoDitor Web is a separate browser implementation with this conceptual
+dependency direction:
+
+```text
+Browser UI → Web feature/domain logic → browser-side save/ES3 layer
+→ local file import/export
+```
+
+The browser cannot use the Desktop Python boundary, so proven save parsing and
+crypto behavior may be implemented in TypeScript/browser APIs inside the Web
+architecture. That is not permission to invent new mutation behavior: Web must
+remain aligned with evidence-backed RepoDitor save semantics, fixtures, and
+safety requirements.
 
 ## Source documentation
 

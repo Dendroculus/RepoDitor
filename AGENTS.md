@@ -204,9 +204,16 @@ When moving package boundaries, keep package docstrings and relevant architectur
 
 Preserve zero-cycle architecture. File moves and extractions must not introduce Python or TypeScript import cycles.
 
-## 6. RepoDitor Architecture
+## 6. RepoDitor Product Architecture
 
-Required dependency direction:
+RepoDitor has two intentionally separate product architecture boundaries: the
+existing Desktop application and the future Web product. Do not cross-import
+implementation code between Desktop and Web. Shared behavior must come from
+evidence-backed save semantics, research, and fixtures.
+
+### Desktop
+
+Required Desktop dependency direction:
 
 ```text
 React renderer
@@ -228,9 +235,9 @@ core / storage
 .es3
 ```
 
-Python owns save semantics.
+For Desktop, Python owns save semantics.
 
-Renderer must never:
+Desktop renderer must never:
 - decrypt `.es3`
 - know the encryption password
 - manipulate raw save JSON
@@ -248,9 +255,28 @@ nodeIntegration: false
 
 Never expose raw `ipcRenderer`, generic IPC invocation, arbitrary filesystem APIs, arbitrary shell commands, or arbitrary Python execution.
 
-## 7. Existing Domain Behavior
+### Future Web
 
-Reuse existing services for:
+RepoDitor Web is an independent browser implementation:
+
+```text
+Browser UI
+      ↓
+Web feature/domain logic
+      ↓
+browser-side save/ES3 layer
+      ↓
+local file import/export
+```
+
+Web may implement proven save parsing and crypto behavior in TypeScript/browser
+APIs because it cannot use the Desktop Python boundary. This exception applies
+only inside the Web architecture and does not weaken evidence, validation, or
+save-safety requirements. Overlapping Desktop and Web behavior must agree.
+
+## 7. Existing Desktop Domain Behavior
+
+Reuse existing Desktop services for:
 - saves
 - players
 - upgrades
@@ -258,7 +284,7 @@ Reuse existing services for:
 - maps
 - game/save discovery
 
-Do not reimplement known save semantics in TypeScript.
+For Desktop, do not reimplement known save semantics in TypeScript.
 
 Dynamic upgrades remain dynamic.
 
@@ -341,9 +367,11 @@ Do not claim a test passed unless it was actually run.
 
 ## 11. Safe Writes
 
-Renderer changes stay in memory until an explicit save operation.
+For Desktop, renderer changes stay in memory until an explicit save operation.
 
-Python owns validation, backup, encryption, and write safety.
+Desktop Python owns validation, backup, encryption, and write safety. Web must
+preserve equivalent evidence-backed validation and safe local-file handling
+within its own browser architecture.
 
 Before replacing a real save:
 - validate

@@ -1,9 +1,18 @@
 # Lychee exclusions for URLs the checker cannot evaluate faithfully.
-#
+
 # Vite serves /favicon.svg from desktop/public at runtime/build time,
 # while Lychee resolves that absolute path against the repository root.
+^file://.*/favicon\.svg$
+
 # Pixabay returns HTTP 403 to automated CI link checkers for these
 # attribution URLs even though they are the canonical source/license links.
-^file://.*/favicon\.svg$
-^https://pixabay\.com/service/license-summary/?$
-^https://pixabay\.com/sound-effects/film-special-effects-mouse-click-290204/?$
+^https\://pixabay\.com/service/license-summary/?$
+^https\://pixabay\.com/sound-effects/film-special-effects-mouse-click-290204/?$
+
+# Nexus Mods returns HTTP 403 to automated CI link checkers for this
+# official distribution page even though the URL is valid for normal users.
+^https\://www\.nexusmods\.com/repo/mods/319/?$
+
+# Thunderstore may be rate-limited, redirected, or otherwise unstable for
+# automated CI link checks even when the official package page is valid.
+^https\://thunderstore\.io/c/repo/p/RepoDitor/RepoDitor/?$
