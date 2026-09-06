@@ -1,11 +1,38 @@
 <p align="center">
-  <img src="https://img.shields.io/badge/Electron-43.3.0-47848F?logo=electron&logoColor=white" alt="Electron 43.3.0">
-  <img src="https://img.shields.io/badge/React-19.2.8-61DAFB?logo=react&logoColor=white" alt="React 19.2.8">
-  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white" alt="Python 3.11 or newer">
-  <img src="https://img.shields.io/github/v/release/Yoruxyv/RepoDitor?label=release" alt="Latest release">
-  <img src="https://img.shields.io/github/actions/workflow/status/Yoruxyv/RepoDitor/quality.yml?branch=main&label=Quality" alt="Quality workflow">
-  <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?logo=windows11&logoColor=white" alt="Windows x64">
-  <img src="https://img.shields.io/badge/license-MIT-22C55E" alt="MIT License">
+  <img src="https://img.shields.io/badge/Electron-43.3.0-47848F?style=flat-square&labelColor=1a1a2e&logo=electron&logoColor=white" alt="Electron 43.3.0">
+  <img src="https://img.shields.io/badge/React-19.2.8-61DAFB?style=flat-square&labelColor=1a1a2e&logo=react&logoColor=white" alt="React 19.2.8">
+  <img src="https://img.shields.io/badge/Python-3.11%2B-3776AB?style=flat-square&labelColor=1a1a2e&logo=python&logoColor=white" alt="Python 3.11 or newer">
+  <img src="https://img.shields.io/github/v/release/Yoruxyv/RepoDitor?style=flat-square&label=release&labelColor=1a1a2e" alt="Latest release">
+  <img src="https://img.shields.io/github/actions/workflow/status/Yoruxyv/RepoDitor/quality.yml?branch=main&style=flat-square&label=Quality&labelColor=1a1a2e" alt="Quality workflow">
+  <img src="https://img.shields.io/badge/platform-Windows%20x64-0078D4?style=flat-square&labelColor=1a1a2e&logo=windows11&logoColor=white" alt="Windows x64">
+  <img src="https://img.shields.io/badge/license-MIT-22C55E?style=flat-square&labelColor=1a1a2e" alt="MIT License">
+</p>
+
+<p align="center">
+  <a href="https://www.nexusmods.com/repo/mods/319">
+    <img src="https://img.shields.io/badge/Nexus%20Mods-Official-E6832B?style=flat-square&labelColor=1a1a2e" alt="Nexus Mods">
+  </a>
+  <a href="https://thunderstore.io/c/repo/p/RepoDitor/RepoDitor/">
+    <img src="https://img.shields.io/badge/Thunderstore-Official-23FFB0?style=flat-square&labelColor=1a1a2e&logo=thunderstore&logoColor=white" alt="Thunderstore">
+  </a>
+</p>
+
+<p align="center">
+  <a href="README.md">
+    <img src="https://img.shields.io/badge/🇺🇸%20English-1a0a2e?style=for-the-badge" alt="English">
+  </a>
+  <a href="README.ja.md">
+    <img src="https://img.shields.io/badge/🇯🇵%20日本語-1a0a2e?style=for-the-badge" alt="日本語">
+  </a>
+  <a href="README.ko.md">
+    <img src="https://img.shields.io/badge/🇰🇷%20한국어-1a0a2e?style=for-the-badge" alt="한국어">
+  </a>
+  <a href="README.zh-CN.md">
+    <img src="https://img.shields.io/badge/🇨🇳%20简体中文-1a0a2e?style=for-the-badge" alt="简体中文">
+  </a>
+  <a href="README.id.md">
+    <img src="https://img.shields.io/badge/🇮🇩%20Bahasa%20Indonesia-1a0a2e?style=for-the-badge" alt="Bahasa Indonesia">
+  </a>
 </p>
 
 <div align="center">
@@ -26,23 +53,28 @@ RepoDitor 独立于游戏运行，不需要 BepInEx、mod loader，也无需安�
 
 </div>
 
-<p align="center">
-  <a href="README.md">
-    <img src="https://img.shields.io/badge/EN-English-555?style=flat-square" alt="English">
-  </a>
-  <a href="README.zh-CN.md">
-    <img src="https://img.shields.io/badge/ZH-%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-555?style=flat-square" alt="简体中文">
-  </a>
-  <a href="README.id.md">
-    <img src="https://img.shields.io/badge/ID-Bahasa%20Indonesia-555?style=flat-square" alt="Bahasa Indonesia">
-  </a>
-</p>
-
 ---
 
 > [!IMPORTANT]
 > 打开或编辑存档前，请先关闭 R.E.P.O.。RepoDitor 是非官方社区工具，
 > 与 semiwork 没有关联。重要数据建议自行备份；游戏更新可能改变存档格式或行为。
+
+## 📥 官方下载
+
+RepoDitor Desktop 通过以下官方渠道分发：
+
+- **GitHub Releases（canonical 主发布源）：** https://github.com/Yoruxyv/RepoDitor/releases
+- **Nexus Mods：** https://www.nexusmods.com/repo/mods/319
+- **Thunderstore：** https://thunderstore.io/c/repo/p/RepoDitor/RepoDitor/
+
+GitHub Releases 是 RepoDitor Desktop 的 canonical 主发布源；Nexus Mods 和
+Thunderstore 是官方分发渠道。RepoDitor Desktop 当前未进行代码签名，因此
+Windows SmartScreen 可能显示 **Unknown Publisher** 或“无法识别的应用”警告。
+请只从上述官方渠道获取 RepoDitor，并在适用时核对 GitHub Releases 随发布提供的
+SHA-256 验证信息。
+
+RepoDitor v0.2.1 软件包经过 Nexus Mods 和 Thunderstore 人工审核，并获准在这些
+平台分发。该分发批准不代表任何平台对 RepoDitor 进行认证、背书或提供安全保证。
 
 ## ✨ 功能
 
@@ -144,10 +176,10 @@ Python 的写入边界会独立要求：加载源存档前必须确认游戏已�
 
 ## ✅ 验证 Windows 下载文件
 
-对于未签名或信誉较低的 build，Windows SmartScreen 可能会显示
-**Unknown Publisher** 或“无法识别的应用”之类的警告。请只从 RepoDitor
-官方 GitHub Releases 页面下载。源码和 build workflow 都是公开的，
-发布的安装程序也会附带 SHA-256 校验和文件。
+RepoDitor Desktop 当前未进行代码签名，因此 Windows SmartScreen 可能会显示
+**Unknown Publisher** 或“无法识别的应用”警告。请只从上面列出的官方分发渠道获取
+RepoDitor。GitHub Releases 是 Desktop 的 canonical 主发布源。源码和 build workflow
+保持公开；在适用时，已发布的 GitHub release 会提供 SHA-256 验证信息。
 
 把两个文件放在同一个目录，然后在 PowerShell 中运行：
 
@@ -157,10 +189,10 @@ Get-Content .\RepoDitor-Setup-<version>-x64.exe.sha256
 ```
 
 两个十六进制 hash 必须完全一致，字母大小写可以忽略。校验和一致能确认下载的文件
-与发布的 artifact 一致，但仅凭这一点不能确认发布者身份。历史上的 v0.1.0 安装程序
-没有签名。当前 release workflow 已经准备为官方 tagged build 强制使用
-Microsoft cloud signing，但仅从 repository 本身无法证明维护者自己的签名凭据
-是否已经配置完成。
+与发布的 artifact 一致，但仅凭这一点不能确认发布者身份或证明代码安全。
+RepoDitor Desktop 当前未签名；历史 v0.1.0 installer 同样未签名。repository 也包含
+用于已签名 tagged release 的 Microsoft cloud-signing workflow，但该 workflow
+不能证明当前 installer 已经签名。
 
 ## 🔐 安全模型
 
@@ -240,7 +272,7 @@ RepoDitor 自己的界面目前提供：
 会保持原样，不会经过 RepoDitor 的 UI 本地化层翻译。界面也会遵循 reduced-motion
 偏好；本地交互音效只是装饰性反馈，不依赖它也能理解应用当前状态。
 
-## 🧠 工作原理
+## 🧠 RepoDitor Desktop 工作原理
 
 ```text
 React renderer
@@ -255,7 +287,7 @@ Services → core/storage → encrypted .es3 data
 ```
 
 Run 存档和 MetaSave 各自使用独立的 fingerprint、待处理更改、备份和保存 session，
-同时复用同一个经过验证的加密 repository。游戏语义和存档语义仍以 Python 为权威。
+同时复用同一个经过验证的加密 repository。对于 RepoDitor Desktop，游戏语义和存档语义仍以 Python 为权威。
 
 在已经验证过的结构允许时，存档和已安装内容会动态发现。针对特定 build 的本地游戏
 reader 使用明确的兼容性 gate；如果存在不确定性，展示或功能会退化为不可用/未知，
