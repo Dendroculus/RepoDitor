@@ -19,6 +19,10 @@ jobs:
     name: Python static quality
     runs-on: ubuntu-latest
 
+    defaults:
+      run:
+        working-directory: desktop/python
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,10 +37,10 @@ jobs:
         run: uv sync --locked
 
       - name: Ruff lint
-        run: uv run ruff check python tests
+        run: uv run ruff check repo_save_editor tests
 
       - name: Ruff format check
-        run: uv run ruff format --check python tests
+        run: uv run ruff format --check repo_save_editor tests
 
       - name: Mypy
         run: uv run mypy
@@ -44,6 +48,10 @@ jobs:
   python-tests:
     name: Python ${{ matrix.python-version }} tests
     runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: desktop/python
 
     strategy:
       fail-fast: false
@@ -109,6 +117,40 @@ jobs:
       - name: Component and contract tests
         run: npm test
 
+  web-quality:
+    name: Web quality
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: web
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci
+
+      - name: Prettier format check
+        run: npm run format:check
+
+      - name: ESLint
+        run: npm run lint
+
+      - name: Build web
+        run: npm run build
+
+      - name: Component tests
+        run: npm test
+
   windows-e2e:
     name: Windows Electron E2E
     runs-on: windows-latest
@@ -128,7 +170,7 @@ jobs:
           python-version: "3.13"
 
       - name: Sync locked Python and packaging dependencies
-        working-directory: .
+        working-directory: desktop/python
         run: uv sync --locked --group package
 
       - name: Set up Node
@@ -172,7 +214,7 @@ jobs:
           python-version: "3.13"
 
       - name: Sync locked Python and packaging dependencies
-        working-directory: .
+        working-directory: desktop/python
         run: uv sync --locked --group package
 
       - name: Set up Node
@@ -208,7 +250,7 @@ jobs:
 
   quality-gate:
     name: Quality gate
-    needs: [python-quality, python-tests, desktop-quality, windows-e2e, package-smoke]
+    needs: [python-quality, python-tests, desktop-quality, web-quality, windows-e2e, package-smoke]
     if: ${{ always() }}
     runs-on: ubuntu-latest
 
@@ -227,6 +269,11 @@ jobs:
 
           if [ "${{ needs.desktop-quality.result }}" != "success" ]; then
             echo "Desktop quality failed."
+            exit 1
+          fi
+
+          if [ "${{ needs.web-quality.result }}" != "success" ]; then
+            echo "Web quality failed."
             exit 1
           fi
 
