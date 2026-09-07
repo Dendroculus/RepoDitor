@@ -16,7 +16,7 @@ import {
 async function createFixture(version = "0.1.1") {
   const root = await mkdtemp(path.join(os.tmpdir(), "repoditor-version-tooling-"));
   await mkdir(path.join(root, "desktop"), { recursive: true });
-  await mkdir(path.join(root, "python", "repo_save_editor"), { recursive: true });
+  await mkdir(path.join(root, "desktop", "python", "repo_save_editor"), { recursive: true });
   await writeFile(
     path.join(root, "desktop", "package.json"),
     `${JSON.stringify({ name: "repoditor-desktop", version }, null, 2)}\n`,
@@ -38,15 +38,15 @@ async function createFixture(version = "0.1.1") {
     )}\n`,
   );
   await writeFile(
-    path.join(root, "pyproject.toml"),
+    path.join(root, "desktop", "python", "pyproject.toml"),
     `[project]\nname = "repo-save-editor"\nversion = "${version}"\n\n[tool.test]\nenabled = true\n`,
   );
   await writeFile(
-    path.join(root, "python", "repo_save_editor", "__init__.py"),
+    path.join(root, "desktop", "python", "repo_save_editor", "__init__.py"),
     `"""Fixture."""\n\n__version__ = "${version}"\n`,
   );
   await writeFile(
-    path.join(root, "uv.lock"),
+    path.join(root, "desktop", "python", "uv.lock"),
     `version = 1\n\n[[package]]\nname = "repo-save-editor"\nversion = "${version}"\nsource = { editable = "." }\n`,
   );
   return root;
@@ -75,8 +75,8 @@ test("rejects malformed and v-prefixed versions", () => {
 
 test("synchronizes every managed source without changing dependency versions", async () => {
   await withFixture(async (root) => {
-    const refreshLock = (repoRoot, version) => {
-      const lockPath = path.join(repoRoot, "uv.lock");
+    const refreshLock = (pythonRoot, version) => {
+      const lockPath = path.join(pythonRoot, "uv.lock");
       const lock = readFileSync(lockPath, "utf8");
       writeFileSync(lockPath, lock.replace('version = "0.1.1"', `version = "${version}"`));
     };
@@ -111,9 +111,9 @@ test("release check reports each mismatched metadata source", async (context) =>
       await withFixture(async (root) => {
         const file =
           name === "pyproject"
-            ? path.join(root, "pyproject.toml")
+            ? path.join(root, "desktop", "python", "pyproject.toml")
             : name === "Python __version__"
-              ? path.join(root, "python", "repo_save_editor", "__init__.py")
+              ? path.join(root, "desktop", "python", "repo_save_editor", "__init__.py")
               : path.join(root, "desktop", "package-lock.json");
         await writeFile(file, mutate(await readFile(file, "utf8")));
         assert.throws(() => assertVersionAlignment(root), new RegExp(expected, "u"));

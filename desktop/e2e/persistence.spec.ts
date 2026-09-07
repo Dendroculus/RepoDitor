@@ -4,7 +4,7 @@ import path from "node:path";
 
 import { expect, test } from "@playwright/test";
 
-import { REPO_ROOT, getPythonExecutable } from "./support/fixtureEnvironment";
+import { PYTHON_ROOT, getPythonExecutable } from "./support/fixtureEnvironment";
 import { launchSourceE2eHarness, type SourceE2eHarness } from "./support/harness";
 import {
   waitForDiscoveredSave,
@@ -23,8 +23,8 @@ function replaceFixtureCurrency(savePath: string, currency: number): void {
       String(currency),
     ],
     {
-      cwd: REPO_ROOT,
-      env: { ...process.env, PYTHONPATH: path.join(REPO_ROOT, "python") },
+      cwd: PYTHON_ROOT,
+      env: { ...process.env, PYTHONPATH: PYTHON_ROOT },
       stdio: "inherit",
     },
   );
@@ -40,8 +40,8 @@ function replaceMetaTokens(metaPath: string, token: number): void {
       String(token),
     ],
     {
-      cwd: REPO_ROOT,
-      env: { ...process.env, PYTHONPATH: path.join(REPO_ROOT, "python") },
+      cwd: PYTHON_ROOT,
+      env: { ...process.env, PYTHONPATH: PYTHON_ROOT },
       stdio: "inherit",
     },
   );

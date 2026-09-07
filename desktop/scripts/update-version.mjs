@@ -67,7 +67,7 @@ export function updateRepositoryVersion(
     log(`pyproject.toml      ${before.pyproject} -> ${version}`);
     log(`__init__.py         ${before.pythonInit} -> ${version}`);
     log("\nRefreshing uv.lock...");
-    refreshLock(repoRoot, version);
+    refreshLock(path.dirname(paths.pyproject), version);
     log("Checking version alignment...");
     const aligned = assertVersionAlignment(repoRoot);
     log(`\nRepoDitor v${aligned} is aligned.`);

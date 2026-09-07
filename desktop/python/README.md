@@ -35,29 +35,32 @@ charge, battery-upgrade, purchase, or item lifecycle write rules.
 ## Structure
 
 ```text
-python/
+desktop/python/
 ├── README.md
-└── repo_save_editor/
-    ├── core/         # crypto, schema validation, and shared save primitives
-    ├── desktop_api/  # JSON command boundary used by Electron
-    ├── services/     # domain semantics
-    │   ├── game/     # installation and map discovery
-    │   ├── items/    # item models, validation, discovery, and mutations
-    │   ├── player/   # player state, Steam profiles, and upgrades
-    │   ├── saves/    # save discovery and summaries
-    │   └── run.py    # run stats and resume state
-    └── storage/      # repository access, backups, verification, atomic writes
+├── pyproject.toml
+├── uv.lock
+├── repo_save_editor/
+│   ├── core/         # crypto, schema validation, and shared save primitives
+│   ├── desktop_api/  # JSON command boundary used by Electron
+│   ├── services/     # domain semantics
+│   │   ├── game/     # installation and map discovery
+│   │   ├── items/    # item models, validation, discovery, and mutations
+│   │   ├── player/   # player state, Steam profiles, and upgrades
+│   │   ├── saves/    # save discovery and summaries
+│   │   └── run.py    # run stats and resume state
+│   └── storage/      # repository access, backups, verification, atomic writes
+└── tests/            # Python package and desktop API tests
 ```
 
 ## Development
 
-Run Python commands from the repository root:
+Run Python commands from `desktop/python/`:
 
 ```powershell
 uv sync --locked --group package
 
-uv run ruff check python tests
-uv run ruff format --check python tests
+uv run ruff check repo_save_editor tests
+uv run ruff format --check repo_save_editor tests
 uv run --with "pytest>=8.3,<9" pytest
 ```
 
@@ -71,12 +74,12 @@ Do not import through the directory name:
 
 ```python
 # Wrong
-from python.repo_save_editor.services.player.state import get_players
+from desktop.python.repo_save_editor.services.player.state import get_players
 ```
 
 ## Desktop runtime
 
-During development, Electron launches the repository virtual environment and
+During development, Electron launches `desktop/python/.venv` and
 uses `repo_save_editor.desktop_api`.
 
 For packaged Windows builds, PyInstaller bundles this package into the

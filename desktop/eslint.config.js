@@ -26,6 +26,7 @@ export default defineConfig([
     "dist-electron",
     "node_modules",
     "playwright-report",
+    "python/",
     "test-results",
   ]),
   {
