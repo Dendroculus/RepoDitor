@@ -15,7 +15,8 @@ COMPATIBILITY_IV = bytes.fromhex(COMPATIBILITY["iv_hex"])
 def test_crypto_round_trip(sample_save):
     encrypted = encrypt_save(sample_save)
 
-    assert encrypted[:1] != b"{"
+    assert len(encrypted) > 16
+    assert (len(encrypted) - 16) % 16 == 0
     assert decrypt_save(encrypted) == sample_save
 
 
