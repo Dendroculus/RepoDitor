@@ -10,7 +10,12 @@ RepoDitor currently supports the observed R.E.P.O. run-save container:
 - PKCS#7 padding
 - decrypted payload encoded as JSON
 
-The implementation lives in `repo_save_editor.core.crypto`; interfaces must not implement their own crypto path.
+The Desktop runtime implementation lives in
+`desktop/python/repo_save_editor/core/crypto.py`. The Web runtime independently
+implements the same observed container contract with Web Crypto because a browser
+cannot use the Desktop Python sidecar. Desktop and Web do not import implementation
+code from each other; `compatibility/es3/known-vector.json` is their shared,
+product-neutral compatibility oracle.
 
 These parameters reproduce the observed R.E.P.O./ES3 format; they are compatibility requirements,
 not modern cryptographic choices made by RepoDitor. The fixed ES3 password used as PBKDF2 input is
