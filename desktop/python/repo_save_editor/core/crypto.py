@@ -22,7 +22,7 @@ class SaveCryptoError(ValueError):
 # material, not a user credential or application secret. PBKDF2-HMAC-SHA1/100,
 # AES-CBC, and PKCS#7 must remain exact or existing saves will no longer decrypt
 # and newly written saves will not match the observed format. See SECURITY.md
-# and the known compatibility vector in tests/core/test_crypto.py.
+# and the known compatibility vector in desktop/python/tests/core/test_crypto.py.
 ES3_PASSWORD = "Why would you want to cheat?... :o It's no fun. :') :'D"
 ES3_COMPAT_IV_SIZE_BYTES = 16
 ES3_COMPAT_PBKDF2_HASH = "sha1"

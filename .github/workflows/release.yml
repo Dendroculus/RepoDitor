@@ -26,12 +26,14 @@ jobs:
           python-version: "3.13"
 
       - name: Sync locked Python and packaging dependencies
+        working-directory: desktop/python
         run: uv sync --locked --group package
 
       - name: Python quality and tests
+        working-directory: desktop/python
         run: |
-          uv run ruff check python tests
-          uv run ruff format --check python tests
+          uv run ruff check repo_save_editor tests
+          uv run ruff format --check repo_save_editor tests
           uv run --with "pytest>=8.3,<9" pytest
 
       - name: Set up Node

@@ -15,20 +15,11 @@ import globals from "globals";
 import { defineConfig, globalIgnores } from "eslint/config";
 
 const configDirectory = dirname(fileURLToPath(import.meta.url));
-const rendererEntryPoint = fileURLToPath(new URL("./src/index.css", import.meta.url));
-const rendererTsconfig = fileURLToPath(new URL("./tsconfig.app.json", import.meta.url));
+const webEntryPoint = fileURLToPath(new URL("./src/index.css", import.meta.url));
+const webTsconfig = fileURLToPath(new URL("./tsconfig.app.json", import.meta.url));
 
 export default defineConfig([
-  globalIgnores([
-    ".vite-cache",
-    "coverage",
-    "dist",
-    "dist-electron",
-    "node_modules",
-    "playwright-report",
-    "python/",
-    "test-results",
-  ]),
+  globalIgnores([".vite-cache", "coverage", "dist", "node_modules"]),
   {
     files: ["**/*.{js,mjs,cjs}"],
     languageOptions: {
@@ -39,16 +30,14 @@ export default defineConfig([
     rules: { ...js.configs.recommended.rules },
   },
   {
-    files: ["**/*.{ts,tsx,cts,mts}"],
+    files: ["**/*.{ts,tsx,mts}"],
     languageOptions: {
       parser: tsParser,
       ecmaVersion: "latest",
       sourceType: "module",
       parserOptions: {
         ecmaFeatures: { jsx: true },
-        projectService: {
-          allowDefaultProject: ["playwright.config.ts"],
-        },
+        projectService: true,
         tsconfigRootDir: configDirectory,
       },
       globals: { ...globals.browser, ...globals.node },
@@ -83,26 +72,6 @@ export default defineConfig([
     },
   },
   {
-    files: ["electron/**/*.cts"],
-    languageOptions: {
-      parserOptions: {
-        project: "./tsconfig.electron.json",
-        projectService: false,
-        tsconfigRootDir: configDirectory,
-      },
-    },
-  },
-  {
-    files: ["electron/**/*.test.ts"],
-    languageOptions: {
-      parserOptions: {
-        project: "./electron/tsconfig.json",
-        projectService: false,
-        tsconfigRootDir: configDirectory,
-      },
-    },
-  },
-  {
     files: ["src/**/*.{ts,tsx}"],
     plugins: {
       react,
@@ -132,7 +101,7 @@ export default defineConfig([
           patterns: [
             {
               regex: "^\\.\\./",
-              message: "Use a renderer alias instead of importing from a parent directory.",
+              message: "Use the @/ alias instead of importing from a parent directory.",
             },
           ],
         },
@@ -144,8 +113,8 @@ export default defineConfig([
     plugins: { "better-tailwindcss": betterTailwindcss },
     settings: {
       "better-tailwindcss": {
-        entryPoint: rendererEntryPoint,
-        tsconfig: rendererTsconfig,
+        entryPoint: webEntryPoint,
+        tsconfig: webTsconfig,
         messageStyle: "compact",
       },
     },

@@ -60,7 +60,7 @@ Watch especially:
 - `desktop/src/app/*`
 - Electron `main.cts`
 - Electron `preload.cts`
-- Python `desktop_api/__main__.py`
+- Python `desktop/python/repo_save_editor/desktop_api/__main__.py`
 
 Split when a file has multiple independent reasons to change, not merely because it crossed an arbitrary line count.
 

@@ -184,9 +184,10 @@ replacement. Tests must never target a real user save.
 ```powershell
 git clone https://github.com/Yoruxyv/RepoDitor.git
 Set-Location RepoDitor
+Set-Location desktop/python
 uv sync --locked
 
-Set-Location desktop
+Set-Location ..
 npm ci
 ```
 
@@ -199,12 +200,13 @@ Python formatting is enforced by Ruff. Desktop JavaScript, TypeScript, TSX, CTS,
 Run the checks affected by your change. The full baseline is:
 
 ```powershell
-uv run ruff check python tests
-uv run ruff format --check python tests
+Set-Location desktop/python
+uv run ruff check repo_save_editor tests
+uv run ruff format --check repo_save_editor tests
 uv run mypy
 uv run --locked --group test pytest
 
-Set-Location desktop
+Set-Location ..
 npm run imports:check
 npm run format:check
 npm run lint

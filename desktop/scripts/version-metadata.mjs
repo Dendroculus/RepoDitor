@@ -8,12 +8,13 @@ import path from "node:path";
 export const STRICT_VERSION = /^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/u;
 
 export function versionPaths(repoRoot) {
+  const pythonRoot = path.join(repoRoot, "desktop", "python");
   return {
     packageJson: path.join(repoRoot, "desktop", "package.json"),
     packageLock: path.join(repoRoot, "desktop", "package-lock.json"),
-    pyproject: path.join(repoRoot, "pyproject.toml"),
-    pythonInit: path.join(repoRoot, "python", "repo_save_editor", "__init__.py"),
-    uvLock: path.join(repoRoot, "uv.lock"),
+    pyproject: path.join(pythonRoot, "pyproject.toml"),
+    pythonInit: path.join(pythonRoot, "repo_save_editor", "__init__.py"),
+    uvLock: path.join(pythonRoot, "uv.lock"),
   };
 }
 

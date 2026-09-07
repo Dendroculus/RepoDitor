@@ -15,7 +15,7 @@ import { _electron as electron, type ElectronApplication, type Page } from "@pla
 
 import {
   DESKTOP_ROOT,
-  REPO_ROOT,
+  PYTHON_ROOT,
   createMetaSaveFixture,
   createRunSaveFixture,
   getPythonExecutable,
@@ -54,7 +54,7 @@ export async function createGameFixture(home: string): Promise<string> {
       path.join(DESKTOP_ROOT, "e2e", "fixture_generators", "create-recharge-game-assets.py"),
       gameRoot,
     ],
-    { cwd: REPO_ROOT, stdio: "inherit" },
+    { cwd: PYTHON_ROOT, stdio: "inherit" },
   );
   execFileSync(
     getPythonExecutable(),
@@ -63,8 +63,8 @@ export async function createGameFixture(home: string): Promise<string> {
       gameRoot,
     ],
     {
-      cwd: REPO_ROOT,
-      env: { ...process.env, PYTHONPATH: path.join(REPO_ROOT, "python") },
+      cwd: PYTHON_ROOT,
+      env: { ...process.env, PYTHONPATH: PYTHON_ROOT },
       stdio: "inherit",
     },
   );

@@ -66,15 +66,16 @@ export interface PythonRecordClient extends PythonClient {
   ): Promise<unknown>;
 }
 
-function getRepoRoot(): string {
-  return path.resolve(__dirname, "..", "..", "..");
+function getDesktopPythonRoot(): string {
+  return path.resolve(__dirname, "..", "..", "python");
 }
 
 function getDevelopmentPythonExecutable(): string {
+  const pythonRoot = getDesktopPythonRoot();
   const executable =
     process.platform === "win32"
-      ? path.join(getRepoRoot(), ".venv", "Scripts", "python.exe")
-      : path.join(getRepoRoot(), ".venv", "bin", "python");
+      ? path.join(pythonRoot, ".venv", "Scripts", "python.exe")
+      : path.join(pythonRoot, ".venv", "bin", "python");
   return executable;
 }
 
@@ -113,7 +114,7 @@ function getPythonInvocation(
   return {
     executable: getDevelopmentPythonExecutable(),
     arguments: buildPythonArguments(command, arguments_, false),
-    cwd: getRepoRoot(),
+    cwd: getDesktopPythonRoot(),
   };
 }
 

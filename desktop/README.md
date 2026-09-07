@@ -5,11 +5,14 @@ The renderer uses `@/` for `src` imports and `@electron/` for shared Electron co
 ## Development
 
 ```powershell
+Set-Location python
+uv sync --locked
+Set-Location ..
 npm ci
 npm run dev
 ```
 
-Development launches the Python desktop API from the repository `.venv`.
+Development launches the Python desktop API from `desktop/python/.venv`.
 
 ## Quality gate
 

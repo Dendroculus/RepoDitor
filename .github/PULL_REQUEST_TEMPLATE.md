@@ -40,6 +40,7 @@
 
 ```text
 # Example:
+# cd desktop/python
 # uv run pytest
 # cd desktop
 # npm run lint

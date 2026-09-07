@@ -348,12 +348,13 @@ batas import renderer, lint, build TypeScript, test component/contract,
 Windows Electron E2E, isi package, packaged E2E tanpa Vite, dan struktur installer.
 
 ```powershell
-uv run ruff check python tests
-uv run ruff format --check python tests
+Set-Location desktop/python
+uv run ruff check repo_save_editor tests
+uv run ruff format --check repo_save_editor tests
 uv run mypy
 uv run --locked --no-dev --group test pytest
 
-Set-Location desktop
+Set-Location ..
 npm run imports:check
 npm run format:check
 npm run lint
@@ -371,9 +372,10 @@ Development memerlukan `uv`, Python 3.11 atau lebih baru, dan Node.js 24.
 ```powershell
 git clone https://github.com/Yoruxyv/RepoDitor.git
 Set-Location RepoDitor
+Set-Location desktop/python
 uv sync --locked
 
-Set-Location desktop
+Set-Location ..
 npm ci
 npm run dev
 ```

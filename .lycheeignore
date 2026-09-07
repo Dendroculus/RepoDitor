@@ -4,6 +4,10 @@
 # while Lychee resolves that absolute path against the repository root.
 ^file://.*/favicon\.svg$
 
+# Vite serves /icon.png from web/public at runtime/build time,
+# while Lychee resolves that absolute path against the repository root.
+^file://.*/icon\.png$
+
 # Pixabay returns HTTP 403 to automated CI link checkers for these
 # attribution URLs even though they are the canonical source/license links.
 ^https\://pixabay\.com/service/license-summary/?$

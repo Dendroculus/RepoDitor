@@ -1,7 +1,7 @@
 # Release checklist
 
 Official releases are assisted Windows x64 NSIS installers built from semantic tags that match
-the version in both `pyproject.toml` and `desktop/package.json`. The current procedure is generic;
+the version in both `desktop/python/pyproject.toml` and `desktop/package.json`. The current procedure is generic;
 the measured v0.1.0 release-candidate data remains preserved as a historical baseline below.
 
 ## Windows code signing preparation
@@ -141,7 +141,8 @@ and installer checksum generation before publishing.
    ```
 
    `desktop/package.json` is the primary release version. The updater synchronizes
-   `package-lock.json`, `pyproject.toml`, Python `__version__`, and `uv.lock`. Renderer and E2E
+   `package-lock.json`, `desktop/python/pyproject.toml`, Python `__version__`, and
+   `desktop/python/uv.lock`. Renderer and E2E
    tests derive their expected version from package metadata and do not need release-specific edits.
 2. Confirm the RepoDitor icon, product name, current-version About information,
    signing-status notice, and native-menu removal are current.

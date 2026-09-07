@@ -122,7 +122,7 @@ never be committed:
 
 The second save was captured after one use of the single Inflatable Hammer and a normal save
 transition. A sanitized minimum projection of the confirmed structures is stored in
-`tests/fixtures/advanced_charge_pair.json`, and the E2E save projection is stored in
+`desktop/python/tests/fixtures/advanced_charge_pair.json`, and the E2E save projection is stored in
 `desktop/e2e/fixtures/save.json`; both contain no personal identifiers.
 
 The A/B pair had three advanced-container differences:
