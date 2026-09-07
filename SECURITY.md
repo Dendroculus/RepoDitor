@@ -79,7 +79,8 @@ RepoDitor's supported boundary requires:
   count, replacing CBC with GCM, changing the padding, or otherwise modernizing the scheme would
   derive a different key or emit an incompatible container. AES-CBC does not provide authentication,
   and RepoDitor does not claim that the ES3 format is authenticated. The known byte-for-byte vector
-  in `tests/core/test_crypto.py` intentionally locks this behavior against accidental format drift.
+  in `desktop/python/tests/core/test_crypto.py` intentionally locks this behavior against accidental
+  format drift.
 - A user or process with control of the trusted Windows account can already read
   or replace files accessible to that account.
 

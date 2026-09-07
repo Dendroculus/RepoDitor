@@ -330,12 +330,13 @@ boundaries, lint, TypeScript builds, component/contract tests, Windows Electron
 E2E, package contents, packaged E2E without Vite, and installer structure.
 
 ```powershell
-uv run ruff check python tests
-uv run ruff format --check python tests
+Set-Location desktop/python
+uv run ruff check repo_save_editor tests
+uv run ruff format --check repo_save_editor tests
 uv run mypy
 uv run --locked --no-dev --group test pytest
 
-Set-Location desktop
+Set-Location ..
 npm run imports:check
 npm run format:check
 npm run lint
@@ -353,9 +354,10 @@ Development requires `uv`, Python 3.11 or newer, and Node.js 24.
 ```powershell
 git clone https://github.com/Yoruxyv/RepoDitor.git
 Set-Location RepoDitor
+Set-Location desktop/python
 uv sync --locked
 
-Set-Location desktop
+Set-Location ..
 npm ci
 npm run dev
 ```
