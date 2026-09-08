@@ -15,6 +15,23 @@ import type {
 } from "@electron/contracts";
 
 export type RunEntryTask = "items" | "upgrades" | "players" | "avatars" | "run" | "maps";
+export type RunEntryTaskStatus = "waiting" | "running" | "completed";
+
+export interface RunEntryProgress {
+  readonly completed: number;
+  readonly total: number;
+  readonly currentTask: RunEntryTask | null;
+  readonly tasks: Readonly<Partial<Record<RunEntryTask, RunEntryTaskStatus>>>;
+}
+
+export const RUN_ENTRY_TASK_PRIORITY: readonly RunEntryTask[] = [
+  "items",
+  "upgrades",
+  "players",
+  "avatars",
+  "run",
+  "maps",
+];
 
 export interface RunEntryData {
   readonly artworkDegraded: boolean;
@@ -32,7 +49,18 @@ interface PrepareRunEntryOptions {
   readonly presentationReadiness: "ready" | "unresolved";
   readonly maps: () => Promise<DesktopOperationResult<InstalledMapsDto>>;
   readonly existingData?: RunEntryData | null;
-  readonly onPendingTasksChange: (tasks: ReadonlySet<RunEntryTask>) => void;
+  readonly onProgressChange: (progress: RunEntryProgress) => void;
+}
+
+/** Create an honest initial lifecycle snapshot for the work planned on editor entry. */
+export function initialRunEntryProgress(existingData: RunEntryData | null): RunEntryProgress {
+  const planned = existingData === null ? RUN_ENTRY_TASK_PRIORITY : (["upgrades"] as const);
+  return {
+    completed: 0,
+    total: planned.length,
+    currentTask: planned[0] ?? null,
+    tasks: Object.fromEntries(planned.map((task) => [task, "waiting"])),
+  };
 }
 
 function bridgeFailure<T>(message: string): DesktopOperationResult<T> {
@@ -101,18 +129,28 @@ export async function prepareRunEntryData({
   presentationReadiness,
   maps,
   existingData = null,
-  onPendingTasksChange,
+  onProgressChange,
 }: PrepareRunEntryOptions): Promise<RunEntryData> {
-  const pending = new Set<RunEntryTask>();
-  const update = () => onPendingTasksChange(new Set(pending));
+  const initialProgress = initialRunEntryProgress(existingData);
+  const tasks: Partial<Record<RunEntryTask, RunEntryTaskStatus>> = { ...initialProgress.tasks };
+  const update = () => {
+    const completed = Object.values(tasks).filter((status) => status === "completed").length;
+    const currentTask =
+      RUN_ENTRY_TASK_PRIORITY.find((task) => tasks[task] === "running") ??
+      RUN_ENTRY_TASK_PRIORITY.find((task) => tasks[task] === "waiting") ??
+      null;
+    onProgressChange({ completed, total: initialProgress.total, currentTask, tasks: { ...tasks } });
+  };
+
+  update();
 
   const tracked = async <T>(task: RunEntryTask, request: () => Promise<T>): Promise<T> => {
-    pending.add(task);
+    tasks[task] = "running";
     update();
     try {
       return await request();
     } finally {
-      pending.delete(task);
+      tasks[task] = "completed";
       update();
     }
   };
