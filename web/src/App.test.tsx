@@ -1,8 +1,10 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "@/App";
 import { encryptEs3 } from "@/features/save-file/es3";
+import { loadSaveBytes } from "@/features/save-file/pipeline";
+import { inspectRunSave } from "@/features/run-save/runSave";
 
 const createObjectUrlDescriptor = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
 const revokeObjectUrlDescriptor = Object.getOwnPropertyDescriptor(URL, "revokeObjectURL");
@@ -19,7 +21,7 @@ function restoreUrlMethod(
 }
 
 function installDownloadMocks() {
-  const createObjectURL = vi.fn(() => "blob:verified");
+  const createObjectURL = vi.fn((_blob: Blob) => "blob:verified");
   const revokeObjectURL = vi.fn();
   const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
   Object.defineProperties(URL, {
@@ -29,10 +31,18 @@ function installDownloadMocks() {
   return { click, createObjectURL, revokeObjectURL };
 }
 
-async function runFile(): Promise<File> {
+async function runFile(playerIds: readonly [string, string] = ["111", "222"]): Promise<File> {
+  const [alphaId, betaId] = playerIds;
   const plaintext = JSON.stringify({
-    playerNames: { value: { "111": "Alpha" } },
-    dictionaryOfDictionaries: { value: { runStats: { privateUnknown: "kept-local" } } },
+    playerNames: { value: { [alphaId]: "Alpha", [betaId]: "Beta User" } },
+    dictionaryOfDictionaries: {
+      value: {
+        runStats: { currency: 12, level: 0, privateUnknown: "kept-local", "save level": 0 },
+        playerHealth: { [alphaId]: 80, [betaId]: 60 },
+        playerUpgradeHealth: { [alphaId]: 1, [betaId]: 0 },
+        playerUpgradeStrength: { [alphaId]: 2 },
+      },
+    },
   });
   const encrypted = await encryptEs3(new TextEncoder().encode(plaintext), {
     testIv: new Uint8Array(16),
@@ -40,6 +50,12 @@ async function runFile(): Promise<File> {
   const file = new File([encrypted], "REPO_SAVE.es3");
   Object.defineProperty(file, "arrayBuffer", { value: async () => encrypted.buffer });
   return file;
+}
+
+const STEAM_PLAYER_IDS = ["76561197960287930", "76561198000000001"] as const;
+
+function avatarEndpointResponse(avatars: Record<string, string>): Response {
+  return Response.json({ avatars });
 }
 
 async function metaFile(): Promise<File> {
@@ -58,6 +74,7 @@ async function metaFile(): Promise<File> {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   restoreUrlMethod("createObjectURL", createObjectUrlDescriptor);
   restoreUrlMethod("revokeObjectURL", revokeObjectUrlDescriptor);
 });
@@ -72,7 +89,7 @@ describe("App", () => {
         name: "Edit R.E.P.O. saves directly in your browser.",
       }),
     ).toBeTruthy();
-    expect(screen.getByText("Your save never leaves this device.")).toBeTruthy();
+    expect(screen.getByText(/Save processing stays on this device/)).toBeTruthy();
 
     const fileInput = screen.getByLabelText(/drop a save here/i);
     expect(fileInput.getAttribute("type")).toBe("file");
@@ -91,12 +108,272 @@ describe("App", () => {
       target: { files: [file] },
     });
 
-    expect(await screen.findByText("Run save ready")).toBeTruthy();
-    expect(screen.getByText(/decrypted and validated/i)).toBeTruthy();
+    expect(await screen.findByTestId("save-workspace")).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "REPO_SAVE.es3" })).toBeTruthy();
+    expect(screen.getByText("Run save")).toBeTruthy();
     expect(screen.getByText("Clean")).toBeTruthy();
-    expect(screen.getByText("Passed")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Review changes" })).toBeNull();
+    expect(screen.queryByTestId("pending-changes-review")).toBeNull();
+    expect(screen.getByText("Validated locally")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Download verified copy" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Players" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByRole("button", { name: "Alpha111" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Beta User222" })).toBeTruthy();
+    const identity = screen.getByTestId("selected-player-identity");
+    expect(within(identity).getByRole("heading", { name: "Alpha" })).toBeTruthy();
+    expect(within(identity).getByText("111")).toBeTruthy();
+    expect(screen.getByTestId("player-avatar-fallback").textContent).toBe("A");
+    expect(identity.querySelector("img")).toBeNull();
     expect(screen.queryByText("kept-local")).toBeNull();
+    expect(
+      screen.queryByRole("heading", {
+        level: 1,
+        name: "Edit R.E.P.O. saves directly in your browser.",
+      }),
+    ).toBeNull();
+    expect(screen.queryByRole("link", { name: /get repoditor desktop/i })).toBeNull();
+  });
+
+  it("stages core Run edits in memory and discards them back to the baseline", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await runFile()] },
+    });
+    await screen.findByTestId("save-workspace");
+
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Current health" }), {
+      target: { value: "95" },
+    });
+    expect(screen.getByText("1 pending change")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Upgrades" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Strength" }), {
+      target: { value: "3" },
+    });
+    expect(screen.getByText("2 pending changes")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Run" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Currency" }), {
+      target: { value: "50000" },
+    });
+    expect(screen.getByText("3 pending changes")).toBeTruthy();
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Run level" }), {
+      target: { value: "5" },
+    });
+    expect(screen.getByText("4 pending changes")).toBeTruthy();
+    fireEvent.change(screen.getByLabelText("Next spawn"), { target: { value: "shop" } });
+
+    expect(screen.getByText("5 pending changes")).toBeTruthy();
+    const reviewButton = screen.getByRole("button", { name: "Review changes" });
+    expect(reviewButton.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(reviewButton);
+    expect(reviewButton.getAttribute("aria-expanded")).toBe("true");
+
+    const review = screen.getByTestId("pending-changes-review");
+    expect(review.hidden).toBe(false);
+    expect(
+      within(review)
+        .getAllByRole("listitem")
+        .map((item) => item.textContent),
+    ).toEqual([
+      "Alpha · Current health80 → 95",
+      "Alpha · Strength2 → 3",
+      "Run · Run level1 → 5",
+      "Run · Currency12 → 50000",
+      "Run · Next spawnNormal → Shop / Service Station",
+    ]);
+    fireEvent.click(reviewButton);
+    expect(reviewButton.getAttribute("aria-expanded")).toBe("false");
+    expect(review.hidden).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+
+    expect(screen.getByText("Clean")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Review changes" })).toBeNull();
+    expect(screen.queryByTestId("pending-changes-review")).toBeNull();
+    await waitFor(() =>
+      expect((screen.getByRole("spinbutton", { name: "Currency" }) as HTMLInputElement).value).toBe(
+        "12",
+      ),
+    );
+    expect((screen.getByLabelText("Next spawn") as HTMLSelectElement).value).toBe("normal");
+    expect((screen.getByRole("spinbutton", { name: "Run level" }) as HTMLInputElement).value).toBe(
+      "1",
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Players" }));
+    expect(
+      (screen.getByRole("spinbutton", { name: "Current health" }) as HTMLInputElement).value,
+    ).toBe("80");
+  });
+
+  it("removes a pending edit when the value is manually restored", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await runFile()] },
+    });
+    await screen.findByTestId("save-workspace");
+    const health = screen.getByRole("spinbutton", { name: "Current health" });
+
+    fireEvent.change(health, { target: { value: "95" } });
+    expect(screen.getByText("1 pending change")).toBeTruthy();
+
+    fireEvent.change(health, { target: { value: "80" } });
+    expect(screen.getByText("Clean")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Review changes" })).toBeNull();
+    expect(
+      (screen.getByRole("button", { name: "Discard changes" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it("keeps one live pending edit per field and removes it at the baseline", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await runFile()] },
+    });
+    await screen.findByTestId("save-workspace");
+    fireEvent.click(screen.getByRole("tab", { name: "Run" }));
+    const currency = screen.getByRole("spinbutton", { name: "Currency" });
+
+    fireEvent.change(currency, { target: { value: "67" } });
+    expect(screen.getByText("1 pending change")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+    expect(screen.getByRole("listitem").textContent).toBe("Run · Currency12 → 67");
+
+    fireEvent.change(currency, { target: { value: "68" } });
+    fireEvent.change(currency, { target: { value: "69" } });
+    expect(screen.getByText("1 pending change")).toBeTruthy();
+    expect(screen.getByRole("listitem").textContent).toBe("Run · Currency12 → 69");
+
+    fireEvent.change(currency, { target: { value: "12" } });
+    expect(screen.getByText("Clean")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Review changes" })).toBeNull();
+  });
+
+  it("keeps the Desktop-style player selection and tab keyboard navigation accessible", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await runFile()] },
+    });
+    await screen.findByTestId("save-workspace");
+
+    fireEvent.click(screen.getByRole("button", { name: "Beta User222" }));
+    const identity = screen.getByTestId("selected-player-identity");
+    expect(within(identity).getByRole("heading", { name: "Beta User" })).toBeTruthy();
+    expect(screen.getByTestId("player-avatar-fallback").textContent).toBe("BU");
+    expect(
+      (screen.getByRole("spinbutton", { name: "Current health" }) as HTMLInputElement).value,
+    ).toBe("60");
+
+    const playersTab = screen.getByRole("tab", { name: "Players" });
+    fireEvent.keyDown(playersTab, { key: "ArrowRight" });
+    expect(screen.getByRole("tab", { name: "Upgrades" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("heading", { name: "Upgrades" })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("tab", { name: "Run" }));
+    expect(screen.getByRole("spinbutton", { name: "Run level" })).toBeTruthy();
+    expect(screen.getByRole("spinbutton", { name: "Currency" })).toBeTruthy();
+    expect(screen.getByLabelText("Next spawn")).toBeTruthy();
+  });
+
+  it("loads optional Steam avatars automatically and fails independently", async () => {
+    const download = installDownloadMocks();
+    const storageWrite = vi.spyOn(Storage.prototype, "setItem");
+    const avatarUrl = "https://avatars.fastly.steamstatic.com/avatar.jpg";
+    let resolveAvatars!: (response: Response) => void;
+    const pendingAvatars = new Promise<Response>((resolve) => {
+      resolveAvatars = resolve;
+    });
+    const fetchEndpoint = vi.fn<typeof fetch>().mockReturnValue(pendingAvatars);
+    vi.stubGlobal("fetch", fetchEndpoint);
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await runFile(STEAM_PLAYER_IDS)] },
+    });
+    await screen.findByTestId("save-workspace");
+
+    await waitFor(() => expect(fetchEndpoint).toHaveBeenCalledOnce());
+    expect(screen.queryByRole("button", { name: /Load Steam avatars/ })).toBeNull();
+    expect(screen.getByTestId("player-avatar-fallback").textContent).toBe("A");
+
+    const health = screen.getByRole("spinbutton", { name: "Current health" });
+    fireEvent.change(health, { target: { value: "61" } });
+    expect(screen.getByText("1 pending change")).toBeTruthy();
+
+    await act(() => {
+      resolveAvatars(avatarEndpointResponse({ [STEAM_PLAYER_IDS[1]]: avatarUrl }));
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: `Beta User${STEAM_PLAYER_IDS[1]}` }));
+    const avatar = await screen.findByRole("img", { name: "Steam avatar for Beta User" });
+    expect(avatar.getAttribute("src")).toBe(avatarUrl);
+    fireEvent.load(avatar);
+    expect(screen.queryByTestId("player-avatar-fallback")).toBeNull();
+
+    fireEvent.error(avatar);
+    expect(await screen.findByTestId("player-avatar-fallback")).toBeTruthy();
+
+    const [url, options] = fetchEndpoint.mock.calls[0]!;
+    expect(url).toBe("/api/steam-avatars");
+    expect(JSON.parse(String(options?.body))).toEqual({ steamIds: STEAM_PLAYER_IDS });
+    expect(String(options?.body)).not.toContain("privateUnknown");
+    expect(String(options?.body)).not.toContain("playerHealth");
+    expect(storageWrite).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Download verified copy" }));
+    expect(
+      await screen.findByText("REPO_SAVE.repoditor.es3 was verified and downloaded."),
+    ).toBeTruthy();
+    expect(download.click).toHaveBeenCalledOnce();
+  });
+
+  it("keeps invalid Run input out of the working save", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await runFile()] },
+    });
+    await screen.findByTestId("save-workspace");
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Current health" }), {
+      target: { value: "-1" },
+    });
+
+    expect(screen.getByRole("alert").textContent).toMatch(/between 0 and 2,147,483,647/iu);
+    expect(screen.getByText("Clean")).toBeTruthy();
+    expect(
+      (screen.getByRole("button", { name: "Discard changes" }) as HTMLButtonElement).disabled,
+    ).toBe(true);
+  });
+
+  it("does not stage or overwrite accepted state with invalid numeric drafts", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await runFile()] },
+    });
+    await screen.findByTestId("save-workspace");
+    const health = screen.getByRole("spinbutton", { name: "Current health" });
+
+    for (const value of ["", "-", "1.5", "2147483648"]) {
+      fireEvent.change(health, { target: { value } });
+      expect(screen.getByText("Clean")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Review changes" })).toBeNull();
+    }
+
+    fireEvent.change(health, { target: { value: "95" } });
+    expect(screen.getByText("1 pending change")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+    expect(screen.getByRole("listitem").textContent).toBe("Alpha · Current health80 → 95");
+
+    fireEvent.change(health, { target: { value: "2147483648" } });
+    expect(screen.getByText("1 pending change")).toBeTruthy();
+    expect(screen.getByRole("listitem").textContent).toBe("Alpha · Current health80 → 95");
   });
 
   it("downloads only after an explicit click and reports verification", async () => {
@@ -105,7 +382,12 @@ describe("App", () => {
     const file = await runFile();
 
     fireEvent.change(screen.getByLabelText(/drop a save here/i), { target: { files: [file] } });
-    await screen.findByText("Run save ready");
+    await screen.findByTestId("save-workspace");
+    fireEvent.click(screen.getByRole("tab", { name: "Run" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Currency" }), {
+      target: { value: "67" },
+    });
+    expect(screen.getByText("1 pending change")).toBeTruthy();
 
     expect(download.createObjectURL).not.toHaveBeenCalled();
     expect(download.click).not.toHaveBeenCalled();
@@ -117,6 +399,16 @@ describe("App", () => {
     expect(download.createObjectURL).toHaveBeenCalledOnce();
     expect(download.click).toHaveBeenCalledOnce();
     expect(download.revokeObjectURL).toHaveBeenCalledWith("blob:verified");
+    const exported = download.createObjectURL.mock.calls[0]?.[0];
+    expect(exported).toBeInstanceOf(Blob);
+    if (!(exported instanceof Blob)) {
+      throw new Error("Expected the verified export Blob.");
+    }
+    const reopened = await loadSaveBytes(
+      new Uint8Array(await exported.arrayBuffer()),
+      "REPO_SAVE.repoditor.es3",
+    );
+    expect(inspectRunSave(reopened.data).currency).toBe(67);
   });
 
   it("clears sensitive session state and permits selecting the same file again", async () => {
@@ -124,12 +416,18 @@ describe("App", () => {
     const file = await runFile();
 
     fireEvent.change(screen.getByLabelText(/drop a save here/i), { target: { files: [file] } });
-    await screen.findByText("Run save ready");
+    await screen.findByTestId("save-workspace");
     fireEvent.click(screen.getByRole("button", { name: "Clear" }));
 
-    expect(screen.queryByText("Run save ready")).toBeNull();
+    expect(screen.queryByTestId("save-workspace")).toBeNull();
+    expect(
+      screen.getByRole("heading", {
+        level: 1,
+        name: "Edit R.E.P.O. saves directly in your browser.",
+      }),
+    ).toBeTruthy();
     fireEvent.change(screen.getByLabelText(/drop a save here/i), { target: { files: [file] } });
-    expect(await screen.findByText("Run save ready")).toBeTruthy();
+    expect(await screen.findByTestId("save-workspace")).toBeTruthy();
   });
 
   it("replaces the previous session and export status when another file is selected", async () => {
@@ -139,17 +437,18 @@ describe("App", () => {
     fireEvent.change(screen.getByLabelText(/drop a save here/i), {
       target: { files: [await runFile()] },
     });
-    await screen.findByText("Run save ready");
+    await screen.findByTestId("save-workspace");
     fireEvent.click(screen.getByRole("button", { name: "Download verified copy" }));
     await screen.findByText("REPO_SAVE.repoditor.es3 was verified and downloaded.");
 
-    fireEvent.change(screen.getByLabelText(/run save ready/i), {
+    fireEvent.change(screen.getByLabelText("Change file"), {
       target: { files: [await metaFile()] },
     });
 
-    expect(await screen.findByText("MetaSave ready")).toBeTruthy();
-    expect(screen.getByText("MetaSave.es3 was decrypted and validated.")).toBeTruthy();
+    expect(await screen.findByRole("heading", { level: 2, name: "MetaSave loaded" })).toBeTruthy();
+    expect(screen.getByRole("heading", { level: 1, name: "MetaSave.es3" })).toBeTruthy();
     expect(screen.getByText("Clean")).toBeTruthy();
+    expect(screen.queryByRole("navigation", { name: "Run editor sections" })).toBeNull();
     expect(screen.queryByText(/REPO_SAVE\.repoditor\.es3 was verified/iu)).toBeNull();
   });
 
@@ -175,7 +474,7 @@ describe("App", () => {
     const file = await runFile();
 
     fireEvent.change(screen.getByLabelText(/drop a save here/i), { target: { files: [file] } });
-    await screen.findByText("Run save ready");
+    await screen.findByTestId("save-workspace");
     fireEvent.click(screen.getByRole("button", { name: "Download verified copy" }));
 
     expect(

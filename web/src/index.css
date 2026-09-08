@@ -14,9 +14,11 @@
   --theme-surface: #141a18;
   --theme-surface-raised: #1b2320;
   --theme-line: #2a3430;
+  --theme-line-strong: #3a4742;
   --theme-control: #63706a;
   --theme-ink: #f0f1eb;
   --theme-secondary: #b6beb8;
+  --theme-muted: #89938d;
   --theme-accent: #d99a52;
   --theme-accent-muted: rgb(217 154 82 / 0.12);
   --theme-accent-ink: #17130e;
@@ -32,9 +34,11 @@
     --theme-surface: #fffdf7;
     --theme-surface-raised: #eae8e1;
     --theme-line: #d7d4ca;
+    --theme-line-strong: #b8b3a7;
     --theme-control: #898377;
     --theme-ink: #1a211e;
     --theme-secondary: #48564f;
+    --theme-muted: #59645e;
     --theme-accent: #934d0c;
     --theme-accent-muted: rgb(169 95 22 / 0.12);
     --theme-accent-ink: #fffaf3;
@@ -97,6 +101,43 @@
 
 #root {
   min-height: 100dvh;
+}
+
+/* RepoDitor document scrollbar */
+html {
+  scrollbar-color: var(--theme-line-strong) var(--theme-app);
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+html::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+html::-webkit-scrollbar-track {
+  background: var(--theme-app);
+}
+
+html::-webkit-scrollbar-thumb {
+  background: var(--theme-line-strong);
+  border-radius: 2px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-muted);
+}
+
+html::-webkit-scrollbar-thumb:active {
+  background: var(--theme-accent);
+}
+
+html::-webkit-scrollbar-corner {
+  background: var(--theme-app);
+}
+
+html::-webkit-scrollbar-button {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
