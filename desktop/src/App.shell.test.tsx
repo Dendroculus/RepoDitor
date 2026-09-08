@@ -88,6 +88,11 @@ describe("app shell integration", () => {
     expect(screen.getByTestId("entry-loading-detail").textContent).toContain(
       "Checking cached artwork and loading upgrade data",
     );
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Editor preparation progress" })
+        .getAttribute("aria-valuetext"),
+    ).toBe("5 of 6 editor tasks completed");
     expect(screen.queryByTestId("workspace")).toBeNull();
     expect(window.repoditor.players.list).toHaveBeenCalledTimes(1);
     expect(window.repoditor.run.get).toHaveBeenCalledTimes(1);
@@ -107,11 +112,12 @@ describe("app shell integration", () => {
         degraded: false,
       }),
     );
-    expect(preload.getAttribute("data-entry-mode")).toBe("artwork");
-    expect(screen.getByRole("heading", { name: "Preparing game artwork" })).toBeTruthy();
+    expect(preload.getAttribute("data-entry-mode")).toBe("save");
+    expect(screen.getByRole("heading", { name: "Opening save" })).toBeTruthy();
     expect(screen.getByTestId("entry-loading-detail").textContent).toBe(
       "Decoding Health upgrade artwork…",
     );
+    expect(screen.getByText("0 of 3 upgrade assets prepared · Health")).toBeTruthy();
     expect(screen.queryByTestId("workspace")).toBeNull();
 
     act(() => assetListener?.(readyAssets));
@@ -173,6 +179,11 @@ describe("app shell integration", () => {
     expect(screen.getByTestId("entry-loading-detail").textContent).toBe(
       "Reading and validating save data…",
     );
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Editor preparation progress" })
+        .hasAttribute("aria-valuenow"),
+    ).toBe(false);
     expect(screen.queryByRole("heading", { name: "Preparing game artwork" })).toBeNull();
     expect(screen.queryByTestId("workspace")).toBeNull();
 
@@ -273,6 +284,11 @@ describe("app shell integration", () => {
     expect(preload.getAttribute("data-entry-mode")).toBe("save");
     expect(screen.getByRole("heading", { name: "Opening save" })).toBeTruthy();
     expect(screen.getByTestId("entry-loading-detail").textContent).toContain("Loading item data");
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Editor preparation progress" })
+        .getAttribute("aria-valuetext"),
+    ).toBe("5 of 6 editor tasks completed");
     expect(screen.queryByRole("heading", { name: "Preparing game artwork" })).toBeNull();
     expect(window.repoditor.upgrades.prepareEntry).not.toHaveBeenCalled();
 
@@ -298,6 +314,11 @@ describe("app shell integration", () => {
     expect(screen.getByTestId("entry-loading-detail").textContent).toContain(
       "Loading upgrade data",
     );
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Editor preparation progress" })
+        .getAttribute("aria-valuetext"),
+    ).toBe("5 of 6 editor tasks completed");
     expect(screen.queryByRole("heading", { name: "Preparing game artwork" })).toBeNull();
     expect(screen.queryByTestId("workspace")).toBeNull();
     expect(window.repoditor.upgrades.prepareEntry).not.toHaveBeenCalled();

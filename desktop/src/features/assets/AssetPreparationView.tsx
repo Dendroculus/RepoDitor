@@ -25,6 +25,8 @@ interface AssetPreparationViewProps {
   readonly state: AssetPreparationState;
   readonly mode?: "save" | "artwork";
   readonly saveDetail?: string;
+  readonly editorProgress?: PreparationProgress | null;
+  readonly artworkDetail?: boolean;
   readonly onContinue?: () => void;
 }
 
@@ -47,11 +49,38 @@ interface PreparationCopy {
   readonly hint: string;
 }
 
+function savePreparationCopy(
+  state: AssetPreparationState,
+  saveDetail: string | undefined,
+  artworkDetail: boolean,
+  slow: boolean,
+  t: Translate,
+): PreparationCopy {
+  let hint = t(slow ? "entry.slowHint" : "entry.localOnlyHint");
+  if (slow && artworkDetail && state.completed !== null && state.total !== null) {
+    hint = t("entry.slowArtworkHint", { completed: state.completed, total: state.total });
+  }
+  let detail = saveDetail ?? t("entry.detail.finalizing");
+  if (artworkDetail) detail = t("entry.detail.preparingUpgradeArtwork");
+  if (artworkDetail && state.currentAssetLabel !== null) {
+    detail = t("entry.detail.upgradeArtwork", { asset: state.currentAssetLabel });
+  }
+  return {
+    localPreparation: t("entry.localPreparation"),
+    preparing: t("entry.preparingEditor"),
+    title: t("saves.openingSave"),
+    detail,
+    hint,
+  };
+}
+
 function preparationProgress(
   state: AssetPreparationState,
   mode: "save" | "artwork",
+  editorProgress: PreparationProgress | null,
 ): PreparationProgress | null {
-  if (mode !== "artwork" || state.completed === null || state.total === null) return null;
+  if (mode === "save") return editorProgress;
+  if (state.completed === null || state.total === null) return null;
   return { completed: state.completed, total: state.total };
 }
 
@@ -59,19 +88,11 @@ function preparationCopy(
   state: AssetPreparationState,
   mode: "save" | "artwork",
   saveDetail: string | undefined,
+  artworkDetail: boolean,
   slow: boolean,
   t: Translate,
 ): PreparationCopy {
-  if (mode === "save") {
-    const hintKey = slow ? "entry.slowHint" : "entry.localOnlyHint";
-    return {
-      localPreparation: t("entry.localPreparation"),
-      preparing: t("entry.preparingEditor"),
-      title: t("saves.openingSave"),
-      detail: saveDetail ?? t("entry.detail.finalizing"),
-      hint: t(hintKey),
-    };
-  }
+  if (mode === "save") return savePreparationCopy(state, saveDetail, artworkDetail, slow, t);
 
   let detail = t(STAGE_KEYS[state.stage]);
   if (state.currentAssetLabel !== null) {
@@ -91,23 +112,27 @@ function preparationCopy(
 }
 
 function PreparationProgressDisplay({
+  mode,
   progress,
   t,
 }: {
+  readonly mode: "save" | "artwork";
   readonly progress: PreparationProgress | null;
   readonly t: Translate;
 }) {
   const filledSegments = countFilledSegments(progress);
+  const labelKey = mode === "save" ? "entry.progressLabel" : "assets.progressLabel";
+  const countKey = mode === "save" ? "entry.progressCount" : "assets.progressCount";
   const progressAttributes =
     progress === null
-      ? {}
+      ? { role: "progressbar" as const, "aria-label": t(labelKey) }
       : {
           role: "progressbar" as const,
-          "aria-label": t("assets.progressLabel"),
+          "aria-label": t(labelKey),
           "aria-valuemin": 0,
           "aria-valuemax": progress.total,
           "aria-valuenow": progress.completed,
-          "aria-valuetext": t("assets.progressCount", {
+          "aria-valuetext": t(countKey, {
             completed: progress.completed,
             total: progress.total,
           }),
@@ -117,7 +142,7 @@ function PreparationProgressDisplay({
   const progressCount =
     progress === null
       ? ""
-      : t("assets.progressCount", {
+      : t(countKey, {
           completed: progress.completed,
           total: progress.total,
         });
@@ -172,6 +197,15 @@ function PreparationProgressDisplay({
   );
 }
 
+function visiblePreparationProgress(
+  mode: "save" | "artwork",
+  progress: PreparationProgress | null,
+  showDetailedProgress: boolean,
+): PreparationProgress | null {
+  if (mode === "save") return progress;
+  return showDetailedProgress ? progress : null;
+}
+
 function AssetPreparationFooter({
   mode,
   state,
@@ -207,10 +241,12 @@ export function AssetPreparationView({
   state,
   mode = "artwork",
   saveDetail,
+  editorProgress = null,
+  artworkDetail = false,
   onContinue,
 }: AssetPreparationViewProps) {
   const { t } = usePreferences();
-  const progress = preparationProgress(state, mode);
+  const progress = preparationProgress(state, mode, editorProgress);
   const hasDetailedProgress = progress !== null;
   const [slow, setSlow] = useState(false);
   const [showDetailedProgress, setShowDetailedProgress] = useState(false);
@@ -221,16 +257,16 @@ export function AssetPreparationView({
   }, []);
 
   useEffect(() => {
-    if (!hasDetailedProgress) {
+    if (!hasDetailedProgress || mode === "save") {
       setShowDetailedProgress(false);
       return;
     }
     const timer = window.setTimeout(() => setShowDetailedProgress(true), PROGRESS_REVEAL_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [hasDetailedProgress]);
+  }, [hasDetailedProgress, mode]);
 
-  const visibleProgress = showDetailedProgress ? progress : null;
-  const copy = preparationCopy(state, mode, saveDetail, slow, t);
+  const visibleProgress = visiblePreparationProgress(mode, progress, showDetailedProgress);
+  const copy = preparationCopy(state, mode, saveDetail, artworkDetail, slow, t);
 
   return (
     <section
@@ -286,7 +322,22 @@ export function AssetPreparationView({
               {copy.detail}
             </p>
 
-            <PreparationProgressDisplay progress={visibleProgress} t={t} />
+            <PreparationProgressDisplay mode={mode} progress={visibleProgress} t={t} />
+
+            {artworkDetail && state.completed !== null && state.total !== null ? (
+              <p className="mt-2 text-right text-xs font-medium text-secondary">
+                {t(
+                  state.currentAssetLabel === null
+                    ? "entry.artworkProgressCount"
+                    : "entry.artworkProgressAsset",
+                  {
+                    completed: state.completed,
+                    total: state.total,
+                    ...(state.currentAssetLabel === null ? {} : { asset: state.currentAssetLabel }),
+                  },
+                )}
+              </p>
+            ) : null}
 
             <p className="mt-5 max-w-[58ch] text-sm/6 text-secondary">{copy.hint}</p>
             {mode === "artwork" && slow && onContinue !== undefined ? (

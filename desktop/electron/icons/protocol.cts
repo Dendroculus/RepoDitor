@@ -51,6 +51,31 @@ interface PersistentTextureEntry {
   readonly watches: readonly SourceWatch[];
 }
 
+export type PresentationCacheDiagnosticReason =
+  | "memory-hit"
+  | "persistent-hit"
+  | "no-persistent-root"
+  | "entry-missing"
+  | "manifest-missing"
+  | "manifest-invalid"
+  | "manifest-unreadable"
+  | "source-missing"
+  | "source-changed"
+  | "source-read-failed"
+  | "artifact-missing"
+  | "artifact-invalid"
+  | "artifact-read-failed"
+  | "source-decode-required"
+  | "persisted"
+  | "persist-failed";
+
+export interface PresentationCacheDiagnostic {
+  readonly reason: PresentationCacheDiagnosticReason;
+  readonly upgradeKey?: string;
+}
+
+export type PresentationCacheDiagnosticSink = (diagnostic: PresentationCacheDiagnostic) => void;
+
 function notFound(): Response {
   return new Response(null, { status: 404 });
 }
@@ -168,7 +193,9 @@ function parseDecodedTexture(value: unknown): DecodedTexture | null {
   return parseDecodedTexturePayload(value.texture);
 }
 
-async function sourcesUnchanged(watches: readonly SourceWatch[]): Promise<boolean> {
+type SourceWatchStatus = "unchanged" | "source-missing" | "source-changed" | "source-read-failed";
+
+async function sourceWatchStatus(watches: readonly SourceWatch[]): Promise<SourceWatchStatus> {
   try {
     for (const watch of watches) {
       const stat = await fs.lstat(watch.path, { bigint: true });
@@ -178,12 +205,14 @@ async function sourcesUnchanged(watches: readonly SourceWatch[]): Promise<boolea
         stat.size !== watch.size ||
         stat.mtimeNs !== watch.mtimeNs
       ) {
-        return false;
+        return "source-changed";
       }
     }
-    return true;
-  } catch {
-    return false;
+    return "unchanged";
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ENOENT"
+      ? "source-missing"
+      : "source-read-failed";
   }
 }
 
@@ -231,22 +260,37 @@ async function replaceCacheFile(root: string, name: string, data: string | Buffe
   }
 }
 
-function parsePersistentManifest(value: unknown): Map<string, PersistentTextureEntry> {
+interface ParsedPersistentManifest {
+  readonly entries: Map<string, PersistentTextureEntry>;
+  readonly valid: boolean;
+}
+
+function parsePersistentManifest(value: unknown): ParsedPersistentManifest {
   const entries = new Map<string, PersistentTextureEntry>();
-  if (!isRecord(value) || value.formatVersion !== PRESENTATION_CACHE_FORMAT_VERSION) return entries;
-  if (!isRecord(value.entries)) return entries;
+  if (!isRecord(value) || value.formatVersion !== PRESENTATION_CACHE_FORMAT_VERSION) {
+    return { entries, valid: false };
+  }
+  if (!isRecord(value.entries)) return { entries, valid: false };
   const rawEntries = Object.entries(value.entries);
-  if (rawEntries.length > MAX_PRESENTATION_CACHE_ENTRIES) return entries;
+  if (rawEntries.length > MAX_PRESENTATION_CACHE_ENTRIES) return { entries, valid: false };
+  let valid = true;
   for (const [upgradeKey, raw] of rawEntries) {
-    if (!validUpgradeKey(upgradeKey) || !isRecord(raw)) continue;
+    if (!validUpgradeKey(upgradeKey) || !isRecord(raw)) {
+      valid = false;
+      continue;
+    }
     if (typeof raw.sourceIdentity !== "string" || !SOURCE_ID_PATTERN.test(raw.sourceIdentity)) {
+      valid = false;
       continue;
     }
     const watches = parseSourceWatches(raw.watches);
-    if (watches === null) continue;
+    if (watches === null) {
+      valid = false;
+      continue;
+    }
     entries.set(upgradeKey, { sourceIdentity: raw.sourceIdentity, watches });
   }
-  return entries;
+  return { entries, valid };
 }
 
 interface PreparationWaiter {
@@ -260,13 +304,26 @@ export class DecodedUpgradeTextureCache {
   readonly #inFlight = new Map<string, Promise<Buffer | null>>();
   readonly #preparing = new Map<string, PreparationWaiter>();
   readonly #persistentEntries = new Map<string, PersistentTextureEntry>();
+  #diagnosticSink: PresentationCacheDiagnosticSink;
   #persistentRoot: string | null = null;
   #persistentLoad: Promise<void> | null = null;
   #persistentTail: Promise<void> = Promise.resolve();
   #decodeTail: Promise<void> = Promise.resolve();
 
-  constructor(persistentRoot: string | null = null) {
+  constructor(
+    persistentRoot: string | null = null,
+    diagnosticSink: PresentationCacheDiagnosticSink = () => undefined,
+  ) {
+    this.#diagnosticSink = diagnosticSink;
     if (persistentRoot !== null) this.configurePersistentRoot(persistentRoot);
+  }
+
+  #diagnose(reason: PresentationCacheDiagnosticReason, upgradeKey?: string): void {
+    try {
+      this.#diagnosticSink(upgradeKey === undefined ? { reason } : { reason, upgradeKey });
+    } catch {
+      // Diagnostics must never make optional presentation artwork unavailable.
+    }
   }
 
   configurePersistentRoot(root: string): void {
@@ -276,6 +333,10 @@ export class DecodedUpgradeTextureCache {
       throw new Error("Presentation cache root is already configured.");
     }
     this.#persistentRoot = resolved;
+  }
+
+  configureDiagnosticSink(sink: PresentationCacheDiagnosticSink): void {
+    this.#diagnosticSink = sink;
   }
 
   beginPreparation(upgradeKeys: readonly string[]): void {
@@ -299,7 +360,13 @@ export class DecodedUpgradeTextureCache {
 
   async storePrepared(upgradeKey: string, value: unknown): Promise<boolean> {
     const decoded = parseDecodedTexturePayload(value);
-    if (decoded === null || !(await sourcesUnchanged(decoded.watches))) return false;
+    if (decoded === null) return false;
+    const sourceStatus = await sourceWatchStatus(decoded.watches);
+    if (sourceStatus !== "unchanged") {
+      this.#diagnose(sourceStatus, upgradeKey);
+      return false;
+    }
+    this.#diagnose("source-decode-required", upgradeKey);
     const png = this.#store(upgradeKey, decoded);
     await this.#persistFailSoft(upgradeKey, decoded);
     this.#resolvePreparation(upgradeKey, png);
@@ -313,7 +380,7 @@ export class DecodedUpgradeTextureCache {
     if (cached !== null) return cached;
     const pending = this.#inFlight.get(upgradeKey) ?? this.#preparing.get(upgradeKey)?.promise;
     if (pending !== undefined) return pending;
-    const task = this.#load(upgradeKey, client);
+    const task = this.#decode(upgradeKey, client);
     this.#inFlight.set(upgradeKey, task);
     try {
       return await task;
@@ -326,7 +393,14 @@ export class DecodedUpgradeTextureCache {
     const knownSource = this.#sourceByUpgrade.get(upgradeKey);
     if (knownSource !== undefined) {
       const cached = this.#bySource.get(knownSource);
-      if (cached !== undefined && (await sourcesUnchanged(cached.watches))) return cached.png;
+      if (cached !== undefined) {
+        const sourceStatus = await sourceWatchStatus(cached.watches);
+        if (sourceStatus === "unchanged") {
+          this.#diagnose("memory-hit", upgradeKey);
+          return cached.png;
+        }
+        this.#diagnose(sourceStatus, upgradeKey);
+      }
       this.#sourceByUpgrade.delete(upgradeKey);
       if (cached !== undefined) this.#bySource.delete(knownSource);
     }
@@ -348,10 +422,8 @@ export class DecodedUpgradeTextureCache {
     waiter.resolve(value);
   }
 
-  async #load(upgradeKey: string, client: PythonClient): Promise<Buffer | null> {
-    const cached = await this.#cached(upgradeKey);
-    if (cached !== null) return cached;
-
+  async #decode(upgradeKey: string, client: PythonClient): Promise<Buffer | null> {
+    this.#diagnose("source-decode-required", upgradeKey);
     let decoded: DecodedTexture | null;
     try {
       const run = this.#decodeTail.then(() => client.run("upgrade-texture", [upgradeKey]));
@@ -363,7 +435,12 @@ export class DecodedUpgradeTextureCache {
     } catch {
       return null;
     }
-    if (decoded === null || !(await sourcesUnchanged(decoded.watches))) return null;
+    if (decoded === null) return null;
+    const sourceStatus = await sourceWatchStatus(decoded.watches);
+    if (sourceStatus !== "unchanged") {
+      this.#diagnose(sourceStatus, upgradeKey);
+      return null;
+    }
     const png = this.#store(upgradeKey, decoded);
     await this.#persistFailSoft(upgradeKey, decoded);
     return png;
@@ -387,14 +464,27 @@ export class DecodedUpgradeTextureCache {
         stat.size <= 0 ||
         stat.size > MAX_PRESENTATION_MANIFEST_BYTES
       ) {
+        this.#diagnose("manifest-invalid");
         return;
       }
       const raw = await fs.readFile(manifestPath, "utf8");
       const parsed = parsePersistentManifest(JSON.parse(raw));
-      for (const [upgradeKey, entry] of parsed) this.#persistentEntries.set(upgradeKey, entry);
+      if (!parsed.valid) this.#diagnose("manifest-invalid");
+      for (const [upgradeKey, entry] of parsed.entries) {
+        this.#persistentEntries.set(upgradeKey, entry);
+      }
+    } catch (error) {
+      let reason: PresentationCacheDiagnosticReason = "manifest-unreadable";
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") reason = "manifest-missing";
+      else if (error instanceof SyntaxError) reason = "manifest-invalid";
+      this.#diagnose(reason);
+      // Persistent presentation data is disposable. Any load failure falls back to source decode.
+      return;
+    }
+    try {
       await this.#prunePersistentArtifacts();
     } catch {
-      // Persistent presentation data is disposable. Any load failure falls back to source decode.
+      this.#diagnose("artifact-read-failed");
     }
   }
 
@@ -418,11 +508,19 @@ export class DecodedUpgradeTextureCache {
   }
 
   async #loadPersistent(upgradeKey: string): Promise<Buffer | null> {
-    if (this.#persistentRoot === null) return null;
+    if (this.#persistentRoot === null) {
+      this.#diagnose("no-persistent-root", upgradeKey);
+      return null;
+    }
     await this.#ensurePersistentLoaded();
     const entry = this.#persistentEntries.get(upgradeKey);
-    if (entry === undefined) return null;
-    if (!(await sourcesUnchanged(entry.watches))) {
+    if (entry === undefined) {
+      this.#diagnose("entry-missing", upgradeKey);
+      return null;
+    }
+    const sourceStatus = await sourceWatchStatus(entry.watches);
+    if (sourceStatus !== "unchanged") {
+      this.#diagnose(sourceStatus, upgradeKey);
       await this.#dropPersistentEntry(upgradeKey);
       return null;
     }
@@ -430,20 +528,29 @@ export class DecodedUpgradeTextureCache {
     try {
       const stat = await fs.lstat(artifactPath);
       if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_ICON_BYTES) {
+        this.#diagnose("artifact-invalid", upgradeKey);
         await this.#dropPersistentEntry(upgradeKey);
         return null;
       }
       const png = await fs.readFile(artifactPath);
       if (png.length !== stat.size || !validPng(png)) {
+        this.#diagnose("artifact-invalid", upgradeKey);
         await this.#dropPersistentEntry(upgradeKey);
         return null;
       }
-      return this.#store(upgradeKey, {
+      const stored = this.#store(upgradeKey, {
         sourceIdentity: entry.sourceIdentity,
         png,
         watches: entry.watches,
       });
-    } catch {
+      this.#diagnose("persistent-hit", upgradeKey);
+      return stored;
+    } catch (error) {
+      const reason =
+        (error as NodeJS.ErrnoException).code === "ENOENT"
+          ? "artifact-missing"
+          : "artifact-read-failed";
+      this.#diagnose(reason, upgradeKey);
       await this.#dropPersistentEntry(upgradeKey);
       return null;
     }
@@ -461,7 +568,9 @@ export class DecodedUpgradeTextureCache {
           watches: decoded.watches,
         });
         await this.#writePersistentManifest();
+        this.#diagnose("persisted", upgradeKey);
       } catch {
+        this.#diagnose("persist-failed", upgradeKey);
         // Disk/cache failures never turn presentation state into save-editing authority.
       }
     });
@@ -479,6 +588,7 @@ export class DecodedUpgradeTextureCache {
       try {
         await this.#writePersistentManifest();
       } catch {
+        this.#diagnose("persist-failed", upgradeKey);
         // A stale manifest is harmless: source watches are revalidated on every persistent hit.
       }
     });

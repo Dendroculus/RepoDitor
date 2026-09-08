@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { createRequire } from "node:module";
-import { lstat, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdtemp, mkdir, readFile, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -164,12 +164,16 @@ describe("local icon protocol", () => {
       }),
       dispose: vi.fn(),
     };
-    const cache = new DecodedUpgradeTextureCache();
+    const diagnostics: Array<{ reason: string }> = [];
+    const cache = new DecodedUpgradeTextureCache(null, (event: { reason: string }) =>
+      diagnostics.push(event),
+    );
 
     expect((await serveLocalIcon(url(token), null, registry, client, cache)).status).toBe(200);
     expect((await serveLocalIcon(url(token), null, registry, client, cache)).status).toBe(200);
     expect(client.run).toHaveBeenCalledTimes(1);
     expect(client.run).toHaveBeenCalledWith("upgrade-texture", ["playerUpgradeHealth"]);
+    expect(diagnostics.map((event) => event.reason)).toContain("memory-hit");
   });
 
   it("lets background preparation satisfy an icon request without starting a duplicate lazy process", async () => {
@@ -302,7 +306,10 @@ describe("local icon protocol", () => {
     const watch = path.join(base, "resources.assets");
     await writeFile(watch, Buffer.from("source"));
     const stat = await lstat(watch, { bigint: true });
-    const cache = new DecodedUpgradeTextureCache();
+    const diagnostics: Array<{ reason: string }> = [];
+    const cache = new DecodedUpgradeTextureCache(null, (event: { reason: string }) =>
+      diagnostics.push(event),
+    );
     const payload = {
       sourceIdentity: "c".repeat(64),
       pngBase64: png().toString("base64"),
@@ -316,6 +323,9 @@ describe("local icon protocol", () => {
     await expect(cache.hasPrepared("playerUpgradeHealth")).resolves.toBe(true);
     await expect(cache.get("playerUpgradeHealth", client)).resolves.toEqual(png());
     expect(client.run).not.toHaveBeenCalled();
+    expect(diagnostics.map((event) => event.reason)).toEqual(
+      expect.arrayContaining(["source-decode-required", "memory-hit"]),
+    );
   });
 
   it("rejects malformed batch texture payloads before they enter session memory", async () => {
@@ -332,6 +342,7 @@ describe("local icon protocol", () => {
     ).resolves.toBe(false);
     await expect(cache.hasPrepared("playerUpgradeHealth")).resolves.toBe(false);
   });
+
   it("invalidates decoded session memory when a watched installed source changes", async () => {
     const { base } = await fixture();
     const watch = path.join(base, "resources.assets");
@@ -395,11 +406,27 @@ describe("local icon protocol", () => {
       await readFile(path.join(persistentRoot, "manifest.json"), "utf8"),
     ) as Record<string, unknown>;
     expect(manifest.formatVersion).toBe(1);
+    const artifactPath = path.join(persistentRoot, `${sourceIdentity}.png`);
+    const manifestPath = path.join(persistentRoot, "manifest.json");
+    const fixedTime = new Date("2024-01-02T03:04:05.000Z");
+    await utimes(artifactPath, fixedTime, fixedTime);
+    await utimes(manifestPath, fixedTime, fixedTime);
+    const artifactBefore = await lstat(artifactPath, { bigint: true });
+    const manifestBefore = await lstat(manifestPath, { bigint: true });
 
     const secondClient = { run: vi.fn(), dispose: vi.fn() };
-    const secondCache = new DecodedUpgradeTextureCache(persistentRoot);
+    const diagnostics: Array<{ reason: string }> = [];
+    const secondCache = new DecodedUpgradeTextureCache(
+      persistentRoot,
+      (event: { reason: string }) => diagnostics.push(event),
+    );
     await expect(secondCache.get("playerUpgradeHealth", secondClient)).resolves.toEqual(png());
     expect(secondClient.run).not.toHaveBeenCalled();
+    expect((await lstat(artifactPath, { bigint: true })).mtimeNs).toBe(artifactBefore.mtimeNs);
+    expect((await lstat(manifestPath, { bigint: true })).mtimeNs).toBe(manifestBefore.mtimeNs);
+    expect(diagnostics.map((event) => event.reason)).toContain("persistent-hit");
+    expect(diagnostics.map((event) => event.reason)).not.toContain("source-decode-required");
+    expect(diagnostics.map((event) => event.reason)).not.toContain("persisted");
   });
 
   it("prunes unreferenced derived PNGs while reusing the valid persistent entry", async () => {
@@ -548,6 +575,142 @@ describe("local icon protocol", () => {
     expect(client.run).toHaveBeenCalledWith("upgrade-texture", ["playerUpgradeHealth"]);
   });
 
+  it("rebuilds once for an mtime-only source change, then reuses the rebuilt artifact", async () => {
+    const { base } = await fixture();
+    const watch = path.join(base, "resources.assets");
+    const persistentRoot = path.join(base, "presentation");
+    await writeFile(watch, Buffer.from("same-size-source"));
+    const initialStat = await lstat(watch, { bigint: true });
+    const firstCache = new DecodedUpgradeTextureCache(persistentRoot);
+    await firstCache.storePrepared("playerUpgradeHealth", {
+      sourceIdentity: "a".repeat(64),
+      pngBase64: png().toString("base64"),
+      width: 1,
+      height: 1,
+      watches: [
+        {
+          path: watch,
+          size: initialStat.size.toString(),
+          mtimeNs: initialStat.mtimeNs.toString(),
+        },
+      ],
+    });
+    await utimes(watch, new Date("2025-01-01T00:00:00Z"), new Date("2025-01-01T00:00:00Z"));
+    const changedStat = await lstat(watch, { bigint: true });
+    expect(changedStat.size).toBe(initialStat.size);
+    expect(changedStat.mtimeNs).not.toBe(initialStat.mtimeNs);
+    const payload = {
+      sourceIdentity: "b".repeat(64),
+      pngBase64: png().toString("base64"),
+      width: 1,
+      height: 1,
+      watches: [
+        {
+          path: watch,
+          size: changedStat.size.toString(),
+          mtimeNs: changedStat.mtimeNs.toString(),
+        },
+      ],
+    };
+    const diagnostics: Array<{ reason: string }> = [];
+    const rebuildClient = {
+      run: vi.fn().mockResolvedValue({ ok: true, texture: payload }),
+      dispose: vi.fn(),
+    };
+    const rebuiltCache = new DecodedUpgradeTextureCache(
+      persistentRoot,
+      (event: { reason: string }) => diagnostics.push(event),
+    );
+
+    await expect(rebuiltCache.get("playerUpgradeHealth", rebuildClient)).resolves.toEqual(png());
+    expect(rebuildClient.run).toHaveBeenCalledTimes(1);
+    expect(diagnostics.map((event) => event.reason)).toEqual(
+      expect.arrayContaining(["source-changed", "source-decode-required", "persisted"]),
+    );
+
+    const warmClient = { run: vi.fn(), dispose: vi.fn() };
+    const warmCache = new DecodedUpgradeTextureCache(persistentRoot);
+    await expect(warmCache.get("playerUpgradeHealth", warmClient)).resolves.toEqual(png());
+    expect(warmClient.run).not.toHaveBeenCalled();
+  });
+
+  it("rebuilds a corrupt persistent PNG with an explicit artifact reason", async () => {
+    const { base } = await fixture();
+    const watch = path.join(base, "resources.assets");
+    const persistentRoot = path.join(base, "presentation");
+    await writeFile(watch, Buffer.from("source"));
+    const stat = await lstat(watch, { bigint: true });
+    const firstIdentity = "c".repeat(64);
+    const firstCache = new DecodedUpgradeTextureCache(persistentRoot);
+    await firstCache.storePrepared("playerUpgradeHealth", {
+      sourceIdentity: firstIdentity,
+      pngBase64: png().toString("base64"),
+      width: 1,
+      height: 1,
+      watches: [{ path: watch, size: stat.size.toString(), mtimeNs: stat.mtimeNs.toString() }],
+    });
+    await writeFile(path.join(persistentRoot, `${firstIdentity}.png`), Buffer.alloc(24));
+    const diagnostics: Array<{ reason: string }> = [];
+    const client = {
+      run: vi.fn().mockResolvedValue({
+        ok: true,
+        texture: {
+          sourceIdentity: "d".repeat(64),
+          pngBase64: png().toString("base64"),
+          width: 1,
+          height: 1,
+          watches: [{ path: watch, size: stat.size.toString(), mtimeNs: stat.mtimeNs.toString() }],
+        },
+      }),
+      dispose: vi.fn(),
+    };
+    const cache = new DecodedUpgradeTextureCache(persistentRoot, (event: { reason: string }) =>
+      diagnostics.push(event),
+    );
+
+    await expect(cache.get("playerUpgradeHealth", client)).resolves.toEqual(png());
+    expect(client.run).toHaveBeenCalledTimes(1);
+    expect(diagnostics.map((event) => event.reason)).toContain("artifact-invalid");
+  });
+
+  it("keeps valid manifest entries when a sibling entry is malformed", async () => {
+    const { base } = await fixture();
+    const watch = path.join(base, "resources.assets");
+    const persistentRoot = path.join(base, "presentation");
+    await writeFile(watch, Buffer.from("source"));
+    const stat = await lstat(watch, { bigint: true });
+    const firstCache = new DecodedUpgradeTextureCache(persistentRoot);
+    for (const [upgradeKey, sourceIdentity] of [
+      ["playerUpgradeHealth", "e".repeat(64)],
+      ["playerUpgradeStamina", "f".repeat(64)],
+    ]) {
+      await firstCache.storePrepared(upgradeKey, {
+        sourceIdentity,
+        pngBase64: png().toString("base64"),
+        width: 1,
+        height: 1,
+        watches: [{ path: watch, size: stat.size.toString(), mtimeNs: stat.mtimeNs.toString() }],
+      });
+    }
+    const manifestPath = path.join(persistentRoot, "manifest.json");
+    const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+      entries: Record<string, { sourceIdentity: string }>;
+    };
+    manifest.entries.playerUpgradeHealth!.sourceIdentity = "invalid";
+    await writeFile(manifestPath, JSON.stringify(manifest));
+    const diagnostics: Array<{ reason: string }> = [];
+    const client = { run: vi.fn(), dispose: vi.fn() };
+    const cache = new DecodedUpgradeTextureCache(persistentRoot, (event: { reason: string }) =>
+      diagnostics.push(event),
+    );
+
+    await expect(cache.get("playerUpgradeStamina", client)).resolves.toEqual(png());
+    expect(client.run).not.toHaveBeenCalled();
+    expect(diagnostics.map((event) => event.reason)).toEqual(
+      expect.arrayContaining(["manifest-invalid", "persistent-hit"]),
+    );
+  });
+
   it("rejects old cache formats and malformed or incomplete persistent entries", async () => {
     const { base } = await fixture();
     const watch = path.join(base, "resources.assets");
@@ -667,7 +830,10 @@ describe("local icon protocol", () => {
     await writeFile(watch, Buffer.from("source"));
     await writeFile(persistentRoot, Buffer.from("blocks cache directory creation"));
     const stat = await lstat(watch, { bigint: true });
-    const cache = new DecodedUpgradeTextureCache(persistentRoot);
+    const diagnostics: Array<{ reason: string }> = [];
+    const cache = new DecodedUpgradeTextureCache(persistentRoot, (event: { reason: string }) =>
+      diagnostics.push(event),
+    );
     const payload = {
       sourceIdentity: "9".repeat(64),
       pngBase64: png().toString("base64"),
@@ -680,5 +846,8 @@ describe("local icon protocol", () => {
     await expect(cache.storePrepared("playerUpgradeHealth", payload)).resolves.toBe(true);
     await expect(cache.get("playerUpgradeHealth", client)).resolves.toEqual(png());
     expect(client.run).not.toHaveBeenCalled();
+    expect(diagnostics.map((event) => event.reason)).toEqual(
+      expect.arrayContaining(["source-decode-required", "persist-failed", "memory-hit"]),
+    );
   });
 });
