@@ -1,7 +1,7 @@
 import { ArrowCounterClockwiseIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 
-import type { RunPendingEdit } from "@/features/run-save/pendingEdits";
+import type { PendingEdit } from "@/features/save-file/pendingEdits";
 
 export type WorkspaceExportState =
   | { readonly status: "idle" }
@@ -10,7 +10,7 @@ export type WorkspaceExportState =
 
 interface PendingChangesBarProps {
   readonly busy: boolean;
-  readonly edits: readonly RunPendingEdit[];
+  readonly edits: readonly PendingEdit[];
   readonly exportState: WorkspaceExportState;
   readonly onDownload: () => void;
   readonly onReset: () => void;

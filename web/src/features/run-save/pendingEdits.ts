@@ -1,14 +1,7 @@
+import type { PendingEdit } from "@/features/save-file/pendingEdits";
 import type { EditSession } from "@/features/save-file/session";
 import { parseSaveJson } from "@/features/save-file/serialization";
 import { inspectRunSave, type ResumeLocation } from "@/features/run-save/runSave";
-
-export interface RunPendingEdit {
-  readonly after: number | string;
-  readonly before: number | string;
-  readonly field: string;
-  readonly id: string;
-  readonly subject: string;
-}
 
 function resumeLabel(value: ResumeLocation | null, raw: number): string {
   if (value === "normal") {
@@ -23,8 +16,8 @@ function resumeLabel(value: ResumeLocation | null, raw: number): string {
 function getUpgradeEdits(
   baseline: ReturnType<typeof inspectRunSave>,
   working: ReturnType<typeof inspectRunSave>,
-): RunPendingEdit[] {
-  const edits: RunPendingEdit[] = [];
+): PendingEdit[] {
+  const edits: PendingEdit[] = [];
   const baselineUpgrades = new Map(baseline.upgrades.map((upgrade) => [upgrade.key, upgrade]));
   for (const upgrade of working.upgrades) {
     const baselineUpgrade = baselineUpgrades.get(upgrade.key);
@@ -48,14 +41,14 @@ function getUpgradeEdits(
   return edits;
 }
 
-export function getRunPendingEdits(session: EditSession): RunPendingEdit[] {
+export function getRunPendingEdits(session: EditSession): PendingEdit[] {
   if (session.originalKind !== "run") {
     return [];
   }
 
   const baseline = inspectRunSave(parseSaveJson(session.baselineSource));
   const working = inspectRunSave(session.working);
-  const edits: RunPendingEdit[] = [];
+  const edits: PendingEdit[] = [];
   const baselinePlayers = new Map(baseline.players.map((player) => [player.id, player]));
 
   for (const player of working.players) {
