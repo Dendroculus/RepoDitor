@@ -1,5 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FindSaveDialog } from "@/features/save-file/FindSaveDialog";
 import {
@@ -32,12 +32,23 @@ function installClipboard() {
   return writeText;
 }
 
+function installUserAgent(userAgent: string) {
+  Object.defineProperty(navigator, "userAgent", {
+    configurable: true,
+    value: userAgent,
+  });
+}
+
 function openDialog() {
   const trigger = screen.getByRole("button", { name: "Find my save" });
   trigger.focus();
   fireEvent.click(trigger);
   return { dialog: screen.getByRole("dialog"), trigger };
 }
+
+beforeEach(() => {
+  installUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
+});
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -111,10 +122,7 @@ describe("Find My Save guidance", () => {
     expect(detectInitialGuidancePlatform("Mozilla/5.0 (X11; Linux x86_64)")).toBe("linux");
     expect(detectInitialGuidancePlatform("Mozilla/5.0 (Linux; Android 16)")).toBe("windows");
     expect(detectInitialGuidancePlatform("unknown")).toBe("windows");
-    Object.defineProperty(navigator, "userAgent", {
-      configurable: true,
-      value: "Mozilla/5.0 (X11; Linux x86_64)",
-    });
+    installUserAgent("Mozilla/5.0 (X11; Linux x86_64)");
     render(<FindSaveDialog />);
     openDialog();
 
