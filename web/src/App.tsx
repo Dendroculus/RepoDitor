@@ -50,8 +50,8 @@ function App() {
             <div className="mt-9 flex items-center gap-3 border-l-2 border-accent bg-accent-muted px-4 py-3 text-sm/6 text-secondary">
               <ShieldCheckIcon aria-hidden="true" className="shrink-0 text-accent" size={22} />
               <p>
-                Save processing stays on this device. Optional avatars send only validated Steam
-                IDs.
+                Save processing stays on this device. Save files and decrypted JSON are not
+                uploaded. Optional avatars send only validated Steam IDs.
               </p>
             </div>
           </section>

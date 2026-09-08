@@ -102,6 +102,15 @@ describe("App", () => {
       }),
     ).toBeTruthy();
     expect(screen.getByText(/Save processing stays on this device/)).toBeTruthy();
+    expect(screen.getByText(/Save files and decrypted JSON are not uploaded/)).toBeTruthy();
+    expect(screen.getByText("or choose a supported .es3 save")).toBeTruthy();
+    expect(screen.queryByText("or choose a .es3 file")).toBeNull();
+    const supportedTypes = document.querySelector("#supported-save-types");
+    expect(supportedTypes).not.toBeNull();
+    expect(within(supportedTypes as HTMLElement).getByText("Run saves")).toBeTruthy();
+    expect(within(supportedTypes as HTMLElement).getByText("MetaSave.es3")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Find my save" })).toBeTruthy();
+    expect(screen.getByText("Prefer automatic save discovery?")).toBeTruthy();
 
     const fileInput = screen.getByLabelText(/drop a save here/i);
     expect(fileInput.getAttribute("type")).toBe("file");

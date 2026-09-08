@@ -7,6 +7,7 @@ import {
   SaveExportError,
 } from "@/features/save-file/export";
 import type { WorkspaceExportState } from "@/features/save-file/PendingChangesBar";
+import { FindSaveDialog } from "@/features/save-file/FindSaveDialog";
 import { loadSaveFile, SavePipelineError } from "@/features/save-file/pipeline";
 import {
   createEditSession,
@@ -61,7 +62,7 @@ function panelMessage(state: LoadState): string {
     case "error":
       return state.message;
     case "idle":
-      return "or choose a .es3 file";
+      return "or choose a supported .es3 save";
   }
 }
 
@@ -154,7 +155,7 @@ export function SaveFilePanel({ onWorkspaceChange }: SaveFilePanelProps) {
       <label className="group relative flex min-h-72 cursor-pointer flex-col items-center justify-center rounded-sm border border-dashed border-control bg-surface px-6 py-12 text-center shadow-panel transition-colors hover:border-accent hover:bg-surface-raised focus-within:border-accent focus-within:outline-2 focus-within:outline-offset-4 focus-within:outline-focus sm:min-h-80">
         <input
           accept=".es3"
-          aria-describedby="save-file-help save-file-status"
+          aria-describedby="save-file-help save-file-status supported-save-types"
           className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-wait"
           disabled={busy}
           onChange={(event) => void selectFile(event)}
@@ -173,21 +174,37 @@ export function SaveFilePanel({ onWorkspaceChange }: SaveFilePanelProps) {
           {panelMessage(state)}
         </output>
         <span className="sr-only" id="save-file-help">
-          Select one R.E.P.O. ES3 save file from this device. Processing stays in this browser.
+          Select a supported R.E.P.O. Run save or MetaSave.es3 from this device. Processing stays in
+          this browser.
+        </span>
+        <span className="mt-4 grid gap-1 text-xs/5 text-secondary" id="supported-save-types">
+          <span>
+            <strong className="font-semibold text-ink">Run saves</strong> - players, upgrades,
+            currency, and Run settings
+          </span>
+          <span>
+            <strong className="font-semibold text-ink">MetaSave.es3</strong> - supported cosmetics
+          </span>
         </span>
       </label>
 
-      <div className="mt-5 flex flex-col gap-3 border-t border-line pt-5 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-secondary">Want automatic save discovery?</p>
-        <a
-          className="inline-flex w-fit items-center gap-2 rounded-sm border border-control bg-surface-raised px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
-          href={DESKTOP_URL}
-          rel="noreferrer"
-          target="_blank"
-        >
-          Get RepoDitor Desktop
-          <ArrowSquareOutIcon aria-hidden="true" size={17} weight="bold" />
-        </a>
+      <div className="mt-5 grid gap-3 border-t border-line pt-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-secondary">Not sure where your save is?</p>
+          <FindSaveDialog />
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-secondary">Prefer automatic save discovery?</p>
+          <a
+            className="inline-flex w-fit items-center gap-2 whitespace-nowrap rounded-sm border border-control bg-surface-raised px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
+            href={DESKTOP_URL}
+            rel="noreferrer"
+            target="_blank"
+          >
+            Get RepoDitor Desktop
+            <ArrowSquareOutIcon aria-hidden="true" size={17} weight="bold" />
+          </a>
+        </div>
       </div>
     </section>
   );
