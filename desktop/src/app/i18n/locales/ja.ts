@@ -275,10 +275,17 @@ export const ja: Record<keyof typeof en, string> = {
   "entry.detail.finalizing": "エディター状態を仕上げています…",
   "entry.detail.asset": "{asset} をデコード中…",
   "entry.detail.upgradeArtwork": "{asset} のアップグレード画像をデコード中…",
-  "entry.localOnlyHint":
-    "このセーブをローカルで準備しています。セーブデータはこの PC から送信されません。",
+  "entry.detail.preparingUpgradeArtwork": "アップグレード画像を準備中…",
+  "entry.progressLabel": "エディター準備の進捗",
+  "entry.progressCount": "エディタータスク {total} 件中 {completed} 件が完了",
+  "entry.artworkProgressCount": "アップグレードアセット {total} 件中 {completed} 件を準備済み",
+  "entry.artworkProgressAsset":
+    "アップグレードアセット {total} 件中 {completed} 件を準備済み · {asset}",
+  "entry.localOnlyHint": "ローカルのエディターデータを準備しています。",
   "entry.slowHint":
-    "エディター用にこのセーブを準備しています。一部のローカルデータは読み込みに時間がかかる場合があります。",
+    "処理を続けています — 一部のローカルゲームデータは準備に時間がかかることがあります。",
+  "entry.slowArtworkHint":
+    "処理を続けています — アップグレード画像を準備中（{completed}/{total}）。",
   "entry.localSave": "ローカルセーブ • 読み込み中",
   "entry.editorPreparing": "エディターデータ • 準備中",
   "assets.localPreparation": "アセット準備",

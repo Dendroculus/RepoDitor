@@ -24,12 +24,16 @@ function renderView(
   mode: "save" | "artwork" = "artwork",
   saveDetail?: string,
   onContinue?: () => void,
+  editorProgress?: { readonly completed: number; readonly total: number } | null,
+  artworkDetail?: boolean,
 ) {
   return render(
     <PreferencesProvider>
       <AssetPreparationView
         mode={mode}
         state={value}
+        {...(editorProgress === undefined ? {} : { editorProgress })}
+        {...(artworkDetail === undefined ? {} : { artworkDetail })}
         {...(saveDetail === undefined ? {} : { saveDetail })}
         {...(onContinue === undefined ? {} : { onContinue })}
       />
@@ -45,7 +49,10 @@ describe("AssetPreparationView", () => {
   it("uses an indeterminate presentation until the real work-unit total is known", () => {
     renderView(state({ stage: "validating", installationFound: true }));
 
-    expect(screen.queryByRole("progressbar")).toBeNull();
+    const progress = screen.getByRole("progressbar", {
+      name: "Game asset preparation progress",
+    });
+    expect(progress.hasAttribute("aria-valuenow")).toBe(false);
     expect(screen.getByRole("heading", { name: "Preparing game artwork" })).toBeTruthy();
     expect(screen.getByTestId("entry-loading-detail").textContent).toBe(
       "Validating installed build",
@@ -66,7 +73,11 @@ describe("AssetPreparationView", () => {
       }),
     );
 
-    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Game asset preparation progress" })
+        .hasAttribute("aria-valuenow"),
+    ).toBe(false);
     expect(screen.queryByTestId("asset-progress-count")).toBeNull();
     expect(screen.getByTestId("asset-progress-status").textContent).toContain("Working");
 
@@ -110,7 +121,11 @@ describe("AssetPreparationView", () => {
     );
     act(() => vi.advanceTimersByTime(500));
 
-    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Game asset preparation progress" })
+        .hasAttribute("aria-valuenow"),
+    ).toBe(false);
     expect(screen.queryByTestId("asset-progress-count")).toBeNull();
     expect(screen.getByTestId("asset-progress")).toBe(progressRegion);
     expect(screen.getByTestId("asset-progress-status")).toBe(statusRegion);
@@ -129,7 +144,93 @@ describe("AssetPreparationView", () => {
     expect(screen.getByTestId("entry-loading-detail").textContent).toBe("Loading item data…");
     expect(screen.getByTestId("asset-preparation").getAttribute("data-entry-mode")).toBe("save");
     expect(screen.getByTestId("asset-progress-status").textContent).toContain("Working");
-    expect(screen.queryByRole("progressbar")).toBeNull();
+    const progress = screen.getByRole("progressbar", { name: "Editor preparation progress" });
+    expect(progress.hasAttribute("aria-valuenow")).toBe(false);
+  });
+
+  it("shows real editor task progress immediately and fills the existing segmented bar", () => {
+    renderView(state({ stage: "ready" }), "save", "Loading player data…", undefined, {
+      completed: 3,
+      total: 6,
+    });
+
+    const progress = screen.getByRole("progressbar", { name: "Editor preparation progress" });
+    expect(progress.getAttribute("aria-valuemin")).toBe("0");
+    expect(progress.getAttribute("aria-valuemax")).toBe("6");
+    expect(progress.getAttribute("aria-valuenow")).toBe("3");
+    expect(progress.getAttribute("aria-valuetext")).toBe("3 of 6 editor tasks completed");
+    expect(screen.getByTestId("asset-progress-count").textContent).toBe(
+      "3 of 6 editor tasks completed",
+    );
+    expect(progress.querySelectorAll(".bg-accent")).toHaveLength(9);
+  });
+
+  it("keeps artwork counts secondary to editor-task progress", () => {
+    renderView(
+      state({
+        stage: "decoding",
+        completed: 8,
+        total: 12,
+        currentAssetLabel: "Health",
+      }),
+      "save",
+      "Loading upgrade data…",
+      undefined,
+      { completed: 2, total: 6 },
+      true,
+    );
+
+    expect(screen.getByTestId("entry-loading-detail").textContent).toBe(
+      "Decoding Health upgrade artwork…",
+    );
+    expect(screen.getByText("2 of 6 editor tasks completed")).toBeTruthy();
+    expect(screen.getByText("8 of 12 upgrade assets prepared · Health")).toBeTruthy();
+  });
+
+  it("does not invent a secondary artwork count when none is reported", () => {
+    renderView(
+      state({ stage: "resolving", completed: null, total: null }),
+      "save",
+      "Loading upgrade data…",
+      undefined,
+      { completed: 2, total: 6 },
+      true,
+    );
+
+    expect(screen.queryByText(/upgrade assets prepared/)).toBeNull();
+    expect(screen.getByTestId("entry-loading-detail").textContent).toBe(
+      "Preparing upgrade artwork…",
+    );
+  });
+
+  it("changes to useful slow artwork copy with real counts", () => {
+    vi.useFakeTimers();
+    renderView(
+      state({ stage: "decoding", completed: 8, total: 12 }),
+      "save",
+      "Loading upgrade data…",
+      undefined,
+      { completed: 2, total: 6 },
+      true,
+    );
+
+    expect(screen.getByText("Preparing local editor data.")).toBeTruthy();
+    act(() => vi.advanceTimersByTime(6_000));
+    expect(screen.getByText("Still working — preparing upgrade artwork (8 of 12).")).toBeTruthy();
+  });
+
+  it("uses calm generic slow copy when artwork is not the active work", () => {
+    vi.useFakeTimers();
+    renderView(state({ stage: "ready" }), "save", "Loading map data…", undefined, {
+      completed: 4,
+      total: 6,
+    });
+
+    expect(screen.getByText("Preparing local editor data.")).toBeTruthy();
+    act(() => vi.advanceTimersByTime(6_000));
+    expect(
+      screen.getByText("Still working — some local game data can take longer to prepare."),
+    ).toBeTruthy();
   });
 
   it("shows the actual decoded texture name without duplicating the big title", () => {
@@ -163,7 +264,11 @@ describe("AssetPreparationView", () => {
     const button = screen.getByRole("button", { name: "Continue to editor" });
     fireEvent.click(button);
     expect(onContinue).toHaveBeenCalledTimes(1);
-    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Game asset preparation progress" })
+        .hasAttribute("aria-valuenow"),
+    ).toBe(false);
   });
 
   it("shows real background preparation status after the editor escape", () => {

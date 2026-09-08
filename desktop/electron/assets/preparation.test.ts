@@ -1,10 +1,24 @@
 // @vitest-environment node
 
 import { createRequire } from "node:module";
+import { lstat, mkdtemp, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const { AssetPreparationService } = require("../../dist-electron/assets/preparation.cjs");
+const { DecodedUpgradeTextureCache } = require("../../dist-electron/icons/protocol.cjs");
+
+function png(): Buffer {
+  const data = Buffer.alloc(24);
+  Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]).copy(data);
+  data.writeUInt32BE(13, 8);
+  data.write("IHDR", 12, "ascii");
+  data.writeUInt32BE(1, 16);
+  data.writeUInt32BE(1, 20);
+  return data;
+}
 
 function final(overrides: Record<string, unknown> = {}) {
   return {
@@ -235,6 +249,37 @@ describe("AssetPreparationService", () => {
       total: 2,
       degraded: false,
     });
+  });
+
+  it("takes the zero-batch fast path for a valid persistent presentation entry", async () => {
+    const base = await mkdtemp(path.join(os.tmpdir(), "repoditor-preparation-cache-"));
+    const watch = path.join(base, "resources.assets");
+    const persistentRoot = path.join(base, "presentation");
+    await writeFile(watch, Buffer.from("source"));
+    const stat = await lstat(watch, { bigint: true });
+    const seeded = new DecodedUpgradeTextureCache(persistentRoot);
+    await seeded.storePrepared("playerUpgradeHealth", {
+      sourceIdentity: "a".repeat(64),
+      pngBase64: png().toString("base64"),
+      width: 1,
+      height: 1,
+      watches: [{ path: watch, size: stat.size.toString(), mtimeNs: stat.mtimeNs.toString() }],
+    });
+    const diagnostics: Array<{ reason: string }> = [];
+    const persistentCache = new DecodedUpgradeTextureCache(
+      persistentRoot,
+      (event: { reason: string }) => diagnostics.push(event),
+    );
+    const fakeClient = client(async () => {
+      throw new Error("a persistent hit must not start Python texture preparation");
+    });
+    const service = new AssetPreparationService(fakeClient, persistentCache);
+
+    await service.prepareUpgradeVisuals([{ upgradeKey: "playerUpgradeHealth", cacheKey: null }]);
+
+    expect(fakeClient.runRecords).not.toHaveBeenCalled();
+    expect(diagnostics.map((event) => event.reason)).toContain("persistent-hit");
+    expect(service.getState()).toMatchObject({ stage: "ready", completed: 1, total: 1 });
   });
 
   it("reuses unchanged prepared visuals without restarting active preparation", async () => {

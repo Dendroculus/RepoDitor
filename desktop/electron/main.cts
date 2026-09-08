@@ -23,6 +23,7 @@ import {
   registerLocalIconProtocol,
   registerLocalIconScheme,
 } from "./icons/protocol.cjs";
+import { createPresentationCacheDiagnosticSink } from "./icons/cacheDiagnostics.cjs";
 
 const developmentRendererUrl = process.env.VITE_DEV_SERVER_URL;
 const projectUrl = "https://github.com/Yoruxyv/RepoDitor";
@@ -104,8 +105,12 @@ registerEditorIpc();
 
 void app.whenReady().then(() => {
   Menu.setApplicationMenu(null);
-  decodedUpgradeTextureCache.configurePersistentRoot(
-    path.join(app.getPath("userData"), "presentation"),
+  const userDataRoot = app.getPath("userData");
+  decodedUpgradeTextureCache.configurePersistentRoot(path.join(userDataRoot, "presentation"));
+  decodedUpgradeTextureCache.configureDiagnosticSink(
+    createPresentationCacheDiagnosticSink(
+      path.join(userDataRoot, "presentation-cache-diagnostics.jsonl"),
+    ),
   );
   registerLocalIconProtocol();
   createWindow();

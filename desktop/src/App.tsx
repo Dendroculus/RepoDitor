@@ -21,9 +21,11 @@ import { DiscoveryHome } from "@/features/discovery/components/DiscoveryHome";
 import { useEnvironmentDiscovery } from "@/features/discovery/useEnvironmentDiscovery";
 import { Workspace, type WorkspaceSection } from "@/features/editor/Workspace";
 import {
+  initialRunEntryProgress,
   prepareRunEntryData,
   runEntryDataReusable,
   type RunEntryData,
+  type RunEntryProgress,
   type RunEntryTask,
 } from "@/features/editor/runEntryPreparation";
 import { useSaveSession } from "@/features/editor/useSaveSession";
@@ -47,18 +49,10 @@ type PendingRunEntry =
       readonly phase: "preparing-entry";
       readonly opened: SaveOpenResult;
       readonly requestId: number;
-      readonly pendingTasks: ReadonlySet<RunEntryTask>;
+      readonly progress: RunEntryProgress;
     };
 
 const ACTIVE_ASSET_STAGES = new Set(["indexing", "resolving", "decoding"]);
-const RUN_ENTRY_TASK_PRIORITY: readonly RunEntryTask[] = [
-  "items",
-  "upgrades",
-  "players",
-  "avatars",
-  "run",
-  "maps",
-];
 const RUN_ENTRY_TASK_KEYS: Record<RunEntryTask, TranslationKey> = {
   items: "entry.detail.items",
   upgrades: "entry.detail.upgrades",
@@ -193,7 +187,9 @@ function RunSavesWorkspace({
     return (
       <div hidden={!active}>
         <AssetPreparationView
-          mode={realAssetPreparation ? "artwork" : "save"}
+          artworkDetail={realAssetPreparation}
+          editorProgress={pendingEntry.phase === "preparing-entry" ? pendingEntry.progress : null}
+          mode="save"
           state={assets}
           saveDetail={runSaveDetail(pendingEntry, currentTask, t)}
         />
@@ -231,11 +227,6 @@ function RunSavesWorkspace({
       />
     </div>
   );
-}
-
-function currentRunEntryTask(pendingEntry: PendingRunEntry | null): RunEntryTask | null {
-  if (pendingEntry?.phase !== "preparing-entry") return null;
-  return RUN_ENTRY_TASK_PRIORITY.find((task) => pendingEntry.pendingTasks.has(task)) ?? null;
 }
 
 function isRealAssetPreparation(
@@ -276,11 +267,11 @@ function AppContent() {
       : null;
   const initialSafetyCheck = safetyRequired && gameSafety.status === null;
 
-  function updatePendingTasks(requestId: number, tasks: ReadonlySet<RunEntryTask>): void {
+  function updateRunEntryProgress(requestId: number, progress: RunEntryProgress): void {
     if (runEntryRequest.current !== requestId) return;
     setPendingRunEntry((current) =>
       current?.phase === "preparing-entry" && current.requestId === requestId
-        ? { ...current, pendingTasks: tasks }
+        ? { ...current, progress }
         : current,
     );
   }
@@ -310,7 +301,7 @@ function AppContent() {
       phase: "preparing-entry",
       opened,
       requestId,
-      pendingTasks: new Set(cached === null ? RUN_ENTRY_TASK_PRIORITY : ["upgrades"]),
+      progress: initialRunEntryProgress(cached?.data ?? null),
     });
 
     const data = await prepareRunEntryData({
@@ -319,7 +310,7 @@ function AppContent() {
       presentationReadiness: opened.presentationReadiness,
       maps: () => window.repoditor.maps.list(),
       existingData: cached?.data ?? null,
-      onPendingTasksChange: (tasks) => updatePendingTasks(requestId, tasks),
+      onProgressChange: (progress) => updateRunEntryProgress(requestId, progress),
     });
     if (runEntryRequest.current !== requestId) return;
 
@@ -350,7 +341,8 @@ function AppContent() {
     return result;
   }
 
-  const currentTask = currentRunEntryTask(pendingRunEntry);
+  const currentTask =
+    pendingRunEntry?.phase === "preparing-entry" ? pendingRunEntry.progress.currentTask : null;
   const realAssetPreparation = isRealAssetPreparation(pendingRunEntry, assets);
   return (
     <AppShell>
