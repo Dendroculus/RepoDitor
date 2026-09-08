@@ -9,6 +9,7 @@ export interface EditSession {
   readonly baselineSource: string;
   readonly originalFileName: string;
   readonly originalKind: SaveKind;
+  readonly sessionToken: symbol;
   readonly working: SaveObject;
 }
 
@@ -33,6 +34,7 @@ export function createEditSession(save: LoadedSave): EditSession {
     baselineSource,
     originalFileName: save.fileName,
     originalKind: save.kind,
+    sessionToken: Symbol("edit-session"),
     working: reconstruct(baselineSource, save.kind),
   };
 }

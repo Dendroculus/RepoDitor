@@ -52,6 +52,11 @@ Browser UI → Web feature/domain logic → browser-side save/ES3 layer
 → local file import/export
 ```
 
+Save processing remains browser-local. Optional player-avatar enrichment is the sole narrow server
+boundary: the browser may send a capped list of validated SteamID64 values to the same-origin Web
+avatar function, which constructs fixed Steam profile URLs and returns only validated Steam CDN
+image URLs. It must never receive a save file, encrypted bytes, decrypted JSON, or editor values.
+
 The browser cannot use the Desktop Python boundary, so proven save parsing and
 crypto behavior may be implemented in TypeScript/browser APIs inside the Web
 architecture. That is not permission to invent new mutation behavior: Web must
