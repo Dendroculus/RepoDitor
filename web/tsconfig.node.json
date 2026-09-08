@@ -19,5 +19,5 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["api/**/*.ts", "vite.config.ts"]
 }

@@ -30,6 +30,23 @@ R.E.P.O. .es3 files
 
 Electron keeps `contextIsolation: true`, `nodeIntegration: false`, and renderer sandboxing enabled. Input is validated at both the Electron and Python boundaries. Python verifies the validated R.E.P.O. process is closed before supported writes; startup and focus checks keep the renderer state current, and an unknown process state fails closed.
 
+## Web boundary
+
+RepoDitor Web is an independent browser implementation. Save import, ES3 decryption, validation,
+in-memory editing, re-encryption, verification, and export remain in the browser and do not import
+Desktop implementation code.
+
+The sole server-assisted Web capability is optional avatar enrichment. A Run save may send at most
+16 validated SteamID64 strings to the same-origin `/api/steam-avatars` function. That function
+constructs fixed Steam Community profile URLs and returns only allowlisted HTTPS Steam CDN image
+URLs. It receives no save file, encrypted bytes, decrypted JSON, health, upgrades, run statistics,
+or unknown fields; it persists nothing. Failure leaves initials in place and cannot block editor or
+export behavior.
+
+The Vite application still builds as static assets. Phase 7 deployment must pair those assets with
+this narrow serverless route (currently provided in Vercel's `/api` function format) or accept that
+only avatar enrichment is unavailable. No server-side save-processing route is permitted.
+
 Optional item and cosmetic thumbnails use the user's game-generated LocalLow cache. Python derives
 canonical cache keys from installed metadata; Electron replaces them with opaque in-memory tokens
 and serves only validated PNGs through the read-only `repoditor-icon:` protocol. The renderer never
