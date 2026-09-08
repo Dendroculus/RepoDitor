@@ -1,6 +1,8 @@
 import { CheckCircleIcon, FileArrowUpIcon, XIcon } from "@phosphor-icons/react";
 import type { ChangeEvent } from "react";
 
+import { CosmeticsEditor } from "@/features/cosmetics/CosmeticsEditor";
+import { getCosmeticPendingEdits } from "@/features/cosmetics/pendingEdits";
 import {
   PendingChangesBar,
   type WorkspaceExportState,
@@ -30,7 +32,8 @@ export function SaveWorkspace({
   onSessionChange,
   session,
 }: SaveWorkspaceProps) {
-  const edits = getRunPendingEdits(session);
+  const edits =
+    session.originalKind === "run" ? getRunPendingEdits(session) : getCosmeticPendingEdits(session);
   const saveKind = session.originalKind === "run" ? "Run save" : "MetaSave";
 
   return (
@@ -87,21 +90,7 @@ export function SaveWorkspace({
       {session.originalKind === "run" ? (
         <RunEditor onSessionChange={onSessionChange} session={session} />
       ) : (
-        <section className="py-12" aria-labelledby="metasave-title">
-          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">
-            Account save
-          </p>
-          <h2
-            className="font-display mt-1 text-4xl font-semibold uppercase leading-none text-ink"
-            id="metasave-title"
-          >
-            MetaSave loaded
-          </h2>
-          <p className="mt-3 max-w-xl text-sm/6 text-secondary">
-            MetaSave editing is not available in this phase. You can still download a verified copy
-            or choose another file.
-          </p>
-        </section>
+        <CosmeticsEditor busy={busy} onSessionChange={onSessionChange} session={session} />
       )}
 
       <PendingChangesBar

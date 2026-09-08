@@ -2,8 +2,15 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import App from "@/App";
+import { inspectMetaCosmetics, KNOWN_COSMETIC_IDS } from "@/features/cosmetics/cosmetics";
 import { encryptEs3 } from "@/features/save-file/es3";
 import { loadSaveBytes } from "@/features/save-file/pipeline";
+import {
+  isSaveNumber,
+  isSaveObject,
+  parseSaveJson,
+  serializeSaveJson,
+} from "@/features/save-file/serialization";
 import { inspectRunSave } from "@/features/run-save/runSave";
 
 const createObjectUrlDescriptor = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
@@ -58,11 +65,16 @@ function avatarEndpointResponse(avatars: Record<string, string>): Response {
   return Response.json({ avatars });
 }
 
-async function metaFile(): Promise<File> {
+async function metaFile(
+  unlocks: readonly number[] = [27],
+  presets: readonly unknown[] = [[]],
+): Promise<File> {
   const plaintext = JSON.stringify({
-    cosmeticHistory: { value: [27] },
-    cosmeticUnlocks: { value: [27] },
-    cosmeticPresets: { value: [[]] },
+    cosmeticHistory: { value: unlocks },
+    cosmeticUnlocks: { value: unlocks },
+    cosmeticPresets: { value: presets },
+    colorPresets: { value: [[1, 2], []] },
+    unrelated: { future: "preserved" },
   });
   const encrypted = await encryptEs3(new TextEncoder().encode(plaintext), {
     testIv: new Uint8Array(16),
@@ -445,11 +457,126 @@ describe("App", () => {
       target: { files: [await metaFile()] },
     });
 
-    expect(await screen.findByRole("heading", { level: 2, name: "MetaSave loaded" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { level: 2, name: "Cosmetics" })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1, name: "MetaSave.es3" })).toBeTruthy();
     expect(screen.getByText("Clean")).toBeTruthy();
     expect(screen.queryByRole("navigation", { name: "Run editor sections" })).toBeNull();
     expect(screen.queryByText(/REPO_SAVE\.repoditor\.es3 was verified/iu)).toBeNull();
+  });
+
+  it("unlocks remaining supported cosmetics with one immediate semantic pending edit", async () => {
+    render(<App />);
+    const partialIds = [...KNOWN_COSMETIC_IDS.slice(0, -1), 999];
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await metaFile(partialIds, [[27], [], [999]])] },
+    });
+    await screen.findByTestId("save-workspace");
+
+    expect(screen.getByText("546 of 547 supported cosmetics unlocked")).toBeTruthy();
+    expect(screen.getByText("1 supported cosmetic remains locked.")).toBeTruthy();
+    const unlock = screen.getByRole("button", { name: "Unlock Remaining Cosmetics" });
+    expect((unlock as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(unlock);
+
+    expect(screen.getByText("1 pending change")).toBeTruthy();
+    expect(screen.getByText("547 of 547 supported cosmetics unlocked")).toBeTruthy();
+    expect(screen.getByText("All supported cosmetics are already unlocked.")).toBeTruthy();
+    expect((unlock as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+    expect(screen.getByRole("listitem").textContent).toBe(
+      "Cosmetics · Supported cosmetics546 unlocked → 547 unlocked",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(screen.getByText("Clean")).toBeTruthy();
+    expect(screen.getByText("546 of 547 supported cosmetics unlocked")).toBeTruthy();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Unlock Remaining Cosmetics",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(false);
+  });
+
+  it("shows a clean completed state and does not expose an action for malformed MetaSave data", async () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await metaFile(KNOWN_COSMETIC_IDS)] },
+    });
+    await screen.findByTestId("save-workspace");
+
+    expect(screen.getByText("All supported cosmetics are already unlocked.")).toBeTruthy();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Unlock Remaining Cosmetics",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(screen.getByText("Clean")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Clear" }));
+    const malformed = JSON.stringify({
+      cosmeticHistory: { value: [] },
+      cosmeticUnlocks: { value: [{}] },
+      cosmeticPresets: { value: [] },
+    });
+    const encrypted = await encryptEs3(new TextEncoder().encode(malformed), {
+      testIv: new Uint8Array(16),
+    });
+    const file = new File([encrypted], "MetaSave.es3");
+    Object.defineProperty(file, "arrayBuffer", { value: async () => encrypted.buffer });
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), { target: { files: [file] } });
+
+    expect(await screen.findByText("Save not loaded")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Unlock Remaining Cosmetics" })).toBeNull();
+  });
+
+  it("exports and reloads cosmetic ownership without changing unknown IDs or presets", async () => {
+    const download = installDownloadMocks();
+    const presets = [[27], [], [999]];
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await metaFile([27, 999], presets)] },
+    });
+    await screen.findByTestId("save-workspace");
+    fireEvent.click(screen.getByRole("button", { name: "Unlock Remaining Cosmetics" }));
+    fireEvent.click(screen.getByRole("button", { name: "Download verified copy" }));
+    await screen.findByText("MetaSave.repoditor.es3 was verified and downloaded.");
+
+    const exported = download.createObjectURL.mock.calls[0]?.[0];
+    expect(exported).toBeInstanceOf(Blob);
+    if (!(exported instanceof Blob)) {
+      throw new Error("Expected the verified export Blob.");
+    }
+    const reopened = await loadSaveBytes(
+      new Uint8Array(await exported.arrayBuffer()),
+      "MetaSave.repoditor.es3",
+    );
+    expect(inspectMetaCosmetics(reopened.data)).toEqual({
+      ownedSupportedCount: 547,
+      remainingSupportedCount: 0,
+      totalSupportedCount: 547,
+    });
+
+    const unlockEntry = reopened.data.cosmeticUnlocks;
+    const presetEntry = reopened.data.cosmeticPresets;
+    expect(isSaveObject(unlockEntry) && Array.isArray(unlockEntry.value)).toBe(true);
+    expect(
+      isSaveObject(unlockEntry) &&
+        Array.isArray(unlockEntry.value) &&
+        unlockEntry.value.some((item) => isSaveNumber(item) && item.value === "999"),
+    ).toBe(true);
+    expect(
+      isSaveObject(presetEntry) ? serializeSaveJson({ cosmeticPresets: presetEntry }) : null,
+    ).toBe(
+      serializeSaveJson(parseSaveJson(JSON.stringify({ cosmeticPresets: { value: presets } }))),
+    );
+    expect(reopened.data.unrelated).toEqual({ future: "preserved" });
   });
 
   it("does not expose export for an invalid file", async () => {
