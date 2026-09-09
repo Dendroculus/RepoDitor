@@ -19,7 +19,14 @@ const webEntryPoint = fileURLToPath(new URL("./src/index.css", import.meta.url))
 const webTsconfig = fileURLToPath(new URL("./tsconfig.app.json", import.meta.url));
 
 export default defineConfig([
-  globalIgnores([".vite-cache", "coverage", "dist", "node_modules"]),
+  globalIgnores([
+    ".vite-cache",
+    "coverage",
+    "dist",
+    "node_modules",
+    "playwright-report",
+    "test-results",
+  ]),
   {
     files: ["**/*.{js,mjs,cjs}"],
     languageOptions: {

@@ -1,11 +1,4 @@
-import {
-  GithubLogoIcon,
-  MoonIcon,
-  ShieldCheckIcon,
-  SunIcon,
-  TranslateIcon,
-  XIcon,
-} from "@phosphor-icons/react";
+import { GithubLogoIcon, MoonIcon, ShieldCheckIcon, SunIcon, XIcon } from "@phosphor-icons/react";
 import {
   useEffect,
   useRef,
@@ -14,6 +7,8 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
+
+import { LanguageMenu } from "./LanguageMenu";
 
 const GITHUB_URL = "https://github.com/Yoruxyv/RepoDitor";
 const THEME_KEY = "repoditor-theme";
@@ -94,6 +89,10 @@ function applyTheme(theme: Theme): void {
     ?.setAttribute("content", theme === "light" ? "#f3f2ed" : "#0d1110");
 }
 
+function prefersReducedMotion(): boolean {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
+
 export function AppHeader() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
 
@@ -109,7 +108,7 @@ export function AppHeader() {
   }
 
   return (
-    <header className="border-b border-line bg-app">
+    <header className="theme-surface border-b border-line bg-app">
       <div className="mx-auto flex min-h-16 w-full max-w-[1280px] flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3 sm:px-8">
         <a
           className="mr-auto inline-flex items-center gap-3 text-ink"
@@ -134,33 +133,29 @@ export function AppHeader() {
           </a>
           <button
             aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-            className="inline-flex items-center gap-2 rounded-sm border border-control px-3 py-2 text-sm font-semibold text-secondary transition-colors hover:border-accent hover:text-accent"
+            className="inline-flex items-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold text-secondary transition-colors hover:bg-surface-raised hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             onClick={toggleTheme}
             type="button"
           >
-            <span aria-hidden="true" className="relative size-[17px]">
+            <span aria-hidden="true" className="relative size-[17px] overflow-hidden">
               <MoonIcon
-                className={`absolute inset-0 transition-[opacity,transform] ${
-                  theme === "dark" ? "rotate-0 opacity-100" : "-rotate-90 opacity-0"
+                className={`theme-celestial theme-celestial--moon absolute inset-0 ${
+                  theme === "dark" ? "is-visible" : ""
                 }`}
+                data-theme-icon="moon"
                 size={17}
               />
               <SunIcon
-                className={`absolute inset-0 transition-[opacity,transform] ${
-                  theme === "light" ? "rotate-0 opacity-100" : "rotate-90 opacity-0"
+                className={`theme-celestial theme-celestial--sun absolute inset-0 ${
+                  theme === "light" ? "is-visible" : ""
                 }`}
+                data-theme-icon="sun"
                 size={17}
               />
             </span>
             {theme === "dark" ? "Dark" : "Light"}
           </button>
-          <label className="inline-flex items-center gap-2 rounded-sm border border-control px-3 py-2 text-sm font-semibold text-secondary">
-            <TranslateIcon aria-hidden="true" size={17} />
-            <span className="sr-only">Language</span>
-            <select aria-label="Language" className="bg-transparent text-ink" defaultValue="en">
-              <option value="en">🇺🇸 English</option>
-            </select>
-          </label>
+          <LanguageMenu />
         </nav>
       </div>
     </header>
@@ -169,39 +164,79 @@ export function AppHeader() {
 
 interface PolicyDialogProps {
   readonly policy: Policy | null;
+  readonly renderedPolicy: Policy | null;
   readonly setPolicy: Dispatch<SetStateAction<Policy | null>>;
 }
 
-function PolicyDialog({ policy, setPolicy }: PolicyDialogProps) {
+function showPolicyDialog(dialog: HTMLDialogElement): void {
+  if (dialog.open) return;
+  if (typeof dialog.showModal === "function") dialog.showModal();
+  else dialog.setAttribute("open", "");
+}
+
+function hidePolicyDialog(dialog: HTMLDialogElement): void {
+  if (typeof dialog.close === "function") dialog.close();
+  else dialog.removeAttribute("open");
+}
+
+function PolicyDialog({ policy, renderedPolicy, setPolicy }: PolicyDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
+  const closeTimer = useRef<number | null>(null);
+  const openFrame = useRef<number | null>(null);
 
   useEffect(() => {
     const dialog = dialogRef.current;
     if (!dialog) {
       return;
     }
+    if (openFrame.current !== null) {
+      window.cancelAnimationFrame(openFrame.current);
+      openFrame.current = null;
+    }
     if (policy) {
+      if (closeTimer.current !== null) {
+        window.clearTimeout(closeTimer.current);
+        closeTimer.current = null;
+      }
       previousFocus.current =
         document.activeElement instanceof HTMLElement ? document.activeElement : null;
-      if (!dialog.open) {
-        if (typeof dialog.showModal === "function") {
-          dialog.showModal();
-        } else {
-          dialog.setAttribute("open", "");
-        }
+      showPolicyDialog(dialog);
+      if (prefersReducedMotion()) {
+        dialog.dataset.state = "open";
+      } else {
+        delete dialog.dataset.state;
+        openFrame.current = window.requestAnimationFrame(() => {
+          dialog.dataset.state = "open";
+          openFrame.current = null;
+        });
       }
       closeRef.current?.focus();
-    } else if (dialog.open) {
-      if (typeof dialog.close === "function") {
-        dialog.close();
-      } else {
-        dialog.removeAttribute("open");
-      }
+      return;
+    }
+    if (!dialog.open) return;
+
+    const finishClose = () => {
+      hidePolicyDialog(dialog);
+      delete dialog.dataset.state;
       previousFocus.current?.focus();
+      closeTimer.current = null;
+    };
+    if (prefersReducedMotion()) finishClose();
+    else {
+      dialog.dataset.state = "closing";
+      closeTimer.current = window.setTimeout(finishClose, 300);
     }
   }, [policy]);
+
+  useEffect(
+    () => () => {
+      if (closeTimer.current !== null) window.clearTimeout(closeTimer.current);
+      if (openFrame.current !== null) window.cancelAnimationFrame(openFrame.current);
+    },
+    [],
+  );
 
   function close(): void {
     const trigger = previousFocus.current;
@@ -213,12 +248,12 @@ function PolicyDialog({ policy, setPolicy }: PolicyDialogProps) {
     }
   }
 
-  const details = policy ? POLICIES[policy] : null;
+  const details = renderedPolicy ? POLICIES[renderedPolicy] : null;
   return (
     <dialog
       aria-labelledby="policy-title"
       aria-modal="true"
-      className="m-auto w-[calc(100%-2rem)] max-w-xl overflow-y-auto border border-control bg-surface p-0 text-ink shadow-panel backdrop:bg-app/85"
+      className="policy-dialog theme-surface m-auto w-[calc(100%-2rem)] max-w-xl overflow-y-auto rounded-sm border border-line bg-surface p-0 text-ink shadow-panel"
       onCancel={(event) => {
         event.preventDefault();
         close();
@@ -257,10 +292,17 @@ function PolicyDialog({ policy, setPolicy }: PolicyDialogProps) {
 }
 
 export function AppFooter() {
-  const [policy, setPolicy] = useState<Policy | null>(policyFromHash);
+  const initialPolicy = policyFromHash();
+  const [policy, setPolicy] = useState<Policy | null>(initialPolicy);
+  const [renderedPolicy, setRenderedPolicy] = useState<Policy | null>(initialPolicy);
+
+  function selectPolicy(nextPolicy: Policy | null): void {
+    if (nextPolicy) setRenderedPolicy(nextPolicy);
+    setPolicy(nextPolicy);
+  }
 
   useEffect(() => {
-    const syncHash = () => setPolicy(policyFromHash());
+    const syncHash = () => selectPolicy(policyFromHash());
     window.addEventListener("hashchange", syncHash);
     window.addEventListener("popstate", syncHash);
     return () => {
@@ -270,7 +312,7 @@ export function AppFooter() {
   }, []);
 
   return (
-    <footer className="border-t border-line bg-surface">
+    <footer className="theme-surface border-t border-line bg-surface">
       <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-3 p-5 text-sm text-secondary sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <p className="inline-flex items-center gap-2">
           <ShieldCheckIcon aria-hidden="true" className="text-accent" size={17} />
@@ -285,7 +327,7 @@ export function AppFooter() {
               onClick={(event) => {
                 event.preventDefault();
                 window.history.pushState(null, "", `#${entry}`);
-                setPolicy(entry);
+                selectPolicy(entry);
               }}
             >
               {POLICIES[entry].title}
@@ -301,7 +343,7 @@ export function AppFooter() {
           </a>
         </nav>
       </div>
-      <PolicyDialog policy={policy} setPolicy={setPolicy} />
+      <PolicyDialog policy={policy} renderedPolicy={renderedPolicy} setPolicy={setPolicy} />
     </footer>
   );
 }

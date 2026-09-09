@@ -14,6 +14,11 @@ const UPGRADE_LABELS: Readonly<Record<string, string>> = {
 
 export type ResumeLocation = "normal" | "shop";
 
+export const RESUME_LOCATION_LABELS: Readonly<Record<ResumeLocation, string>> = {
+  normal: "Normal",
+  shop: "Shop / Service Station",
+};
+
 export interface RunPlayer {
   readonly health: number;
   readonly id: string;
@@ -157,6 +162,10 @@ function resumeLocation(value: number): ResumeLocation | null {
   return null;
 }
 
+export function describeResumeLocation(value: ResumeLocation | null, raw: number): string {
+  return value ? RESUME_LOCATION_LABELS[value] : `Unsupported saved value (${raw})`;
+}
+
 export function inspectRunSave(data: SaveObject): RunSaveState {
   const names = playerNames(data);
   const savedHealth = optionalObject(dictionaries(data), "playerHealth", "Player health") ?? {};
@@ -248,7 +257,9 @@ export function setRunLevel(data: SaveObject, value: unknown): void {
 
 export function setResumeLocation(data: SaveObject, value: unknown): void {
   if (value !== "normal" && value !== "shop") {
-    throw new RunEditError("Resume location must be Normal or Shop / Service Station.");
+    throw new RunEditError(
+      `Resume location must be ${RESUME_LOCATION_LABELS.normal} or ${RESUME_LOCATION_LABELS.shop}.`,
+    );
   }
   writeInteger(runStats(data), "save level", value === "normal" ? 0 : 1, 0, 1, "Resume location");
 }

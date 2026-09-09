@@ -102,6 +102,66 @@
   min-height: 100dvh;
 }
 
+.theme-surface {
+  transition-duration: 180ms;
+  transition-property: background-color, color, border-color;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-celestial {
+  opacity: 0;
+  transform: translateY(160%) rotate(var(--theme-celestial-rotation));
+  transition-duration: 200ms;
+  transition-property: transform, opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.theme-celestial--moon {
+  --theme-celestial-rotation: -15deg;
+}
+
+.theme-celestial--sun {
+  --theme-celestial-rotation: 15deg;
+}
+
+.theme-celestial.is-visible {
+  opacity: 1;
+  transform: translateY(0) rotate(0deg);
+  transition-delay: 70ms;
+  transition-duration: 220ms;
+}
+
+.policy-dialog {
+  opacity: 0;
+  transform: translateY(2rem) scale(0.95);
+  transition-duration: 300ms;
+  transition-property: opacity, transform;
+  transition-timing-function: ease;
+}
+
+.policy-dialog::backdrop {
+  background: rgb(13 17 16 / 0%);
+  backdrop-filter: blur(0);
+  transition-duration: 300ms;
+  transition-property: background-color, backdrop-filter;
+  transition-timing-function: ease;
+}
+
+.policy-dialog[data-state="open"] {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.policy-dialog[data-state="open"]::backdrop {
+  background: rgb(13 17 16 / 85%);
+  backdrop-filter: blur(4px);
+}
+
+.policy-dialog[data-state="closing"] {
+  opacity: 0;
+  transform: translateY(2rem) scale(0.95);
+}
+
 /* RepoDitor document scrollbar */
 html {
   scrollbar-color: var(--theme-line-strong) var(--theme-app);
@@ -145,6 +205,7 @@ html::-webkit-scrollbar-button {
     scroll-behavior: auto !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    transition-delay: 0ms !important;
     transition-duration: 0.01ms !important;
   }
 }

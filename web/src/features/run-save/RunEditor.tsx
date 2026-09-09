@@ -11,6 +11,7 @@ import { useEffect, useState, type KeyboardEvent } from "react";
 import { RechargeEditor } from "@/features/recharge/RechargeEditor";
 import type { EditSession } from "@/features/save-file/session";
 import { SelectedPlayerIdentity } from "@/features/run-save/PlayerIdentity";
+import { ResumeLocationMenu } from "@/features/run-save/ResumeLocationMenu";
 import {
   DISPLAY_LEVEL_MAX,
   inspectRunSave,
@@ -189,7 +190,6 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
     }
   }
 
-  const resumeValue = state.resumeLocation ?? `unknown-${state.resumeValue}`;
   const activeIndex = TABS.indexOf(section);
 
   return (
@@ -499,22 +499,11 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                     <MapPinIcon aria-hidden="true" className="text-secondary" size={15} /> Next
                     spawn
                   </label>
-                  <select
-                    className="mt-3 block min-w-56 max-w-full rounded-sm border border-control bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent"
-                    id="run-resume-location"
-                    value={resumeValue}
-                    onChange={(event) =>
-                      apply(() => setResumeLocation(session.working, event.target.value))
-                    }
-                  >
-                    {state.resumeLocation === null ? (
-                      <option disabled value={resumeValue}>
-                        Unsupported saved value ({state.resumeValue})
-                      </option>
-                    ) : null}
-                    <option value="normal">Normal</option>
-                    <option value="shop">Shop / Service Station</option>
-                  </select>
+                  <ResumeLocationMenu
+                    rawValue={state.resumeValue}
+                    value={state.resumeLocation}
+                    onChange={(value) => apply(() => setResumeLocation(session.working, value))}
+                  />
                 </div>
               </div>
             </section>

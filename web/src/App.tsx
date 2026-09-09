@@ -8,7 +8,7 @@ function App() {
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
 
   return (
-    <div className="flex min-h-dvh flex-col bg-app text-ink">
+    <div className="theme-surface flex min-h-dvh flex-col bg-app text-ink">
       <a
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-10 focus:bg-accent focus:px-4 focus:py-2 focus:font-semibold focus:text-accent-ink"
         href="#main-content"
