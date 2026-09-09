@@ -88,7 +88,7 @@ export function SaveWorkspace({
       </header>
 
       {session.originalKind === "run" ? (
-        <RunEditor onSessionChange={onSessionChange} session={session} />
+        <RunEditor busy={busy} onSessionChange={onSessionChange} session={session} />
       ) : (
         <CosmeticsEditor busy={busy} onSessionChange={onSessionChange} session={session} />
       )}

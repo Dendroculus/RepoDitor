@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { useEffect, useState, type KeyboardEvent } from "react";
 
+import { RechargeEditor } from "@/features/recharge/RechargeEditor";
 import type { EditSession } from "@/features/save-file/session";
 import { SelectedPlayerIdentity } from "@/features/run-save/PlayerIdentity";
 import {
@@ -25,11 +26,13 @@ import {
 } from "@/features/run-save/runSave";
 import { useSteamAvatars } from "@/features/run-save/useSteamAvatars";
 
-type EditorSection = "players" | "run" | "upgrades";
+type EditorSection = "players" | "recharge" | "run" | "upgrades";
 
-const TABS: readonly EditorSection[] = ["players", "upgrades", "run"];
+const TABS: readonly EditorSection[] = ["players", "upgrades", "run", "recharge"];
+const TAB_OFFSETS: Readonly<Record<string, number>> = { ArrowLeft: -1, ArrowRight: 1 };
 const TAB_LABELS: Readonly<Record<EditorSection, string>> = {
   players: "Players",
+  recharge: "Recharge",
   run: "Run",
   upgrades: "Upgrades",
 };
@@ -37,6 +40,7 @@ const BASE_PLAYER_HEALTH = 100;
 const HEALTH_PER_UPGRADE = 20;
 
 interface RunEditorProps {
+  readonly busy: boolean;
   readonly onSessionChange: (session: EditSession) => void;
   readonly session: EditSession;
 }
@@ -128,7 +132,26 @@ function inspectWorkingSave(
   }
 }
 
-export function RunEditor({ onSessionChange, session }: RunEditorProps) {
+function moveTab(
+  event: KeyboardEvent<HTMLButtonElement>,
+  index: number,
+  select: (section: EditorSection) => void,
+): void {
+  const offset = TAB_OFFSETS[event.key] ?? 0;
+  if (offset === 0) {
+    return;
+  }
+  event.preventDefault();
+  const nextIndex = (index + offset + TABS.length) % TABS.length;
+  select(TABS[nextIndex]!);
+  document.getElementById(`run-editor-tab-${nextIndex}`)?.focus();
+}
+
+function rechargeSection(section: EditorSection, props: RunEditorProps) {
+  return section === "recharge" ? <RechargeEditor {...props} /> : null;
+}
+
+export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
   const [section, setSection] = useState<EditorSection>("players");
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
@@ -166,22 +189,6 @@ export function RunEditor({ onSessionChange, session }: RunEditorProps) {
     }
   }
 
-  function moveTab(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
-    let offset = 0;
-    if (event.key === "ArrowRight") {
-      offset = 1;
-    } else if (event.key === "ArrowLeft") {
-      offset = -1;
-    }
-    if (offset === 0) {
-      return;
-    }
-    event.preventDefault();
-    const nextIndex = (index + offset + TABS.length) % TABS.length;
-    setSection(TABS[nextIndex]!);
-    document.getElementById(`run-editor-tab-${nextIndex}`)?.focus();
-  }
-
   const resumeValue = state.resumeLocation ?? `unknown-${state.resumeValue}`;
   const activeIndex = TABS.indexOf(section);
 
@@ -205,7 +212,7 @@ export function RunEditor({ onSessionChange, session }: RunEditorProps) {
               tabIndex={section === tab ? 0 : -1}
               type="button"
               onClick={() => setSection(tab)}
-              onKeyDown={(event) => moveTab(event, index)}
+              onKeyDown={(event) => moveTab(event, index, setSection)}
             >
               {TAB_LABELS[tab]}
             </button>
@@ -512,6 +519,7 @@ export function RunEditor({ onSessionChange, session }: RunEditorProps) {
               </div>
             </section>
           ) : null}
+          {rechargeSection(section, { busy, onSessionChange, session })}
         </div>
       </div>
     </section>

@@ -38,7 +38,27 @@ function installDownloadMocks() {
   return { click, createObjectURL, revokeObjectURL };
 }
 
-async function runFile(playerIds: readonly [string, string] = ["111", "222"]): Promise<File> {
+interface RunFileOptions {
+  readonly charges?: Readonly<Record<string, unknown>>;
+  readonly items?: Readonly<Record<string, unknown>>;
+  readonly playerIds?: readonly [string, string];
+}
+
+async function runFile({
+  charges = {
+    "Item Cart Medium/3": 44,
+    "Item Future Battery/4": 88,
+    "Item Gun Tranq/1": 0,
+    "Item Melee Inflatable Hammer/2": 20,
+  },
+  items = {
+    "Item Cart Medium/3": 2,
+    "Item Future Battery/4": 7,
+    "Item Gun Tranq/1": 15,
+    "Item Melee Inflatable Hammer/2": 21,
+  },
+  playerIds = ["111", "222"],
+}: RunFileOptions = {}): Promise<File> {
   const [alphaId, betaId] = playerIds;
   const plaintext = JSON.stringify({
     playerNames: { value: { [alphaId]: "Alpha", [betaId]: "Beta User" } },
@@ -48,6 +68,8 @@ async function runFile(playerIds: readonly [string, string] = ["111", "222"]): P
         playerHealth: { [alphaId]: 80, [betaId]: 60 },
         playerUpgradeHealth: { [alphaId]: 1, [betaId]: 0 },
         playerUpgradeStrength: { [alphaId]: 2 },
+        item: items,
+        itemStatBattery: charges,
       },
     },
   });
@@ -302,6 +324,76 @@ describe("App", () => {
     expect(screen.getByLabelText("Next spawn")).toBeTruthy();
   });
 
+  it("recharges supported items as one immediate pending change and discard restores them", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await runFile()] },
+    });
+    await screen.findByTestId("save-workspace");
+    fireEvent.click(screen.getByRole("tab", { name: "Recharge" }));
+
+    expect(screen.getByText("2 supported rechargeable items")).toBeTruthy();
+    expect(screen.getByText("2 items need recharging")).toBeTruthy();
+    const recharge = screen.getByRole("button", { name: "Recharge All Supported Items" });
+    expect((recharge as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(recharge);
+
+    expect(screen.getByText("1 pending change")).toBeTruthy();
+    expect(screen.getByText("All supported items fully charged.")).toBeTruthy();
+    expect((recharge as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
+    expect(screen.getByRole("listitem").textContent).toBe(
+      "Recharge · Supported items2 items need recharging → All supported items fully charged",
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    expect(screen.getByText("Clean")).toBeTruthy();
+    expect(screen.getByText("2 items need recharging")).toBeTruthy();
+    expect((recharge as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("shows a calm empty recharge state when no supported items are present", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await runFile({ charges: {}, items: {} })] },
+    });
+    await screen.findByTestId("save-workspace");
+    fireEvent.click(screen.getByRole("tab", { name: "Recharge" }));
+
+    expect(screen.getByText("0 supported rechargeable items")).toBeTruthy();
+    expect(
+      screen.getByText("No supported rechargeable items were found in this Run save."),
+    ).toBeTruthy();
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "Recharge All Supported Items",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(screen.getByText("Clean")).toBeTruthy();
+  });
+
+  it("does not expose recharge mutation for malformed stored charge", async () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: {
+        files: [await runFile({ charges: { "Item Gun Tranq/1": "not-an-integer" } })],
+      },
+    });
+    await screen.findByTestId("save-workspace");
+    fireEvent.click(screen.getByRole("tab", { name: "Recharge" }));
+
+    expect(screen.getByRole("heading", { name: "Recharge unavailable" })).toBeTruthy();
+    expect(screen.getByRole("alert").textContent).toContain("signed Int32 integer");
+    expect(screen.queryByRole("button", { name: "Recharge All Supported Items" })).toBeNull();
+    expect(screen.getByText("Clean")).toBeTruthy();
+  });
+
   it("loads optional Steam avatars automatically and fails independently", async () => {
     const download = installDownloadMocks();
     const storageWrite = vi.spyOn(Storage.prototype, "setItem");
@@ -315,7 +407,7 @@ describe("App", () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText(/drop a save here/i), {
-      target: { files: [await runFile(STEAM_PLAYER_IDS)] },
+      target: { files: [await runFile({ playerIds: STEAM_PLAYER_IDS })] },
     });
     await screen.findByTestId("save-workspace");
 
