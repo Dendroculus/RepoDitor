@@ -1,8 +1,13 @@
+import { resolveLocalizedMessage, type Translate } from "@/app/i18n/catalog";
 import type { PendingEdit } from "@/features/save-file/pendingEdits";
 import type { EditSession } from "@/features/save-file/session";
 import { parseSaveJson } from "@/features/save-file/serialization";
 import { inspectRecharge } from "@/features/recharge/recharge";
-import { describeResumeLocation, inspectRunSave } from "@/features/run-save/runSave";
+import {
+  inspectRunSave,
+  RESUME_LOCATION_LABELS,
+  type ResumeLocation,
+} from "@/features/run-save/runSave";
 
 function getUpgradeEdits(
   baseline: ReturnType<typeof inspectRunSave>,
@@ -32,15 +37,28 @@ function getUpgradeEdits(
   return edits;
 }
 
-function rechargeStateLabel(needingRechargeCount: number): string {
+function rechargeStateLabel(
+  needingRechargeCount: number,
+  t: Translate,
+  formatNumber: (value: number) => string,
+): string {
   if (needingRechargeCount === 0) {
-    return "All supported items fully charged";
+    return t("run.pending.allCharged");
   }
-  const noun = needingRechargeCount === 1 ? "item needs" : "items need";
-  return `${needingRechargeCount} ${noun} recharging`;
+  return t("recharge.needed", { count: formatNumber(needingRechargeCount) }, needingRechargeCount);
 }
 
-export function getRunPendingEdits(session: EditSession): PendingEdit[] {
+function resumeLocationLabel(location: ResumeLocation | null, rawValue: number, t: Translate) {
+  return location
+    ? RESUME_LOCATION_LABELS[location]
+    : t("run.run.unsupportedSpawn", { value: rawValue });
+}
+
+export function getRunPendingEdits(
+  session: EditSession,
+  t: Translate = (key, values, count) => resolveLocalizedMessage("en", key, values, count),
+  formatNumber: (value: number) => string = String,
+): PendingEdit[] {
   if (session.originalKind !== "run") {
     return [];
   }
@@ -57,7 +75,7 @@ export function getRunPendingEdits(session: EditSession): PendingEdit[] {
       edits.push({
         after: player.health,
         before,
-        field: "Current health",
+        field: t("run.players.currentHealth"),
         id: `player:${player.id}:health`,
         subject: player.name,
       });
@@ -70,30 +88,30 @@ export function getRunPendingEdits(session: EditSession): PendingEdit[] {
     edits.push({
       after: working.level,
       before: baseline.level,
-      field: "Run level",
+      field: t("run.run.level"),
       id: "run:level",
-      subject: "Run",
+      subject: t("run.run.title"),
     });
   }
   if (baseline.currency !== working.currency) {
     edits.push({
       after: working.currency,
       before: baseline.currency,
-      field: "Currency",
+      field: t("run.run.currency"),
       id: "run:currency",
-      subject: "Run",
+      subject: t("run.run.title"),
     });
   }
 
-  const beforeResume = describeResumeLocation(baseline.resumeLocation, baseline.resumeValue);
-  const afterResume = describeResumeLocation(working.resumeLocation, working.resumeValue);
+  const beforeResume = resumeLocationLabel(baseline.resumeLocation, baseline.resumeValue, t);
+  const afterResume = resumeLocationLabel(working.resumeLocation, working.resumeValue, t);
   if (beforeResume !== afterResume) {
     edits.push({
       after: afterResume,
       before: beforeResume,
-      field: "Next spawn",
+      field: t("run.run.nextSpawn"),
       id: "run:resume-location",
-      subject: "Run",
+      subject: t("run.run.title"),
     });
   }
 
@@ -102,11 +120,11 @@ export function getRunPendingEdits(session: EditSession): PendingEdit[] {
     const workingRecharge = inspectRecharge(session.working);
     if (baselineRecharge.needingRechargeCount !== workingRecharge.needingRechargeCount) {
       edits.push({
-        after: rechargeStateLabel(workingRecharge.needingRechargeCount),
-        before: rechargeStateLabel(baselineRecharge.needingRechargeCount),
-        field: "Supported items",
+        after: rechargeStateLabel(workingRecharge.needingRechargeCount, t, formatNumber),
+        before: rechargeStateLabel(baselineRecharge.needingRechargeCount, t, formatNumber),
+        field: t("run.pending.supportedItems"),
         id: "recharge:supported-items",
-        subject: "Recharge",
+        subject: t("recharge.title"),
       });
     }
   } catch {

@@ -1,8 +1,8 @@
 import { SparkleIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
+import { useI18n } from "@/app/i18n/context";
 import {
-  CosmeticEditError,
   inspectMetaCosmetics,
   type MetaCosmeticsState,
   unlockRemainingCosmetics,
@@ -15,40 +15,37 @@ interface CosmeticsEditorProps {
   readonly session: EditSession;
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof CosmeticEditError
-    ? error.message
-    : "Cosmetics editing is unavailable for this MetaSave.";
-}
-
 export function CosmeticsEditor({ busy, onSessionChange, session }: CosmeticsEditorProps) {
+  const { formatNumber, t } = useI18n();
   const [mutationError, setMutationError] = useState<string | null>(null);
 
   let state: MetaCosmeticsState;
   try {
     state = inspectMetaCosmetics(session.working);
-  } catch (error) {
+  } catch {
     return (
       <section aria-labelledby="cosmetics-title" className="py-12">
         <h2
           className="font-display text-4xl font-semibold uppercase leading-none text-ink"
           id="cosmetics-title"
         >
-          Cosmetics unavailable
+          {t("cosmetics.unavailable")}
         </h2>
         <p className="mt-3 text-sm text-accent" role="alert">
-          {errorMessage(error)}
+          {t("cosmetics.unavailableMessage")}
         </p>
       </section>
     );
   }
 
   const complete = state.remainingSupportedCount === 0;
-  const remainingNoun =
-    state.remainingSupportedCount === 1 ? "cosmetic remains" : "cosmetics remain";
   const statusText = complete
-    ? "All supported cosmetics are already unlocked."
-    : `${state.remainingSupportedCount.toLocaleString("en-US")} supported ${remainingNoun} locked.`;
+    ? t("cosmetics.complete")
+    : t(
+        "cosmetics.remaining",
+        { count: formatNumber(state.remainingSupportedCount) },
+        state.remainingSupportedCount,
+      );
 
   function unlockRemaining(): void {
     try {
@@ -56,28 +53,32 @@ export function CosmeticsEditor({ busy, onSessionChange, session }: CosmeticsEdi
         onSessionChange({ ...session });
       }
       setMutationError(null);
-    } catch (error) {
-      setMutationError(errorMessage(error));
+    } catch {
+      setMutationError(t("cosmetics.unavailableMessage"));
     }
   }
 
   return (
     <section aria-labelledby="cosmetics-title" className="py-10">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">Account save</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">
+        {t("cosmetics.eyebrow")}
+      </p>
       <h2
         className="font-display mt-1 text-4xl font-semibold uppercase leading-none text-ink"
         id="cosmetics-title"
       >
-        Cosmetics
+        {t("cosmetics.title")}
       </h2>
 
       <div className="mt-7 max-w-xl border-y border-line py-5">
         <p className="text-lg font-semibold text-ink">
-          {state.ownedSupportedCount.toLocaleString("en-US")} of{" "}
-          {state.totalSupportedCount.toLocaleString("en-US")} supported cosmetics unlocked
+          {t("cosmetics.unlocked", {
+            owned: formatNumber(state.ownedSupportedCount),
+            total: formatNumber(state.totalSupportedCount),
+          })}
         </p>
         <p className="mt-1 text-sm/6 text-secondary">{statusText}</p>
-        <p className="mt-1 text-xs/5 text-secondary">Presets are not modified.</p>
+        <p className="mt-1 text-xs/5 text-secondary">{t("cosmetics.presets")}</p>
 
         <button
           className="mt-5 inline-flex items-center justify-center gap-2 rounded-sm bg-accent px-4 py-2.5 text-sm font-bold text-accent-ink transition-colors hover:bg-focus disabled:cursor-not-allowed disabled:opacity-60"
@@ -86,7 +87,7 @@ export function CosmeticsEditor({ busy, onSessionChange, session }: CosmeticsEdi
           type="button"
         >
           <SparkleIcon aria-hidden="true" size={18} weight="bold" />
-          Unlock Remaining Cosmetics
+          {t("cosmetics.action")}
         </button>
         {mutationError ? (
           <p className="mt-3 text-sm text-accent" role="alert">

@@ -1,6 +1,8 @@
 import { CheckIcon, CopyIcon, FolderOpenIcon, XIcon } from "@phosphor-icons/react";
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 
+import type { TranslationKey } from "@/app/i18n/catalog";
+import { useI18n } from "@/app/i18n/context";
 import {
   detectInitialGuidancePlatform,
   PROTON_REPO_SUFFIX,
@@ -9,41 +11,38 @@ import {
   WINDOWS_RUN_PATH,
 } from "@/features/save-file/saveLocations";
 
-const PLATFORM_LABELS: Readonly<Record<GuidancePlatform, string>> = {
-  linux: "Linux / Proton",
-  windows: "Windows",
-};
-
 interface CopyPathButtonProps {
-  readonly label: string;
-  readonly onCopy: (path: string, label: string) => void;
+  readonly labelKey: TranslationKey;
+  readonly onCopy: (path: string, labelKey: TranslationKey) => void;
   readonly path: string;
 }
 
-function CopyPathButton({ label, onCopy, path }: CopyPathButtonProps) {
+function CopyPathButton({ labelKey, onCopy, path }: CopyPathButtonProps) {
+  const { t } = useI18n();
   return (
     <button
-      aria-label={`Copy ${label}`}
+      aria-label={t("save.find.copyLabel", { label: t(labelKey) })}
       className="inline-flex shrink-0 items-center gap-2 rounded-sm border border-control px-3 py-2 text-xs font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
-      onClick={() => onCopy(path, label)}
+      onClick={() => onCopy(path, labelKey)}
       type="button"
     >
       <CopyIcon aria-hidden="true" size={15} />
-      Copy path
+      {t("save.find.copyPath")}
     </button>
   );
 }
 
 interface PathBlockProps {
   readonly children: ReactNode;
-  readonly copyLabel: string;
+  readonly copyLabelKey: TranslationKey;
   readonly heading: string;
-  readonly onCopy: (path: string, label: string) => void;
+  readonly id: string;
+  readonly onCopy: (path: string, labelKey: TranslationKey) => void;
   readonly path: string;
 }
 
-function PathBlock({ children, copyLabel, heading, onCopy, path }: PathBlockProps) {
-  const headingId = `${copyLabel.toLowerCase().replaceAll(" ", "-")}-title`;
+function PathBlock({ children, copyLabelKey, heading, id, onCopy, path }: PathBlockProps) {
+  const headingId = `${id}-title`;
   return (
     <section aria-labelledby={headingId} className="border-t border-line pt-4">
       <h3 className="text-sm font-semibold text-ink" id={headingId}>
@@ -53,7 +52,7 @@ function PathBlock({ children, copyLabel, heading, onCopy, path }: PathBlockProp
         <code className="min-w-0 select-text whitespace-normal break-all rounded-sm bg-app px-3 py-2 font-mono text-xs/5 text-secondary">
           {path}
         </code>
-        <CopyPathButton label={copyLabel} onCopy={onCopy} path={path} />
+        <CopyPathButton labelKey={copyLabelKey} onCopy={onCopy} path={path} />
       </div>
       {children}
     </section>
@@ -61,9 +60,14 @@ function PathBlock({ children, copyLabel, heading, onCopy, path }: PathBlockProp
 }
 
 export function FindSaveDialog() {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [platform, setPlatform] = useState<GuidancePlatform>(detectInitialGuidancePlatform);
-  const [copyStatus, setCopyStatus] = useState("");
+  const [copyStatus, setCopyStatus] = useState<
+    | { readonly labelKey: TranslationKey; readonly status: "copied" }
+    | { readonly status: "error" }
+    | null
+  >(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -107,7 +111,7 @@ export function FindSaveDialog() {
 
   function choosePlatform(next: GuidancePlatform): void {
     setPlatform(next);
-    setCopyStatus("");
+    setCopyStatus(null);
   }
 
   function movePlatformTab(event: KeyboardEvent<HTMLButtonElement>): void {
@@ -120,13 +124,20 @@ export function FindSaveDialog() {
     (next === "windows" ? windowsTabRef : linuxTabRef).current?.focus();
   }
 
-  async function copyPath(path: string, label: string): Promise<void> {
+  async function copyPath(path: string, labelKey: TranslationKey): Promise<void> {
     try {
       await navigator.clipboard.writeText(path);
-      setCopyStatus(`${label} copied.`);
+      setCopyStatus({ labelKey, status: "copied" });
     } catch {
-      setCopyStatus("Copy failed. Select the path and copy it manually.");
+      setCopyStatus({ status: "error" });
     }
+  }
+
+  let copyMessage = "";
+  if (copyStatus?.status === "copied") {
+    copyMessage = t("save.find.copied", { label: t(copyStatus.labelKey) });
+  } else if (copyStatus?.status === "error") {
+    copyMessage = t("save.find.copyFailed");
   }
 
   return (
@@ -138,7 +149,7 @@ export function FindSaveDialog() {
         type="button"
       >
         <FolderOpenIcon aria-hidden="true" size={17} />
-        Find my save
+        {t("save.find.action")}
       </button>
 
       <dialog
@@ -164,15 +175,12 @@ export function FindSaveDialog() {
                 className="font-display text-4xl font-semibold uppercase leading-none text-ink"
                 id="find-save-title"
               >
-                Find my save
+                {t("save.find.title")}
               </h2>
-              <p className="mt-2 max-w-xl text-sm/6 text-secondary">
-                RepoDitor Web does not scan your files. Use this guide, then choose the save
-                manually.
-              </p>
+              <p className="mt-2 max-w-xl text-sm/6 text-secondary">{t("save.find.intro")}</p>
             </div>
             <button
-              aria-label="Close save location guide"
+              aria-label={t("save.find.close")}
               className="grid size-10 place-items-center rounded-sm border border-control text-secondary transition-colors hover:border-accent hover:text-accent"
               onClick={closeDialog}
               ref={closeRef}
@@ -187,7 +195,7 @@ export function FindSaveDialog() {
             data-testid="find-save-scroll-region"
           >
             <div
-              aria-label="Save location platform"
+              aria-label={t("save.find.platform")}
               className="mt-5 flex border-b border-line"
               role="tablist"
             >
@@ -205,7 +213,7 @@ export function FindSaveDialog() {
                   tabIndex={platform === entry ? 0 : -1}
                   type="button"
                 >
-                  {PLATFORM_LABELS[entry]}
+                  {t(entry === "windows" ? "save.find.windows" : "save.find.linux")}
                 </button>
               ))}
             </div>
@@ -218,32 +226,32 @@ export function FindSaveDialog() {
                 role="tabpanel"
               >
                 <PathBlock
-                  copyLabel="Windows Run saves path"
-                  heading="Run saves"
+                  copyLabelKey="save.find.windowsRunPath"
+                  heading={t("save.find.runSaves")}
+                  id="windows-run-path"
                   onCopy={(path, label) => void copyPath(path, label)}
                   path={WINDOWS_RUN_PATH}
                 >
                   <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm/6 text-secondary">
-                    <li>Press Win + R.</li>
-                    <li>Paste the path.</li>
-                    <li>Press Enter.</li>
-                    <li>Select the desired Run .es3 save in RepoDitor Web.</li>
+                    <li>{t("save.find.pressWinR")}</li>
+                    <li>{t("save.find.pastePath")}</li>
+                    <li>{t("save.find.pressEnter")}</li>
+                    <li>{t("save.find.selectRun")}</li>
                   </ol>
                 </PathBlock>
 
                 <PathBlock
-                  copyLabel="Windows MetaSave path"
-                  heading="Cosmetics"
+                  copyLabelKey="save.find.windowsMetaPath"
+                  heading={t("save.find.cosmetics")}
+                  id="windows-meta-path"
                   onCopy={(path, label) => void copyPath(path, label)}
                   path={WINDOWS_META_PATH}
                 >
                   <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm/6 text-secondary">
-                    <li>Press Win + R.</li>
-                    <li>Paste the path.</li>
-                    <li>Press Enter.</li>
-                    <li>
-                      For cosmetics, select <strong className="text-ink">MetaSave.es3</strong>.
-                    </li>
+                    <li>{t("save.find.pressWinR")}</li>
+                    <li>{t("save.find.pastePath")}</li>
+                    <li>{t("save.find.pressEnter")}</li>
+                    <li>{t("save.find.selectMeta")}</li>
                   </ol>
                 </PathBlock>
               </div>
@@ -254,32 +262,23 @@ export function FindSaveDialog() {
                 id="find-save-linux-panel"
                 role="tabpanel"
               >
-                <p className="text-sm/6 text-secondary">
-                  Locate the Steam library containing R.E.P.O. (Steam App ID{" "}
-                  <strong className="font-mono text-ink">3241660</strong>), then navigate to:
-                </p>
+                <p className="text-sm/6 text-secondary">{t("save.find.locateSteam")}</p>
                 <PathBlock
-                  copyLabel="Linux Proton Repo path"
-                  heading="Proton save directory"
+                  copyLabelKey="save.find.protonPath"
+                  heading={t("save.find.protonDirectory")}
+                  id="linux-proton-path"
                   onCopy={(path, label) => void copyPath(path, label)}
                   path={PROTON_REPO_SUFFIX}
                 >
-                  <p className="mt-3 text-sm/6 text-secondary">
-                    Press Ctrl + L in your file manager to enter a path. Open{" "}
-                    <strong className="font-mono text-ink">saves/</strong> for Run saves, or select{" "}
-                    <strong className="font-mono text-ink">MetaSave.es3</strong> for cosmetics.
-                  </p>
+                  <p className="mt-3 text-sm/6 text-secondary">{t("save.find.linuxInstruction")}</p>
                 </PathBlock>
                 <section className="border-t border-line pt-4">
-                  <h3 className="text-sm font-semibold text-ink">Common Steam root examples</h3>
+                  <h3 className="text-sm font-semibold text-ink">{t("save.find.steamRoots")}</h3>
                   <div className="mt-2 grid gap-1 font-mono text-xs/5 text-secondary">
                     <code>~/.local/share/Steam/</code>
                     <code>~/.steam/steam/</code>
                   </div>
-                  <p className="mt-2 text-sm/6 text-secondary">
-                    These are examples only. Custom Steam libraries may be on another disk or in
-                    another location.
-                  </p>
+                  <p className="mt-2 text-sm/6 text-secondary">{t("save.find.customLibrary")}</p>
                 </section>
               </div>
             )}
@@ -295,7 +294,7 @@ export function FindSaveDialog() {
               {copyStatus ? (
                 <CheckIcon aria-hidden="true" className="text-accent" size={15} />
               ) : null}
-              {copyStatus}
+              {copyMessage}
             </output>
           </div>
         </div>

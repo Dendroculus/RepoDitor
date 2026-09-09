@@ -2,10 +2,13 @@ import { ShieldCheckIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
 import { AppFooter, AppHeader } from "@/app/AppShell";
+import { useI18n } from "@/app/i18n/context";
+import { I18nProvider } from "@/app/i18n/I18nProvider";
 import { SaveFilePanel } from "@/features/save-file/SaveFilePanel";
 
-function App() {
+function AppContent() {
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
+  const { t } = useI18n();
 
   return (
     <div className="theme-surface flex min-h-dvh flex-col bg-app text-ink">
@@ -13,7 +16,7 @@ function App() {
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-10 focus:bg-accent focus:px-4 focus:py-2 focus:font-semibold focus:text-accent-ink"
         href="#main-content"
       >
-        Skip to content
+        {t("app.skip")}
       </a>
 
       <AppHeader />
@@ -29,25 +32,21 @@ function App() {
         {workspaceOpen ? null : (
           <section aria-labelledby="page-title" className="max-w-xl">
             <p className="text-sm font-semibold uppercase tracking-[0.14em] text-accent">
-              Local save editor
+              {t("save.landing.eyebrow")}
             </p>
             <h1
-              aria-label="Edit R.E.P.O. saves directly in your browser."
+              aria-label={t("save.landing.title")}
               className="font-display mt-3 text-5xl font-semibold uppercase leading-[0.92] tracking-tight"
               id="page-title"
             >
-              <span className="md:block">Edit R.E.P.O. saves </span>
-              <span className="md:block">directly in your browser.</span>
+              <span className="md:block">{t("save.landing.titleOne")} </span>
+              <span className="md:block">{t("save.landing.titleTwo")}</span>
             </h1>
-            <p className="mt-5 max-w-md text-lg/7 text-secondary">No installation required.</p>
+            <p className="mt-5 max-w-md text-lg/7 text-secondary">{t("save.landing.noInstall")}</p>
 
             <div className="mt-9 flex items-center gap-3 border-l-2 border-accent bg-accent-muted px-4 py-3 text-sm/6 text-secondary">
               <ShieldCheckIcon aria-hidden="true" className="shrink-0 text-accent" size={22} />
-              <p>
-                Save contents are processed locally and are not persisted by RepoDitor Web. Optional
-                avatars send only validated Steam IDs; save files and decrypted JSON are not
-                uploaded.
-              </p>
+              <p>{t("save.landing.privacy")}</p>
             </div>
           </section>
         )}
@@ -59,4 +58,10 @@ function App() {
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <I18nProvider>
+      <AppContent />
+    </I18nProvider>
+  );
+}

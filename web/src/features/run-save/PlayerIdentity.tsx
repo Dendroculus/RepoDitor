@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 
+import { useI18n } from "@/app/i18n/context";
 import type { RunPlayer } from "@/features/run-save/runSave";
 
 function initials(name: string): string {
@@ -26,6 +27,7 @@ export function SelectedPlayerIdentity({
   player,
 }: SelectedPlayerIdentityProps) {
   const [loaded, setLoaded] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => setLoaded(false), [avatarUrl]);
 
@@ -37,7 +39,7 @@ export function SelectedPlayerIdentity({
       >
         {avatarUrl ? (
           <img
-            alt={`Steam avatar for ${player.name}`}
+            alt={t("run.players.steamAvatar", { name: player.name })}
             className={`size-full object-cover ${loaded ? "opacity-100" : "opacity-0"}`}
             src={avatarUrl}
             onError={onRejectAvatar}
@@ -49,13 +51,15 @@ export function SelectedPlayerIdentity({
             <span aria-hidden="true" data-testid="player-avatar-fallback">
               {initials(player.name)}
             </span>
-            <figcaption className="sr-only">Avatar fallback for {player.name}</figcaption>
+            <figcaption className="sr-only">
+              {t("run.players.avatarFallback", { name: player.name })}
+            </figcaption>
           </>
         ) : null}
       </figure>
       <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">
-          Selected player
+          {t("run.players.selected")}
         </p>
         <h2 className="mt-0.5 truncate text-xl font-semibold text-ink">{player.name}</h2>
         <p className="mt-0.5 truncate font-mono text-xs text-secondary">{player.id}</p>

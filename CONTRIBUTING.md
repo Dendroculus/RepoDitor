@@ -86,12 +86,18 @@ Locale files live under:
 
 ```text
 desktop/src/app/i18n/locales/
+web/src/app/i18n/locales/<locale>/<domain>.ts
 ```
 
 Locale filenames use locale/BCP-47-style identifiers. Examples include `en.ts`,
 `ja.ts`, `id.ts`, `pt-BR.ts`, and `zh-CN.ts`; an example filename does not mean
 that locale is currently shipped. Use `en.ts` as the source of required keys and
 provide every translation key in the target locale.
+
+Web locales are directories split by application/domain responsibility. English domain objects use
+`as const`; translated domains and each fully assembled locale are checked against the derived
+English shape. Add a Web key to the matching English domain first, preserve its placeholders in all
+five locales, and do not move substantial policy or feature copy into the generic shell domain.
 
 When translating:
 
@@ -144,6 +150,9 @@ Language-selector flags are bundled SVG assets under
 `desktop/src/assets/flags/`; they are not Unicode flag emoji and are not
 downloaded at runtime.
 
+RepoDitor Web intentionally uses native language names without flags. The Desktop flag guidance
+below does not apply to the Web selector.
+
 Treat flags as decorative visual cues rather than the identity of a locale.
 The language name remains the canonical and accessible identity of each option.
 Flag images should remain hidden from assistive technology (`alt=""` and
@@ -173,6 +182,10 @@ npm test
 ```
 
 If the language selector itself changes, also run `npm run test:e2e`.
+
+For Web translation changes, run the equivalent commands from `web/`, including `npm run
+format:check`, `npm run imports:check`, `npm run lint`, `npm run build`, and `npm test`. Run `npm run
+test:e2e` when selector behavior, locale persistence, or responsive layout changes.
 
 ## Evidence and save safety
 

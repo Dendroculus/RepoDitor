@@ -84,7 +84,10 @@ async function runFile({
     testIv: new Uint8Array(16),
   });
   const file = new File([encrypted], "REPO_SAVE.es3");
-  Object.defineProperty(file, "arrayBuffer", { value: async () => encrypted.buffer });
+  Object.defineProperty(file, "arrayBuffer", {
+    configurable: true,
+    value: vi.fn(async () => encrypted.buffer),
+  });
   return file;
 }
 
@@ -122,6 +125,8 @@ afterEach(() => {
   window.localStorage.clear();
   delete document.documentElement.dataset.theme;
   delete document.documentElement.dataset.themeReady;
+  delete document.documentElement.dataset.locale;
+  document.documentElement.lang = "en";
 });
 
 describe("App", () => {
@@ -283,7 +288,7 @@ describe("App", () => {
       "Alpha · Current health80 → 95",
       "Alpha · Strength2 → 3",
       "Run · Run level1 → 5",
-      "Run · Currency12 → 50000",
+      "Run · Currency12 → 50,000",
       "Run · Next spawnNormal → Shop / Service Station",
     ]);
     fireEvent.click(reviewButton);
@@ -794,5 +799,82 @@ describe("App", () => {
     ).toBeTruthy();
     expect(download.click).not.toHaveBeenCalled();
     expect(download.revokeObjectURL).not.toHaveBeenCalled();
+  });
+
+  it("switches locale in place and preserves the accepted working save", async () => {
+    render(<App />);
+    const file = await runFile();
+
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), { target: { files: [file] } });
+    await screen.findByTestId("save-workspace");
+    fireEvent.click(screen.getByRole("tab", { name: "Run" }));
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Currency" }), {
+      target: { value: "13" },
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Language: English" }));
+    fireEvent.click(screen.getByRole("option", { name: "日本語" }));
+
+    expect(document.documentElement.lang).toBe("ja");
+    expect(window.localStorage.getItem("repoditor-locale")).toBe("ja");
+    expect(screen.getByRole("heading", { level: 1, name: "REPO_SAVE.es3" })).toBeTruthy();
+    expect((screen.getByRole("spinbutton", { name: "通貨" }) as HTMLInputElement).value).toBe("13");
+    expect(screen.getByText("保留中の変更 1 件")).toBeTruthy();
+    expect(file.arrayBuffer).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "言語：日本語" }));
+    fireEvent.click(screen.getByRole("option", { name: "English" }));
+    expect((screen.getByRole("spinbutton", { name: "Currency" }) as HTMLInputElement).value).toBe(
+      "13",
+    );
+    expect(screen.getByText("1 pending change")).toBeTruthy();
+    expect(file.arrayBuffer).toHaveBeenCalledTimes(1);
+  });
+
+  it("falls back to English for an unsupported stored locale", () => {
+    window.localStorage.setItem("repoditor-locale", "fr");
+    render(<App />);
+
+    expect(document.documentElement.lang).toBe("en");
+    expect(screen.getByRole("button", { name: "Language: English" })).toBeTruthy();
+  });
+
+  it("keeps an open dialog and its selected platform when the locale changes", () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "Find my save" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Linux / Proton" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Language: English" }));
+    fireEvent.click(screen.getByRole("option", { name: "한국어" }));
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "내 세이브 찾기" })).toBeTruthy();
+    expect(screen.getByRole("tab", { name: "Linux / Proton" }).getAttribute("aria-selected")).toBe(
+      "true",
+    );
+  });
+
+  it("supports wraparound, Home, End, and keyboard locale selection", () => {
+    render(<App />);
+    const trigger = screen.getByTestId("language-menu-trigger");
+    fireEvent.click(trigger);
+    const english = screen.getByRole("option", { name: "English" });
+    const indonesian = screen.getByRole("option", { name: "Bahasa Indonesia" });
+    const chinese = screen.getByRole("option", { name: "简体中文" });
+
+    expect(document.activeElement).toBe(english);
+    fireEvent.keyDown(english, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(chinese);
+    fireEvent.keyDown(chinese, { key: "Home" });
+    expect(document.activeElement).toBe(english);
+    fireEvent.keyDown(english, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(indonesian);
+    fireEvent.keyDown(indonesian, { key: "End" });
+    expect(document.activeElement).toBe(chinese);
+    fireEvent.keyDown(chinese, { key: "Enter" });
+
+    expect(document.documentElement.lang).toBe("zh-CN");
+    expect(document.activeElement).toBe(trigger);
+    expect(screen.queryByRole("listbox")).toBeNull();
   });
 });

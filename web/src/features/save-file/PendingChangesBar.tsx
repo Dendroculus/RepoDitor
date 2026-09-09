@@ -1,12 +1,14 @@
 import { ArrowCounterClockwiseIcon, DownloadSimpleIcon } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 
+import { useI18n } from "@/app/i18n/context";
 import type { PendingEdit } from "@/features/save-file/pendingEdits";
 
 export type WorkspaceExportState =
   | { readonly status: "idle" }
   | { readonly status: "preparing" }
-  | { readonly message: string; readonly status: "error" | "success" };
+  | { readonly status: "error" }
+  | { readonly fileName: string; readonly status: "success" };
 
 interface PendingChangesBarProps {
   readonly busy: boolean;
@@ -16,21 +18,15 @@ interface PendingChangesBarProps {
   readonly onReset: () => void;
 }
 
-function pendingLabel(count: number): string {
-  if (count === 0) {
-    return "Clean";
-  }
-  return `${count} pending ${count === 1 ? "change" : "changes"}`;
-}
-
 function ExportFeedback({ state }: { readonly state: WorkspaceExportState }) {
+  const { t } = useI18n();
   if (state.status === "idle") {
     return null;
   }
   if (state.status === "preparing") {
     return (
       <output aria-live="polite" className="text-xs/5 text-secondary">
-        Encrypting and verifying the copy locally.
+        {t("save.pending.encrypting")}
       </output>
     );
   }
@@ -39,7 +35,9 @@ function ExportFeedback({ state }: { readonly state: WorkspaceExportState }) {
       aria-live={state.status === "error" ? "assertive" : "polite"}
       className="text-xs/5 text-secondary"
     >
-      {state.message}
+      {state.status === "success"
+        ? t("save.pending.exportSuccess", { fileName: state.fileName })
+        : t("save.pending.exportError")}
     </output>
   );
 }
@@ -52,6 +50,7 @@ export function PendingChangesBar({
   onReset,
 }: PendingChangesBarProps) {
   const [reviewing, setReviewing] = useState(false);
+  const { formatNumber, t } = useI18n();
 
   useEffect(() => {
     if (edits.length === 0) {
@@ -63,7 +62,7 @@ export function PendingChangesBar({
     <footer className="mt-8 border-t border-line py-3">
       {edits.length > 0 ? (
         <section
-          aria-label="Pending change review"
+          aria-label={t("save.pending.reviewLabel")}
           className="mb-3 border-b border-line pb-3"
           data-testid="pending-changes-review"
           hidden={!reviewing}
@@ -79,7 +78,8 @@ export function PendingChangesBar({
                   {edit.subject} · {edit.field}
                 </span>
                 <span className="break-all font-mono text-xs text-ink">
-                  {edit.before} → {edit.after}
+                  {typeof edit.before === "number" ? formatNumber(edit.before) : edit.before} →{" "}
+                  {typeof edit.after === "number" ? formatNumber(edit.after) : edit.after}
                 </span>
               </li>
             ))}
@@ -95,7 +95,9 @@ export function PendingChangesBar({
             className={`block text-sm font-semibold ${edits.length > 0 ? "text-accent" : "text-ink"}`}
             data-testid="pending-change-count"
           >
-            {pendingLabel(edits.length)}
+            {edits.length === 0
+              ? t("save.pending.clean")
+              : t("save.pending.count", { count: edits.length }, edits.length)}
           </output>
           <ExportFeedback state={exportState} />
         </div>
@@ -109,7 +111,7 @@ export function PendingChangesBar({
               type="button"
               onClick={() => setReviewing((current) => !current)}
             >
-              Review changes
+              {t("save.pending.review")}
             </button>
           ) : null}
           <button
@@ -119,7 +121,7 @@ export function PendingChangesBar({
             type="button"
           >
             <ArrowCounterClockwiseIcon aria-hidden="true" size={18} />
-            Discard changes
+            {t("save.pending.discard")}
           </button>
           <button
             className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-sm bg-accent px-4 py-2.5 text-sm font-bold text-accent-ink transition-colors hover:bg-focus disabled:cursor-wait disabled:opacity-60"
@@ -129,8 +131,8 @@ export function PendingChangesBar({
           >
             <DownloadSimpleIcon aria-hidden="true" size={18} weight="bold" />
             {exportState.status === "preparing"
-              ? "Preparing verified copy"
-              : "Download verified copy"}
+              ? t("save.pending.preparing")
+              : t("save.pending.download")}
           </button>
         </div>
       </div>

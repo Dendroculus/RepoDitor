@@ -39,7 +39,7 @@ server-side save processing.
 Save contents are processed locally and are not persisted by RepoDitor Web. Loaded sessions live
 only in memory and clear on refresh. Save bytes, decrypted JSON, staged edits, and exported content
 are never written to localStorage, sessionStorage, or IndexedDB. The only persisted browser value is
-the optional `repoditor-theme` UI preference.
+the optional `repoditor-theme` and `repoditor-locale` UI preferences.
 
 The editor makes no save-related network request. Optional Steam avatar enrichment is isolated from
 save processing and sends only validated SteamID64 values to the same-origin endpoint described
@@ -70,3 +70,15 @@ byte buffer.
 
 A minimal permissive `robots.txt` keeps the static baseline valid. No canonical URL is included
 until the production hostname is confirmed; that value must not be guessed.
+
+## Web translations
+
+English is the canonical Web catalog. Locale directories live in `src/app/i18n/locales/`; each
+locale is split into shell, policies, save, Run, cosmetics, and recharge domains. Add a key to the
+English domain first, then provide the same key and placeholders in every translated domain. The
+TypeScript build validates each domain and each assembled locale against the English shape.
+
+Translate RepoDitor-owned interface text, not filenames, filesystem paths, IDs, player names, save
+values, or game-owned labels. Preserve placeholders such as `{count}` and `{fileName}` exactly. The
+Web selector uses native language names without flags. Run the full Web quality gates after catalog
+changes; use Playwright when selector behavior, persistence, or responsive layout changes.

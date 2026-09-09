@@ -1,12 +1,7 @@
 import { GithubLogoIcon, MoonIcon, ShieldCheckIcon, SunIcon, XIcon } from "@phosphor-icons/react";
-import {
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type ReactNode,
-  type SetStateAction,
-} from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
+
+import { useI18n } from "@/app/i18n/context";
 
 import { LanguageMenu } from "./LanguageMenu";
 
@@ -15,58 +10,6 @@ const THEME_KEY = "repoditor-theme";
 
 type Theme = "dark" | "light";
 type Policy = "privacy" | "security" | "terms";
-
-const POLICIES: Readonly<Record<Policy, { readonly content: ReactNode; readonly title: string }>> =
-  {
-    privacy: {
-      title: "Data & Privacy",
-      content: (
-        <>
-          <p>Save contents are processed locally and are not persisted by RepoDitor Web.</p>
-          <p>
-            Save files and decrypted JSON are not uploaded. Optional Steam avatar enrichment sends
-            only validated Steam IDs to the RepoDitor same-origin endpoint. Your theme preference is
-            stored locally; save data never shares that storage.
-          </p>
-        </>
-      ),
-    },
-    security: {
-      title: "Security",
-      content: (
-        <>
-          <p>
-            RepoDitor validates supported save structures, stages changes in memory, and verifies
-            each encrypted export before download.
-          </p>
-          <p>
-            Report vulnerabilities privately through the repository security{" "}
-            <a
-              className="font-semibold text-accent underline underline-offset-4"
-              href={`${GITHUB_URL}/security/advisories/new`}
-              rel="noreferrer"
-              target="_blank"
-            >
-              security advisory form
-            </a>
-            . Do not include real save files or decrypted data in public reports.
-          </p>
-        </>
-      ),
-    },
-    terms: {
-      title: "Terms",
-      content: (
-        <>
-          <p>RepoDitor is an independent community tool and is not affiliated with semiwork.</p>
-          <p>
-            Use copies of your saves and review staged changes before export. You remain responsible
-            for backups and for how you use downloaded files.
-          </p>
-        </>
-      ),
-    },
-  };
 
 function policyFromHash(): Policy | null {
   const hash = window.location.hash.slice(1);
@@ -95,6 +38,7 @@ function prefersReducedMotion(): boolean {
 
 export function AppHeader() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
+  const { t } = useI18n();
 
   function toggleTheme(): void {
     const next = theme === "dark" ? "light" : "dark";
@@ -113,7 +57,7 @@ export function AppHeader() {
         <a
           className="mr-auto inline-flex items-center gap-3 text-ink"
           href="/"
-          aria-label="RepoDitor Web home"
+          aria-label={t("app.home")}
         >
           <img alt="" aria-hidden="true" className="size-8 rounded-sm" src="/icon.png" />
           <span className="font-display text-3xl font-semibold uppercase leading-none tracking-tight">
@@ -121,7 +65,10 @@ export function AppHeader() {
           </span>
         </a>
 
-        <nav aria-label="Application" className="flex flex-wrap items-center justify-end gap-2">
+        <nav
+          aria-label={t("app.application")}
+          className="flex flex-wrap items-center justify-end gap-2"
+        >
           <a
             className="inline-flex items-center gap-2 rounded-sm px-2.5 py-2 text-sm font-semibold text-secondary transition-colors hover:text-accent"
             href={GITHUB_URL}
@@ -132,7 +79,9 @@ export function AppHeader() {
             GitHub
           </a>
           <button
-            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
+            aria-label={t("app.switchTheme", {
+              theme: t(theme === "dark" ? "app.light" : "app.dark").toLowerCase(),
+            })}
             className="inline-flex items-center gap-2 rounded-sm px-3 py-2 text-sm font-semibold text-secondary transition-colors hover:bg-surface-raised hover:text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
             onClick={toggleTheme}
             type="button"
@@ -153,7 +102,7 @@ export function AppHeader() {
                 size={17}
               />
             </span>
-            {theme === "dark" ? "Dark" : "Light"}
+            {t(theme === "dark" ? "app.dark" : "app.light")}
           </button>
           <LanguageMenu />
         </nav>
@@ -180,6 +129,7 @@ function hidePolicyDialog(dialog: HTMLDialogElement): void {
 }
 
 function PolicyDialog({ policy, renderedPolicy, setPolicy }: PolicyDialogProps) {
+  const { t } = useI18n();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
@@ -248,7 +198,7 @@ function PolicyDialog({ policy, renderedPolicy, setPolicy }: PolicyDialogProps) 
     }
   }
 
-  const details = renderedPolicy ? POLICIES[renderedPolicy] : null;
+  const title = renderedPolicy ? t(`policies.${renderedPolicy}Title`) : "";
   return (
     <dialog
       aria-labelledby="policy-title"
@@ -260,7 +210,7 @@ function PolicyDialog({ policy, renderedPolicy, setPolicy }: PolicyDialogProps) 
       }}
       ref={dialogRef}
     >
-      {details ? (
+      {renderedPolicy ? (
         <div className="p-5 sm:p-7">
           <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
             <div>
@@ -271,11 +221,11 @@ function PolicyDialog({ policy, renderedPolicy, setPolicy }: PolicyDialogProps) 
                 className="font-display mt-1 text-4xl font-semibold uppercase leading-none"
                 id="policy-title"
               >
-                {details.title}
+                {title}
               </h2>
             </div>
             <button
-              aria-label={`Close ${details.title}`}
+              aria-label={t("app.closePolicy", { title })}
               className="grid size-10 place-items-center rounded-sm border border-control text-secondary transition-colors hover:border-accent hover:text-accent"
               onClick={close}
               ref={closeRef}
@@ -284,7 +234,37 @@ function PolicyDialog({ policy, renderedPolicy, setPolicy }: PolicyDialogProps) 
               <XIcon aria-hidden="true" size={18} />
             </button>
           </header>
-          <div className="mt-5 grid gap-4 text-sm/6 text-secondary">{details.content}</div>
+          <div className="mt-5 grid gap-4 text-sm/6 text-secondary">
+            {renderedPolicy === "privacy" ? (
+              <>
+                <p>{t("policies.privacyOne")}</p>
+                <p>{t("policies.privacyTwo")}</p>
+              </>
+            ) : null}
+            {renderedPolicy === "security" ? (
+              <>
+                <p>{t("policies.securityOne")}</p>
+                <p>
+                  {t("policies.securityBeforeLink")}{" "}
+                  <a
+                    className="font-semibold text-accent underline underline-offset-4"
+                    href={`${GITHUB_URL}/security/advisories/new`}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {t("policies.securityLink")}
+                  </a>
+                  {t("policies.securityAfterLink")}
+                </p>
+              </>
+            ) : null}
+            {renderedPolicy === "terms" ? (
+              <>
+                <p>{t("policies.termsOne")}</p>
+                <p>{t("policies.termsTwo")}</p>
+              </>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </dialog>
@@ -292,6 +272,7 @@ function PolicyDialog({ policy, renderedPolicy, setPolicy }: PolicyDialogProps) 
 }
 
 export function AppFooter() {
+  const { t } = useI18n();
   const initialPolicy = policyFromHash();
   const [policy, setPolicy] = useState<Policy | null>(initialPolicy);
   const [renderedPolicy, setRenderedPolicy] = useState<Policy | null>(initialPolicy);
@@ -316,9 +297,9 @@ export function AppFooter() {
       <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-3 p-5 text-sm text-secondary sm:flex-row sm:items-center sm:justify-between sm:px-8">
         <p className="inline-flex items-center gap-2">
           <ShieldCheckIcon aria-hidden="true" className="text-accent" size={17} />
-          Save contents stay local and are not persisted.
+          {t("app.footerPrivacy")}
         </p>
-        <nav aria-label="Policies" className="flex flex-wrap gap-x-4 gap-y-2">
+        <nav aria-label={t("app.policies")} className="flex flex-wrap gap-x-4 gap-y-2">
           {(["security", "privacy", "terms"] as const).map((entry) => (
             <a
               className="font-semibold text-secondary transition-colors hover:text-accent"
@@ -330,7 +311,7 @@ export function AppFooter() {
                 selectPolicy(entry);
               }}
             >
-              {POLICIES[entry].title}
+              {t(`policies.${entry}Title`)}
             </a>
           ))}
           <a
