@@ -2,17 +2,7 @@ import type { PendingEdit } from "@/features/save-file/pendingEdits";
 import type { EditSession } from "@/features/save-file/session";
 import { parseSaveJson } from "@/features/save-file/serialization";
 import { inspectRecharge } from "@/features/recharge/recharge";
-import { inspectRunSave, type ResumeLocation } from "@/features/run-save/runSave";
-
-function resumeLabel(value: ResumeLocation | null, raw: number): string {
-  if (value === "normal") {
-    return "Normal";
-  }
-  if (value === "shop") {
-    return "Shop / Service Station";
-  }
-  return `Unsupported saved value (${raw})`;
-}
+import { describeResumeLocation, inspectRunSave } from "@/features/run-save/runSave";
 
 function getUpgradeEdits(
   baseline: ReturnType<typeof inspectRunSave>,
@@ -95,8 +85,8 @@ export function getRunPendingEdits(session: EditSession): PendingEdit[] {
     });
   }
 
-  const beforeResume = resumeLabel(baseline.resumeLocation, baseline.resumeValue);
-  const afterResume = resumeLabel(working.resumeLocation, working.resumeValue);
+  const beforeResume = describeResumeLocation(baseline.resumeLocation, baseline.resumeValue);
+  const afterResume = describeResumeLocation(working.resumeLocation, working.resumeValue);
   if (beforeResume !== afterResume) {
     edits.push({
       after: afterResume,

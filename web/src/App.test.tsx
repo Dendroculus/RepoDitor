@@ -42,6 +42,7 @@ interface RunFileOptions {
   readonly charges?: Readonly<Record<string, unknown>>;
   readonly items?: Readonly<Record<string, unknown>>;
   readonly playerIds?: readonly [string, string];
+  readonly resumeValue?: number;
 }
 
 async function runFile({
@@ -58,13 +59,19 @@ async function runFile({
     "Item Melee Inflatable Hammer/2": 21,
   },
   playerIds = ["111", "222"],
+  resumeValue = 0,
 }: RunFileOptions = {}): Promise<File> {
   const [alphaId, betaId] = playerIds;
   const plaintext = JSON.stringify({
     playerNames: { value: { [alphaId]: "Alpha", [betaId]: "Beta User" } },
     dictionaryOfDictionaries: {
       value: {
-        runStats: { currency: 12, level: 0, privateUnknown: "kept-local", "save level": 0 },
+        runStats: {
+          currency: 12,
+          level: 0,
+          privateUnknown: "kept-local",
+          "save level": resumeValue,
+        },
         playerHealth: { [alphaId]: 80, [betaId]: 60 },
         playerUpgradeHealth: { [alphaId]: 1, [betaId]: 0 },
         playerUpgradeStrength: { [alphaId]: 2 },
@@ -149,17 +156,32 @@ describe("App", () => {
     );
   });
 
-  it("persists only an explicit theme preference and exposes the language shell", () => {
+  it("persists only an explicit theme preference and exposes the flagless language menu", () => {
     const storageWrite = vi.spyOn(Storage.prototype, "setItem");
     render(<App />);
 
     expect(storageWrite).not.toHaveBeenCalled();
-    expect(screen.getByRole("combobox", { name: "Language" })).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Switch to light theme" }));
+    const languageTrigger = screen.getByRole("button", { name: "Language: English" });
+    expect(document.body.textContent).not.toContain("🇺🇸");
+    fireEvent.click(languageTrigger);
+    const languageOption = screen.getByRole("option", { name: "English" });
+    expect(languageOption.className).toContain("w-full");
+    fireEvent.keyDown(languageOption, { key: "Escape" });
+    expect(screen.queryByRole("listbox", { name: "Language" })).toBeNull();
+    expect(document.activeElement).toBe(languageTrigger);
+
+    const themeToggle = screen.getByRole("button", { name: "Switch to light theme" });
+    const moon = themeToggle.querySelector('[data-theme-icon="moon"]');
+    const sun = themeToggle.querySelector('[data-theme-icon="sun"]');
+    expect(moon?.classList.contains("is-visible")).toBe(true);
+    expect(sun?.classList.contains("is-visible")).toBe(false);
+    fireEvent.click(themeToggle);
 
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(storageWrite).toHaveBeenCalledWith("repoditor-theme", "light");
     expect(screen.getByRole("button", { name: "Switch to dark theme" })).toBeTruthy();
+    expect(moon?.classList.contains("is-visible")).toBe(false);
+    expect(sun?.classList.contains("is-visible")).toBe(true);
   });
 
   it("opens hash-addressable policy guidance and returns focus on browser Back", async () => {
@@ -171,6 +193,7 @@ describe("App", () => {
     expect(window.location.hash).toBe("#privacy");
     const dialog = document.querySelector('[aria-labelledby="policy-title"]');
     expect(dialog?.hasAttribute("open")).toBe(true);
+    await waitFor(() => expect((dialog as HTMLDialogElement).dataset.state).toBe("open"));
     expect(screen.getByRole("heading", { name: "Data & Privacy" })).toBeTruthy();
 
     window.history.replaceState(null, "", "/");
@@ -241,7 +264,8 @@ describe("App", () => {
       target: { value: "5" },
     });
     expect(screen.getByText("4 pending changes")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Next spawn"), { target: { value: "shop" } });
+    fireEvent.click(screen.getByLabelText("Next spawn"));
+    fireEvent.click(screen.getByRole("option", { name: "Shop / Service Station" }));
 
     expect(screen.getByText("5 pending changes")).toBeTruthy();
     const reviewButton = screen.getByRole("button", { name: "Review changes" });
@@ -276,7 +300,7 @@ describe("App", () => {
         "12",
       ),
     );
-    expect((screen.getByLabelText("Next spawn") as HTMLSelectElement).value).toBe("normal");
+    expect(screen.getByLabelText("Next spawn").textContent).toContain("Normal");
     expect((screen.getByRole("spinbutton", { name: "Run level" }) as HTMLInputElement).value).toBe(
       "1",
     );
@@ -284,6 +308,30 @@ describe("App", () => {
     expect(
       (screen.getByRole("spinbutton", { name: "Current health" }) as HTMLInputElement).value,
     ).toBe("80");
+  });
+
+  it("offers only supported next-spawn choices without normalizing an unsupported value", async () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText(/drop a save here/i), {
+      target: { files: [await runFile({ resumeValue: 2 })] },
+    });
+    await screen.findByTestId("save-workspace");
+    fireEvent.click(screen.getByRole("tab", { name: "Run" }));
+
+    const trigger = screen.getByLabelText("Next spawn");
+    expect(trigger.textContent).toContain("Unsupported saved value (2)");
+    fireEvent.click(trigger);
+    const menu = screen.getByRole("listbox", { name: "Next spawn" });
+    expect(
+      within(menu)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["Normal", "Shop / Service Station"]);
+    expect(within(menu).queryByText(/Unsupported saved value/iu)).toBeNull();
+
+    fireEvent.click(within(menu).getByRole("option", { name: "Normal" }));
+    expect(screen.getByText("1 pending change")).toBeTruthy();
+    expect(screen.getByLabelText("Next spawn").textContent).toContain("Normal");
   });
 
   it("removes a pending edit when the value is manually restored", async () => {

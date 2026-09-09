@@ -63,10 +63,16 @@ describe("Find My Save guidance", () => {
     const { dialog, trigger } = openDialog();
 
     expect(dialog.getAttribute("aria-modal")).toBe("true");
-    expect(dialog.className).toContain("max-h-[calc(100dvh-4rem)]");
-    expect(dialog.className).toContain("overflow-y-auto");
+    expect(dialog.className).toContain("max-w-xl");
+    expect(dialog.className).toContain("rounded-sm");
+    expect(dialog.className).toContain("border-line");
+    expect(dialog.className).not.toContain("overflow-y-auto");
     expect(dialog.className).not.toContain("overflow-y-scroll");
     expect(dialog.className).not.toContain("overflow-hidden");
+    const scrollRegion = screen.getByTestId("find-save-scroll-region");
+    expect(scrollRegion.className).toContain("min-h-0");
+    expect(scrollRegion.className).toContain("overflow-y-auto");
+    expect(scrollRegion.className).not.toContain("overflow-y-scroll");
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Close save location guide" }),
     );
@@ -77,6 +83,7 @@ describe("Find My Save guidance", () => {
     expect(runPath.className).not.toContain("whitespace-nowrap");
     expect(screen.getByText(WINDOWS_META_PATH)).toBeTruthy();
     expect(screen.getByText(/For cosmetics, select/iu).textContent).toContain("MetaSave.es3");
+    expect(screen.getByRole("status").className).toContain("sr-only");
 
     fireEvent.click(screen.getByRole("button", { name: "Close save location guide" }));
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -148,7 +155,9 @@ describe("Find My Save guidance", () => {
     fireEvent.click(screen.getByRole("button", { name: "Copy Windows Run saves path" }));
 
     await waitFor(() => expect(writeText).toHaveBeenCalledWith(WINDOWS_RUN_PATH));
-    expect(screen.getByRole("status").textContent).toBe("Windows Run saves path copied.");
+    const copyStatus = screen.getByRole("status");
+    expect(copyStatus.textContent).toBe("Windows Run saves path copied.");
+    expect(copyStatus.className).not.toContain("sr-only");
     fireEvent.click(screen.getByRole("tab", { name: "Linux / Proton" }));
     fireEvent.click(screen.getByRole("button", { name: "Copy Linux Proton Repo path" }));
     await waitFor(() => expect(writeText).toHaveBeenLastCalledWith(PROTON_REPO_SUFFIX));

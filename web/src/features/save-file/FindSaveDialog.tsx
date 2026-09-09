@@ -144,7 +144,7 @@ export function FindSaveDialog() {
       <dialog
         aria-labelledby="find-save-title"
         aria-modal="true"
-        className="m-auto max-h-[calc(100dvh-4rem)] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto border border-control bg-surface p-0 text-ink shadow-panel backdrop:bg-app/85"
+        className="m-auto w-[calc(100%-2rem)] max-w-xl rounded-sm border border-line bg-surface p-0 text-ink shadow-panel backdrop:bg-app/85"
         onCancel={(event) => {
           event.preventDefault();
           closeDialog();
@@ -157,8 +157,8 @@ export function FindSaveDialog() {
         }}
         ref={dialogRef}
       >
-        <div className="p-5 sm:p-7">
-          <header className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
+        <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
+          <header className="grid shrink-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-4 p-5 pb-0 sm:p-6 sm:pb-0">
             <div>
               <h2
                 className="font-display text-4xl font-semibold uppercase leading-none text-ink"
@@ -183,110 +183,121 @@ export function FindSaveDialog() {
           </header>
 
           <div
-            aria-label="Save location platform"
-            className="mt-6 flex border-b border-line"
-            role="tablist"
+            className="min-h-0 min-w-0 overflow-y-auto px-5 pb-5 sm:px-6 sm:pb-6"
+            data-testid="find-save-scroll-region"
           >
-            {(["windows", "linux"] as const).map((entry) => (
-              <button
-                aria-controls={`find-save-${entry}-panel`}
-                aria-selected={platform === entry}
-                className="-mb-px border-b-2 border-transparent px-3 py-2.5 text-sm font-semibold text-secondary transition-colors hover:text-ink aria-selected:border-accent aria-selected:text-accent"
-                id={`find-save-${entry}-tab`}
-                key={entry}
-                onClick={() => choosePlatform(entry)}
-                onKeyDown={movePlatformTab}
-                ref={entry === "windows" ? windowsTabRef : linuxTabRef}
-                role="tab"
-                tabIndex={platform === entry ? 0 : -1}
-                type="button"
+            <div
+              aria-label="Save location platform"
+              className="mt-5 flex border-b border-line"
+              role="tablist"
+            >
+              {(["windows", "linux"] as const).map((entry) => (
+                <button
+                  aria-controls={`find-save-${entry}-panel`}
+                  aria-selected={platform === entry}
+                  className="-mb-px border-b-2 border-transparent px-3 py-2.5 text-sm font-semibold text-secondary transition-colors hover:text-ink aria-selected:border-accent aria-selected:text-accent"
+                  id={`find-save-${entry}-tab`}
+                  key={entry}
+                  onClick={() => choosePlatform(entry)}
+                  onKeyDown={movePlatformTab}
+                  ref={entry === "windows" ? windowsTabRef : linuxTabRef}
+                  role="tab"
+                  tabIndex={platform === entry ? 0 : -1}
+                  type="button"
+                >
+                  {PLATFORM_LABELS[entry]}
+                </button>
+              ))}
+            </div>
+
+            {platform === "windows" ? (
+              <div
+                aria-labelledby="find-save-windows-tab"
+                className="mt-5 grid gap-5"
+                id="find-save-windows-panel"
+                role="tabpanel"
               >
-                {PLATFORM_LABELS[entry]}
-              </button>
-            ))}
+                <PathBlock
+                  copyLabel="Windows Run saves path"
+                  heading="Run saves"
+                  onCopy={(path, label) => void copyPath(path, label)}
+                  path={WINDOWS_RUN_PATH}
+                >
+                  <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm/6 text-secondary">
+                    <li>Press Win + R.</li>
+                    <li>Paste the path.</li>
+                    <li>Press Enter.</li>
+                    <li>Select the desired Run .es3 save in RepoDitor Web.</li>
+                  </ol>
+                </PathBlock>
+
+                <PathBlock
+                  copyLabel="Windows MetaSave path"
+                  heading="Cosmetics"
+                  onCopy={(path, label) => void copyPath(path, label)}
+                  path={WINDOWS_META_PATH}
+                >
+                  <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm/6 text-secondary">
+                    <li>Press Win + R.</li>
+                    <li>Paste the path.</li>
+                    <li>Press Enter.</li>
+                    <li>
+                      For cosmetics, select <strong className="text-ink">MetaSave.es3</strong>.
+                    </li>
+                  </ol>
+                </PathBlock>
+              </div>
+            ) : (
+              <div
+                aria-labelledby="find-save-linux-tab"
+                className="mt-5 grid gap-5"
+                id="find-save-linux-panel"
+                role="tabpanel"
+              >
+                <p className="text-sm/6 text-secondary">
+                  Locate the Steam library containing R.E.P.O. (Steam App ID{" "}
+                  <strong className="font-mono text-ink">3241660</strong>), then navigate to:
+                </p>
+                <PathBlock
+                  copyLabel="Linux Proton Repo path"
+                  heading="Proton save directory"
+                  onCopy={(path, label) => void copyPath(path, label)}
+                  path={PROTON_REPO_SUFFIX}
+                >
+                  <p className="mt-3 text-sm/6 text-secondary">
+                    Press Ctrl + L in your file manager to enter a path. Open{" "}
+                    <strong className="font-mono text-ink">saves/</strong> for Run saves, or select{" "}
+                    <strong className="font-mono text-ink">MetaSave.es3</strong> for cosmetics.
+                  </p>
+                </PathBlock>
+                <section className="border-t border-line pt-4">
+                  <h3 className="text-sm font-semibold text-ink">Common Steam root examples</h3>
+                  <div className="mt-2 grid gap-1 font-mono text-xs/5 text-secondary">
+                    <code>~/.local/share/Steam/</code>
+                    <code>~/.steam/steam/</code>
+                  </div>
+                  <p className="mt-2 text-sm/6 text-secondary">
+                    These are examples only. Custom Steam libraries may be on another disk or in
+                    another location.
+                  </p>
+                </section>
+              </div>
+            )}
+
+            <output
+              aria-live="polite"
+              className={
+                copyStatus
+                  ? "mt-4 flex min-h-5 items-center gap-2 text-xs text-secondary"
+                  : "sr-only"
+              }
+            >
+              {copyStatus ? (
+                <CheckIcon aria-hidden="true" className="text-accent" size={15} />
+              ) : null}
+              {copyStatus}
+            </output>
           </div>
-
-          {platform === "windows" ? (
-            <div
-              aria-labelledby="find-save-windows-tab"
-              className="mt-5 grid gap-5"
-              id="find-save-windows-panel"
-              role="tabpanel"
-            >
-              <PathBlock
-                copyLabel="Windows Run saves path"
-                heading="Run saves"
-                onCopy={(path, label) => void copyPath(path, label)}
-                path={WINDOWS_RUN_PATH}
-              >
-                <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm/6 text-secondary">
-                  <li>Press Win + R.</li>
-                  <li>Paste the path.</li>
-                  <li>Press Enter.</li>
-                  <li>Select the desired Run .es3 save in RepoDitor Web.</li>
-                </ol>
-              </PathBlock>
-
-              <PathBlock
-                copyLabel="Windows MetaSave path"
-                heading="Cosmetics"
-                onCopy={(path, label) => void copyPath(path, label)}
-                path={WINDOWS_META_PATH}
-              >
-                <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm/6 text-secondary">
-                  <li>Press Win + R.</li>
-                  <li>Paste the path.</li>
-                  <li>Press Enter.</li>
-                  <li>
-                    For cosmetics, select <strong className="text-ink">MetaSave.es3</strong>.
-                  </li>
-                </ol>
-              </PathBlock>
-            </div>
-          ) : (
-            <div
-              aria-labelledby="find-save-linux-tab"
-              className="mt-5 grid gap-5"
-              id="find-save-linux-panel"
-              role="tabpanel"
-            >
-              <p className="text-sm/6 text-secondary">
-                Locate the Steam library containing R.E.P.O. (Steam App ID{" "}
-                <strong className="font-mono text-ink">3241660</strong>), then navigate to:
-              </p>
-              <PathBlock
-                copyLabel="Linux Proton Repo path"
-                heading="Proton save directory"
-                onCopy={(path, label) => void copyPath(path, label)}
-                path={PROTON_REPO_SUFFIX}
-              >
-                <p className="mt-3 text-sm/6 text-secondary">
-                  Press Ctrl + L in your file manager to enter a path. Open{" "}
-                  <strong className="font-mono text-ink">saves/</strong> for Run saves, or select{" "}
-                  <strong className="font-mono text-ink">MetaSave.es3</strong> for cosmetics.
-                </p>
-              </PathBlock>
-              <section className="border-t border-line pt-4">
-                <h3 className="text-sm font-semibold text-ink">Common Steam root examples</h3>
-                <div className="mt-2 grid gap-1 font-mono text-xs/5 text-secondary">
-                  <code>~/.local/share/Steam/</code>
-                  <code>~/.steam/steam/</code>
-                </div>
-                <p className="mt-2 text-sm/6 text-secondary">
-                  These are examples only. Custom Steam libraries may be on another disk or in
-                  another location.
-                </p>
-              </section>
-            </div>
-          )}
-
-          <output
-            aria-live="polite"
-            className="mt-4 flex min-h-5 items-center gap-2 text-xs text-secondary"
-          >
-            {copyStatus ? <CheckIcon aria-hidden="true" className="text-accent" size={15} /> : null}
-            {copyStatus}
-          </output>
         </div>
       </dialog>
     </>
