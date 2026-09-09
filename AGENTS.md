@@ -38,6 +38,8 @@ Do not remove validation, safety checks, types, error handling, tests, accessibi
 
 Apply YAGNI, KISS, and DRY only where duplication is real.
 
+DRY Especially DUPLICATE STRING that can be defined once and reused (This is good but do not define constant for one time used string). Do not DRY abstractions that are not actually duplicated.
+
 Avoid:
 - speculative abstractions
 - one-interface/one-implementation ceremony without a concrete benefit
