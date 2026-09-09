@@ -1,13 +1,14 @@
 import { ShieldCheckIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
+import { AppFooter, AppHeader } from "@/app/AppShell";
 import { SaveFilePanel } from "@/features/save-file/SaveFilePanel";
 
 function App() {
   const [workspaceOpen, setWorkspaceOpen] = useState(false);
 
   return (
-    <div className="min-h-dvh bg-app text-ink">
+    <div className="flex min-h-dvh flex-col bg-app text-ink">
       <a
         className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-10 focus:bg-accent focus:px-4 focus:py-2 focus:font-semibold focus:text-accent-ink"
         href="#main-content"
@@ -15,17 +16,10 @@ function App() {
         Skip to content
       </a>
 
-      <header className="border-b border-line">
-        <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center gap-3 px-5 sm:px-8">
-          <img alt="" aria-hidden="true" className="size-8 rounded-sm" src="/icon.png" />
-          <span className="font-display text-3xl font-semibold uppercase leading-none tracking-tight">
-            RepoDitor Web
-          </span>
-        </div>
-      </header>
+      <AppHeader />
 
       <main
-        className={`mx-auto min-h-[calc(100dvh-4rem)] w-full ${
+        className={`mx-auto w-full flex-1 ${
           workspaceOpen
             ? "max-w-[1280px] px-5 py-8 sm:px-8 sm:py-10"
             : "grid max-w-6xl items-center gap-10 px-5 py-12 sm:px-8 md:grid-cols-[minmax(0,1.2fr)_minmax(22rem,1fr)] md:py-16 lg:gap-16"
@@ -50,8 +44,9 @@ function App() {
             <div className="mt-9 flex items-center gap-3 border-l-2 border-accent bg-accent-muted px-4 py-3 text-sm/6 text-secondary">
               <ShieldCheckIcon aria-hidden="true" className="shrink-0 text-accent" size={22} />
               <p>
-                Save processing stays on this device. Save files and decrypted JSON are not
-                uploaded. Optional avatars send only validated Steam IDs.
+                Save contents are processed locally and are not persisted by RepoDitor Web. Optional
+                avatars send only validated Steam IDs; save files and decrypted JSON are not
+                uploaded.
               </p>
             </div>
           </section>
@@ -59,6 +54,7 @@ function App() {
 
         <SaveFilePanel onWorkspaceChange={setWorkspaceOpen} />
       </main>
+      <AppFooter />
     </div>
   );
 }

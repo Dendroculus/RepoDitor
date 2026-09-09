@@ -1,5 +1,5 @@
 import { decryptEs3, encryptEs3 } from "@/features/save-file/es3";
-import { classifySave } from "@/features/save-file/pipeline";
+import { classifySave } from "@/features/save-file/classification";
 import type { EditSession } from "@/features/save-file/session";
 import { parseSaveJson, serializeSaveJson } from "@/features/save-file/serialization";
 

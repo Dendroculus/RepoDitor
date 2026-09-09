@@ -87,6 +87,7 @@ function localAvatarEndpoint(): Plugin {
 }
 
 export default defineConfig({
+  build: { sourcemap: false },
   cacheDir: ".vite-cache",
   plugins: [react(), tailwindcss(), localAvatarEndpoint()],
   resolve: {
@@ -96,6 +97,7 @@ export default defineConfig({
   },
   test: {
     environment: "jsdom",
+    include: ["api/**/*.test.ts", "src/**/*.test.ts", "src/**/*.test.tsx"],
     setupFiles: ["./src/test/setup.ts"],
   },
 });

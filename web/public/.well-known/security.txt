@@ -1,0 +1,4 @@
+Contact: https://github.com/Yoruxyv/RepoDitor/security/advisories/new
+Expires: 2027-09-09T00:00:00.000Z
+Policy: https://github.com/Yoruxyv/RepoDitor/blob/main/SECURITY.md
+Preferred-Languages: en

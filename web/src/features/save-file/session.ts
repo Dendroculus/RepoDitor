@@ -1,4 +1,5 @@
-import { classifySave, type LoadedSave, type SaveKind } from "@/features/save-file/pipeline";
+import { classifySave, type SaveKind } from "@/features/save-file/classification";
+import type { LoadedSave } from "@/features/save-file/pipeline";
 import {
   parseSaveJson,
   serializeSaveJson,

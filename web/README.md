@@ -33,3 +33,40 @@ Use `web/` as the Vercel project root. The Vite application remains a static cli
 all editor features, but automatic avatars require an equivalent same-origin function with the same
 contract and protections. Phase 7 deployment hardening must verify this route and must not introduce
 server-side save processing.
+
+## Privacy and browser storage
+
+Save contents are processed locally and are not persisted by RepoDitor Web. Loaded sessions live
+only in memory and clear on refresh. Save bytes, decrypted JSON, staged edits, and exported content
+are never written to localStorage, sessionStorage, or IndexedDB. The only persisted browser value is
+the optional `repoditor-theme` UI preference.
+
+The editor makes no save-related network request. Optional Steam avatar enrichment is isolated from
+save processing and sends only validated SteamID64 values to the same-origin endpoint described
+above.
+
+## Quality gates
+
+```powershell
+npm run imports:check
+npm run format:check
+npm run lint
+npm test
+npm run build
+npm run test:e2e
+npm run lighthouse
+```
+
+Playwright uses committed synthetic encrypted fixtures. Lighthouse runs five Desktop and five Mobile
+audits against the production preview, enforcing a 95 performance mean, 90 per-run performance floor,
+and 100 for accessibility, Best Practices, and SEO.
+
+## Production hardening
+
+`vercel.json` applies the production CSP and browser security headers. The static HTML includes a
+matching CSP baseline and pre-paint theme bootstrap. Production source maps are disabled. The 16 MiB
+save-size limit is enforced before file reads when browser metadata is available and again on the
+byte buffer.
+
+A minimal permissive `robots.txt` keeps the static baseline valid. No canonical URL is included
+until the production hostname is confirmed; that value must not be guessed.

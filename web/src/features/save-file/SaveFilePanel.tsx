@@ -1,20 +1,19 @@
 import { ArrowSquareOutIcon, FileArrowUpIcon, WarningCircleIcon } from "@phosphor-icons/react";
-import { useState, type ChangeEvent } from "react";
+import { lazy, Suspense, useState, type ChangeEvent } from "react";
 
-import {
-  downloadVerifiedExport,
-  prepareVerifiedExport,
-  SaveExportError,
-} from "@/features/save-file/export";
 import type { WorkspaceExportState } from "@/features/save-file/PendingChangesBar";
 import { FindSaveDialog } from "@/features/save-file/FindSaveDialog";
-import { loadSaveFile, SavePipelineError } from "@/features/save-file/pipeline";
 import {
   createEditSession,
   resetEditSession,
   type EditSession,
 } from "@/features/save-file/session";
-import { SaveWorkspace } from "@/features/save-file/SaveWorkspace";
+
+const SaveWorkspace = lazy(() =>
+  import("@/features/save-file/SaveWorkspace").then(({ SaveWorkspace: component }) => ({
+    default: component,
+  })),
+);
 
 const DESKTOP_URL = "https://github.com/Yoruxyv/RepoDitor/releases/latest";
 
@@ -25,13 +24,13 @@ type LoadState =
   | { readonly message: string; readonly status: "error" };
 
 function errorMessage(error: unknown): string {
-  return error instanceof SavePipelineError
+  return error instanceof Error && error.name === "SavePipelineError"
     ? error.message
     : "This save could not be read locally.";
 }
 
 function exportErrorMessage(error: unknown): string {
-  return error instanceof SaveExportError
+  return error instanceof Error && error.name === "SaveExportError"
     ? error.message
     : "The encrypted copy could not be prepared safely.";
 }
@@ -96,6 +95,7 @@ export function SaveFilePanel({ onWorkspaceChange }: SaveFilePanelProps) {
     setExportState({ status: "idle" });
     setState({ fileName: file.name, status: "loading" });
     try {
+      const { loadSaveFile } = await import("@/features/save-file/pipeline");
       const session = createEditSession(await loadSaveFile(file));
       setState({ session, status: "ready" });
       onWorkspaceChange(true);
@@ -110,6 +110,8 @@ export function SaveFilePanel({ onWorkspaceChange }: SaveFilePanelProps) {
   async function downloadCopy(session: EditSession): Promise<void> {
     setExportState({ status: "preparing" });
     try {
+      const { downloadVerifiedExport, prepareVerifiedExport } =
+        await import("@/features/save-file/export");
       const output = await prepareVerifiedExport(session);
       downloadVerifiedExport(output);
       setExportState({
@@ -137,16 +139,24 @@ export function SaveFilePanel({ onWorkspaceChange }: SaveFilePanelProps) {
 
   if (state.status === "ready") {
     return (
-      <SaveWorkspace
-        busy={busy}
-        exportState={exportState}
-        session={state.session}
-        onClear={clear}
-        onDownload={() => void downloadCopy(state.session)}
-        onReset={() => updateSession(resetEditSession(state.session))}
-        onSelectFile={(event) => void selectFile(event)}
-        onSessionChange={updateSession}
-      />
+      <Suspense
+        fallback={
+          <section aria-busy="true" aria-live="polite" className="py-12 text-secondary">
+            Preparing the local editor…
+          </section>
+        }
+      >
+        <SaveWorkspace
+          busy={busy}
+          exportState={exportState}
+          session={state.session}
+          onClear={clear}
+          onDownload={() => void downloadCopy(state.session)}
+          onReset={() => updateSession(resetEditSession(state.session))}
+          onSelectFile={(event) => void selectFile(event)}
+          onSessionChange={updateSession}
+        />
+      </Suspense>
     );
   }
 

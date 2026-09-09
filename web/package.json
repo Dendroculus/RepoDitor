@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "imports:check": "eslint src --quiet",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run",
+    "test": "vitest run && node --test scripts/*.test.mjs",
+    "test:e2e": "tsc -b && vite build && node scripts/run-playwright.mjs",
+    "lighthouse": "node scripts/run-lighthouse.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -21,6 +24,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
@@ -40,6 +44,7 @@
     "eslint-plugin-sonarjs": "^4.2.0",
     "globals": "^17.7.0",
     "jsdom": "^30.0.1",
+    "lighthouse": "^13.4.1",
     "prettier": "3.9.6",
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",

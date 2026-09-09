@@ -6,6 +6,7 @@ import {
   classifySave,
   loadSaveBytes,
   loadSaveFile,
+  MAX_SAVE_FILE_BYTES,
   reencryptSave,
   SavePipelineError,
 } from "@/features/save-file/pipeline";
@@ -76,6 +77,28 @@ describe("local save pipeline", () => {
     await expect(loadSaveFile({ ...file, name: "REPO_SAVE.json" })).rejects.toMatchObject({
       code: "unsupported-file",
     });
+  });
+
+  it("rejects oversized saves before reading and after byte conversion", async () => {
+    let read = false;
+    await expect(
+      loadSaveFile({
+        name: "oversized.es3",
+        size: MAX_SAVE_FILE_BYTES + 1,
+        arrayBuffer: async () => {
+          read = true;
+          return new ArrayBuffer(0);
+        },
+      }),
+    ).rejects.toMatchObject({
+      code: "unsupported-file",
+      message: expect.stringMatching(/16 MiB/u),
+    });
+    expect(read).toBe(false);
+
+    await expect(
+      loadSaveBytes(new Uint8Array(MAX_SAVE_FILE_BYTES + 1), "oversized.es3"),
+    ).rejects.toMatchObject({ code: "unsupported-file" });
   });
 
   it("separates malformed, unsupported, and decryption failures", async () => {

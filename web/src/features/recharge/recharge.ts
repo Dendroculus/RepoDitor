@@ -1,5 +1,5 @@
 import snapshot from "@/features/recharge/recharge-capabilities.v1.json";
-import { classifySave } from "@/features/save-file/pipeline";
+import { classifySave } from "@/features/save-file/classification";
 import { isSaveNumber, isSaveObject, type SaveObject } from "@/features/save-file/serialization";
 
 const ITEM_KEY_PATTERN = /^(Item .+)\/(\d+)$/u;

@@ -2,15 +2,25 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://avatars.akamai.steamstatic.com https://avatars.fastly.steamstatic.com; connect-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'; upgrade-insecure-requests"
+    />
     <link rel="icon" type="image/png" href="/icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
       content="Edit R.E.P.O. saves locally in your browser with RepoDitor Web."
     />
-    <meta name="theme-color" content="#0d1110" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#f3f2ed" media="(prefers-color-scheme: light)" />
-    <title>RepoDitor Web</title>
+    <meta name="theme-color" content="#0d1110" />
+    <meta property="og:title" content="RepoDitor Web" />
+    <meta
+      property="og:description"
+      content="Edit supported R.E.P.O. saves locally in your browser."
+    />
+    <meta property="og:type" content="website" />
+    <script src="/theme-bootstrap.js"></script>
+    <title>RepoDitor Web — Local R.E.P.O. Save Editor</title>
   </head>
   <body>
     <div id="root"></div>
