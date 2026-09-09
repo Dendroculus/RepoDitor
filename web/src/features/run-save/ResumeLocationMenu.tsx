@@ -1,11 +1,8 @@
 import { CaretDownIcon, CheckIcon } from "@phosphor-icons/react";
 import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 
-import {
-  describeResumeLocation,
-  RESUME_LOCATION_LABELS,
-  type ResumeLocation,
-} from "@/features/run-save/runSave";
+import { useI18n } from "@/app/i18n/context";
+import { RESUME_LOCATION_LABELS, type ResumeLocation } from "@/features/run-save/runSave";
 
 const OPTIONS = ["normal", "shop"] as const satisfies readonly ResumeLocation[];
 
@@ -16,6 +13,7 @@ interface ResumeLocationMenuProps {
 }
 
 export function ResumeLocationMenu({ onChange, rawValue, value }: ResumeLocationMenuProps) {
+  const { t } = useI18n();
   const selectedIndex = value ? OPTIONS.indexOf(value) : 0;
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(selectedIndex);
@@ -103,7 +101,11 @@ export function ResumeLocationMenu({ onChange, rawValue, value }: ResumeLocation
         ref={trigger}
         type="button"
       >
-        <span className="min-w-0 truncate">{describeResumeLocation(value, rawValue)}</span>
+        <span className="min-w-0 truncate">
+          {value
+            ? RESUME_LOCATION_LABELS[value]
+            : t("run.run.unsupportedSpawn", { value: rawValue })}
+        </span>
         <CaretDownIcon
           aria-hidden="true"
           className={`shrink-0 transition-transform ${open ? "rotate-180" : ""}`}
@@ -117,7 +119,7 @@ export function ResumeLocationMenu({ onChange, rawValue, value }: ResumeLocation
           {/* Native select popups cannot use RepoDitor's themed full-row interaction state. */}
           {/* eslint-disable-next-line jsx-a11y/prefer-tag-over-role */}
           <div
-            aria-label="Next spawn"
+            aria-label={t("run.run.nextSpawn")}
             className="absolute left-0 z-30 mt-1.5 w-full overflow-hidden rounded-sm border border-control bg-surface-raised p-1 shadow-panel"
             id={listboxId}
             role="listbox"

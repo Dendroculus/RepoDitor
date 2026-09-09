@@ -99,6 +99,7 @@ export default defineConfig([
       "react/jsx-child-element-spacing": "warn",
       "react/jsx-no-constructed-context-values": "warn",
       "react/hook-use-state": "warn",
+      "react-refresh/only-export-components": "error",
       "jsx-a11y/prefer-tag-over-role": "warn",
       "jsx-a11y/alt-text": "warn",
       "jsx-a11y/aria-role": "warn",

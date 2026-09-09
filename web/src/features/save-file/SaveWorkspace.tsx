@@ -1,6 +1,7 @@
 import { CheckCircleIcon, FileArrowUpIcon, XIcon } from "@phosphor-icons/react";
 import type { ChangeEvent } from "react";
 
+import { useI18n } from "@/app/i18n/context";
 import { CosmeticsEditor } from "@/features/cosmetics/CosmeticsEditor";
 import { getCosmeticPendingEdits } from "@/features/cosmetics/pendingEdits";
 import {
@@ -32,9 +33,12 @@ export function SaveWorkspace({
   onSessionChange,
   session,
 }: SaveWorkspaceProps) {
+  const { formatNumber, t } = useI18n();
   const edits =
-    session.originalKind === "run" ? getRunPendingEdits(session) : getCosmeticPendingEdits(session);
-  const saveKind = session.originalKind === "run" ? "Run save" : "MetaSave";
+    session.originalKind === "run"
+      ? getRunPendingEdits(session, t, formatNumber)
+      : getCosmeticPendingEdits(session, t, formatNumber);
+  const saveKind = session.originalKind === "run" ? t("save.workspace.runSave") : "MetaSave";
 
   return (
     <section
@@ -46,7 +50,7 @@ export function SaveWorkspace({
       <header className="grid gap-4 border-b border-line pb-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-accent">
-            Selected save
+            {t("save.workspace.selected")}
           </p>
           <h1
             className="font-display mt-1 truncate text-4xl font-semibold uppercase leading-none tracking-[-0.02em] text-ink"
@@ -59,7 +63,7 @@ export function SaveWorkspace({
             <span>{saveKind}</span>
             <span className="inline-flex items-center gap-1.5 text-accent">
               <CheckCircleIcon aria-hidden="true" size={15} />
-              Validated locally
+              {t("save.workspace.validated")}
             </span>
           </div>
         </div>
@@ -73,7 +77,7 @@ export function SaveWorkspace({
               type="file"
             />
             <FileArrowUpIcon aria-hidden="true" size={17} />
-            Change file
+            {t("save.workspace.changeFile")}
           </label>
           <button
             className="inline-flex items-center gap-2 whitespace-nowrap rounded-sm border border-control px-3 py-2.5 text-sm font-semibold text-secondary transition-colors hover:border-accent hover:text-ink disabled:cursor-wait disabled:opacity-60"
@@ -82,7 +86,7 @@ export function SaveWorkspace({
             type="button"
           >
             <XIcon aria-hidden="true" size={17} />
-            Clear
+            {t("save.workspace.clear")}
           </button>
         </div>
       </header>

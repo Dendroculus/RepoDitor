@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { I18nProvider } from "@/app/i18n/I18nProvider";
 import { FindSaveDialog } from "@/features/save-file/FindSaveDialog";
 import {
   detectInitialGuidancePlatform,
@@ -46,6 +47,14 @@ function openDialog() {
   return { dialog: screen.getByRole("dialog"), trigger };
 }
 
+function renderDialog() {
+  return render(
+    <I18nProvider>
+      <FindSaveDialog />
+    </I18nProvider>,
+  );
+}
+
 beforeEach(() => {
   installUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64)");
 });
@@ -59,7 +68,7 @@ afterEach(() => {
 
 describe("Find My Save guidance", () => {
   it("opens with Windows paths, explicit MetaSave guidance, and returns focus on close", () => {
-    render(<FindSaveDialog />);
+    renderDialog();
     const { dialog, trigger } = openDialog();
 
     expect(dialog.getAttribute("aria-modal")).toBe("true");
@@ -91,7 +100,7 @@ describe("Find My Save guidance", () => {
   });
 
   it("closes with Escape and restores trigger focus", () => {
-    render(<FindSaveDialog />);
+    renderDialog();
     const { dialog, trigger } = openDialog();
 
     fireEvent.keyDown(dialog, { key: "Escape" });
@@ -101,7 +110,7 @@ describe("Find My Save guidance", () => {
   });
 
   it("renders accurate Linux and Proton guidance and supports manual keyboard tab switching", () => {
-    render(<FindSaveDialog />);
+    renderDialog();
     openDialog();
     const windows = screen.getByRole("tab", { name: "Windows" });
     const linux = screen.getByRole("tab", { name: "Linux / Proton" });
@@ -110,7 +119,7 @@ describe("Find My Save guidance", () => {
 
     expect(linux.getAttribute("aria-selected")).toBe("true");
     expect(document.activeElement).toBe(linux);
-    expect(screen.getByText("3241660")).toBeTruthy();
+    expect(screen.getAllByText(/3241660/iu).length).toBeGreaterThan(0);
     const protonPath = screen.getByText(PROTON_REPO_SUFFIX);
     expect(protonPath.className).toContain("whitespace-normal");
     expect(protonPath.className).toContain("break-all");
@@ -134,7 +143,7 @@ describe("Find My Save guidance", () => {
     expect(detectInitialGuidancePlatform("Mozilla/5.0 (Linux; Android 16)")).toBe("windows");
     expect(detectInitialGuidancePlatform("unknown")).toBe("windows");
     installUserAgent("Mozilla/5.0 (X11; Linux x86_64)");
-    render(<FindSaveDialog />);
+    renderDialog();
     openDialog();
 
     const linux = screen.getByRole("tab", { name: "Linux / Proton" });
@@ -149,7 +158,7 @@ describe("Find My Save guidance", () => {
     const writeText = installClipboard();
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    render(<FindSaveDialog />);
+    renderDialog();
     openDialog();
 
     fireEvent.click(screen.getByRole("button", { name: "Copy Windows Run saves path" }));

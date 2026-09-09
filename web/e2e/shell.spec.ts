@@ -69,6 +69,48 @@ test("language shell, GitHub link, and hash-addressable policy dialogs work", as
   await expect(page.getByRole("dialog")).not.toBeVisible();
 });
 
+test("locale switches without navigation and persists before the app renders", async ({ page }) => {
+  const requests: string[] = [];
+  page.on("request", (request) => requests.push(request.url()));
+  const trigger = page.getByTestId("language-menu-trigger");
+
+  await trigger.click();
+  await page.getByRole("option", { name: "Bahasa Indonesia" }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "id");
+  await expect(
+    page.getByRole("heading", { name: "Edit save R.E.P.O. langsung di browser Anda." }),
+  ).toBeVisible();
+  await expect(trigger).toHaveText("Bahasa Indonesia");
+  expect(await page.evaluate(() => localStorage.getItem("repoditor-locale"))).toBe("id");
+  expect(requests.every((url) => url.startsWith("http://127.0.0.1:4173/"))).toBe(true);
+
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-locale", "id");
+  await expect(page.locator("html")).toHaveAttribute("lang", "id");
+  await expect(trigger).toHaveText("Bahasa Indonesia");
+});
+
+test("all locales remain usable without horizontal overflow", async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  const trigger = page.getByTestId("language-menu-trigger");
+
+  await trigger.click();
+  await expect(page.getByRole("option", { name: "Bahasa Indonesia" })).toHaveCSS(
+    "white-space",
+    "nowrap",
+  );
+  await trigger.click();
+
+  for (const language of ["English", "Bahasa Indonesia", "日本語", "한국어", "简体中文"]) {
+    await trigger.click();
+    await page.getByRole("option", { name: language }).click();
+    await expect(trigger).toHaveText(language);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+    ).toBe(true);
+  }
+});
+
 test("Find my save scrolls only when the viewport is genuinely short", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.getByRole("button", { name: "Find my save" }).click();

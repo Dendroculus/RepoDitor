@@ -1,6 +1,8 @@
 import { ArrowSquareOutIcon, FileArrowUpIcon, WarningCircleIcon } from "@phosphor-icons/react";
 import { lazy, Suspense, useState, type ChangeEvent } from "react";
 
+import { useI18n } from "@/app/i18n/context";
+import type { Translate, TranslationKey } from "@/app/i18n/catalog";
 import type { WorkspaceExportState } from "@/features/save-file/PendingChangesBar";
 import { FindSaveDialog } from "@/features/save-file/FindSaveDialog";
 import {
@@ -21,47 +23,54 @@ type LoadState =
   | { readonly status: "idle" }
   | { readonly fileName: string; readonly status: "loading" }
   | { readonly session: EditSession; readonly status: "ready" }
-  | { readonly message: string; readonly status: "error" };
+  | { readonly errorKey: TranslationKey; readonly status: "error" };
 
-function errorMessage(error: unknown): string {
-  return error instanceof Error && error.name === "SavePipelineError"
-    ? error.message
-    : "This save could not be read locally.";
-}
-
-function exportErrorMessage(error: unknown): string {
-  return error instanceof Error && error.name === "SaveExportError"
-    ? error.message
-    : "The encrypted copy could not be prepared safely.";
+function loadErrorKey(error: unknown): TranslationKey {
+  if (!(error instanceof Error) || error.name !== "SavePipelineError") {
+    return "save.picker.errorRead";
+  }
+  const code = typeof Reflect.get(error, "code") === "string" ? Reflect.get(error, "code") : "";
+  switch (code) {
+    case "unsupported-file":
+      return "save.picker.errorUnsupportedFile";
+    case "decrypt-failed":
+      return "save.picker.errorDecrypt";
+    case "malformed-save":
+      return "save.picker.errorMalformed";
+    case "unsupported-save":
+      return "save.picker.errorUnsupportedSave";
+    default:
+      return "save.picker.errorRead";
+  }
 }
 
 function isBusy(state: LoadState, exportState: WorkspaceExportState): boolean {
   return state.status === "loading" || exportState.status === "preparing";
 }
 
-function panelHeading(state: LoadState): string {
+function panelHeading(state: LoadState): TranslationKey {
   switch (state.status) {
     case "ready":
-      return "Save ready";
+      return "save.picker.ready";
     case "loading":
-      return "Reading locally";
+      return "save.picker.reading";
     case "error":
-      return "Save not loaded";
+      return "save.picker.notLoaded";
     case "idle":
-      return "Drop a save here";
+      return "save.picker.drop";
   }
 }
 
-function panelMessage(state: LoadState): string {
+function panelMessage(state: LoadState, t: Translate): string {
   switch (state.status) {
     case "ready":
-      return `${state.session.originalFileName} was decrypted and validated.`;
+      return t("save.picker.readyMessage", { fileName: state.session.originalFileName });
     case "loading":
-      return `Decrypting and validating ${state.fileName}`;
+      return t("save.picker.readingMessage", { fileName: state.fileName });
     case "error":
-      return state.message;
+      return t(state.errorKey);
     case "idle":
-      return "or choose a supported .es3 save";
+      return t("save.picker.idleMessage");
   }
 }
 
@@ -81,6 +90,7 @@ interface SaveFilePanelProps {
 }
 
 export function SaveFilePanel({ onWorkspaceChange }: SaveFilePanelProps) {
+  const { t } = useI18n();
   const [state, setState] = useState<LoadState>({ status: "idle" });
   const [exportState, setExportState] = useState<WorkspaceExportState>({ status: "idle" });
   const busy = isBusy(state, exportState);
@@ -100,7 +110,7 @@ export function SaveFilePanel({ onWorkspaceChange }: SaveFilePanelProps) {
       setState({ session, status: "ready" });
       onWorkspaceChange(true);
     } catch (error) {
-      setState({ message: errorMessage(error), status: "error" });
+      setState({ errorKey: loadErrorKey(error), status: "error" });
       onWorkspaceChange(false);
     } finally {
       input.value = "";
@@ -115,14 +125,11 @@ export function SaveFilePanel({ onWorkspaceChange }: SaveFilePanelProps) {
       const output = await prepareVerifiedExport(session);
       downloadVerifiedExport(output);
       setExportState({
-        message: `${output.fileName} was verified and downloaded.`,
+        fileName: output.fileName,
         status: "success",
       });
-    } catch (error) {
-      setExportState({
-        message: exportErrorMessage(error),
-        status: "error",
-      });
+    } catch {
+      setExportState({ status: "error" });
     }
   }
 
@@ -142,7 +149,7 @@ export function SaveFilePanel({ onWorkspaceChange }: SaveFilePanelProps) {
       <Suspense
         fallback={
           <section aria-busy="true" aria-live="polite" className="py-12 text-secondary">
-            Preparing the local editor…
+            {t("save.picker.preparingEditor")}
           </section>
         }
       >
@@ -161,7 +168,7 @@ export function SaveFilePanel({ onWorkspaceChange }: SaveFilePanelProps) {
   }
 
   return (
-    <section aria-label="Choose a save" className="min-w-0">
+    <section aria-label={t("save.picker.choose")} className="min-w-0">
       <label className="group relative flex min-h-72 cursor-pointer flex-col items-center justify-center rounded-sm border border-dashed border-control bg-surface px-6 py-12 text-center shadow-panel transition-colors hover:border-accent hover:bg-surface-raised focus-within:border-accent focus-within:outline-2 focus-within:outline-offset-4 focus-within:outline-focus sm:min-h-80">
         <input
           accept=".es3"
@@ -174,44 +181,44 @@ export function SaveFilePanel({ onWorkspaceChange }: SaveFilePanelProps) {
         <StatusIcon state={state} />
 
         <span className="font-display mt-6 text-3xl font-semibold uppercase leading-none tracking-tight sm:text-4xl">
-          {panelHeading(state)}
+          {t(panelHeading(state))}
         </span>
         <output
           aria-live={state.status === "error" ? "assertive" : "polite"}
           className="mt-3 text-sm font-medium text-secondary"
           id="save-file-status"
         >
-          {panelMessage(state)}
+          {panelMessage(state, t)}
         </output>
         <span className="sr-only" id="save-file-help">
-          Select a supported R.E.P.O. Run save or MetaSave.es3 from this device. Processing stays in
-          this browser.
+          {t("save.picker.help")}
         </span>
         <span className="mt-4 grid gap-1 text-xs/5 text-secondary" id="supported-save-types">
           <span>
-            <strong className="font-semibold text-ink">Run saves</strong> - players, upgrades,
-            currency, and Run settings
+            <strong className="font-semibold text-ink">{t("save.picker.runSaves")}</strong> -{" "}
+            {t("save.picker.runHelp")}
           </span>
           <span>
-            <strong className="font-semibold text-ink">MetaSave.es3</strong> - supported cosmetics
+            <strong className="font-semibold text-ink">MetaSave.es3</strong> -{" "}
+            {t("save.picker.metaHelp")}
           </span>
         </span>
       </label>
 
       <div className="mt-5 grid gap-3 border-t border-line pt-5">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-secondary">Not sure where your save is?</p>
+          <p className="text-sm text-secondary">{t("save.picker.findPrompt")}</p>
           <FindSaveDialog />
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-secondary">Prefer automatic save discovery?</p>
+          <p className="text-sm text-secondary">{t("save.picker.desktopPrompt")}</p>
           <a
             className="inline-flex w-fit items-center gap-2 whitespace-nowrap rounded-sm border border-control bg-surface-raised px-4 py-2.5 text-sm font-semibold text-ink transition-colors hover:border-accent hover:text-accent"
             href={DESKTOP_URL}
             rel="noreferrer"
             target="_blank"
           >
-            Get RepoDitor Desktop
+            {t("save.picker.desktopAction")}
             <ArrowSquareOutIcon aria-hidden="true" size={17} weight="bold" />
           </a>
         </div>

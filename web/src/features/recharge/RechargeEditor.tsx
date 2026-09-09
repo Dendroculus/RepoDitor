@@ -1,6 +1,7 @@
 import { BatteryChargingIcon } from "@phosphor-icons/react";
 import { useState } from "react";
 
+import { useI18n } from "@/app/i18n/context";
 import {
   inspectRecharge,
   RechargeEditError,
@@ -15,24 +16,32 @@ interface RechargeEditorProps {
   readonly session: EditSession;
 }
 
-function errorMessage(error: unknown): string {
-  return error instanceof RechargeEditError
-    ? error.message
-    : "Recharge editing is unavailable for this Run save.";
+function errorMessage(error: unknown, t: ReturnType<typeof useI18n>["t"]): string {
+  return error instanceof RechargeEditError && error.message.includes("signed Int32")
+    ? t("recharge.invalidInt32")
+    : t("recharge.unavailableMessage");
 }
 
-function rechargeStatus(state: RechargeState): string {
+function rechargeStatus(
+  state: RechargeState,
+  t: ReturnType<typeof useI18n>["t"],
+  formatNumber: (value: number) => string,
+): string {
   if (state.supportedItemCount === 0) {
-    return "No supported rechargeable items were found in this Run save.";
+    return t("recharge.empty");
   }
   if (state.needingRechargeCount === 0) {
-    return "All supported items fully charged.";
+    return t("recharge.complete");
   }
-  const needNoun = state.needingRechargeCount === 1 ? "item needs" : "items need";
-  return `${state.needingRechargeCount.toLocaleString("en-US")} ${needNoun} recharging`;
+  return t(
+    "recharge.needed",
+    { count: formatNumber(state.needingRechargeCount) },
+    state.needingRechargeCount,
+  );
 }
 
 export function RechargeEditor({ busy, onSessionChange, session }: RechargeEditorProps) {
+  const { formatNumber, t } = useI18n();
   const [mutationError, setMutationError] = useState<string | null>(null);
 
   let state: RechargeState;
@@ -42,16 +51,14 @@ export function RechargeEditor({ busy, onSessionChange, session }: RechargeEdito
     return (
       <section aria-labelledby="recharge-title">
         <h2 className="text-2xl font-semibold text-ink" id="recharge-title">
-          Recharge unavailable
+          {t("recharge.unavailable")}
         </h2>
         <p className="mt-3 text-sm text-accent" role="alert">
-          {errorMessage(error)}
+          {errorMessage(error, t)}
         </p>
       </section>
     );
   }
-
-  const itemNoun = state.supportedItemCount === 1 ? "item" : "items";
 
   function recharge(): void {
     try {
@@ -60,27 +67,29 @@ export function RechargeEditor({ busy, onSessionChange, session }: RechargeEdito
       }
       setMutationError(null);
     } catch (error) {
-      setMutationError(errorMessage(error));
+      setMutationError(errorMessage(error, t));
     }
   }
 
   return (
     <section aria-labelledby="recharge-title">
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">
-        Truck inventory
+        {t("recharge.eyebrow")}
       </p>
       <h2 className="mt-1 text-2xl font-semibold text-ink" id="recharge-title">
-        Recharge
+        {t("recharge.title")}
       </h2>
 
       <div className="mt-7 max-w-xl border-y border-line py-5">
         <p className="text-lg font-semibold text-ink">
-          {state.supportedItemCount.toLocaleString("en-US")} supported rechargeable {itemNoun}
+          {t(
+            "recharge.supported",
+            { count: formatNumber(state.supportedItemCount) },
+            state.supportedItemCount,
+          )}
         </p>
-        <p className="mt-1 text-sm/6 text-secondary">{rechargeStatus(state)}</p>
-        <p className="mt-1 text-xs/5 text-secondary">
-          Unknown and unsupported item types remain unchanged.
-        </p>
+        <p className="mt-1 text-sm/6 text-secondary">{rechargeStatus(state, t, formatNumber)}</p>
+        <p className="mt-1 text-xs/5 text-secondary">{t("recharge.preservation")}</p>
 
         <button
           className="mt-5 inline-flex items-center justify-center gap-2 rounded-sm bg-accent px-4 py-2.5 text-sm font-bold text-accent-ink transition-colors hover:bg-focus disabled:cursor-not-allowed disabled:opacity-60"
@@ -89,7 +98,7 @@ export function RechargeEditor({ busy, onSessionChange, session }: RechargeEdito
           type="button"
         >
           <BatteryChargingIcon aria-hidden="true" size={18} weight="bold" />
-          Recharge All Supported Items
+          {t("recharge.action")}
         </button>
         {mutationError ? (
           <p className="mt-3 text-sm text-accent" role="alert">

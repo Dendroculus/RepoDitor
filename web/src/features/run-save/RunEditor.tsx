@@ -8,6 +8,7 @@ import {
 } from "@phosphor-icons/react";
 import { useEffect, useState, type KeyboardEvent } from "react";
 
+import { useI18n } from "@/app/i18n/context";
 import { RechargeEditor } from "@/features/recharge/RechargeEditor";
 import type { EditSession } from "@/features/save-file/session";
 import { SelectedPlayerIdentity } from "@/features/run-save/PlayerIdentity";
@@ -16,7 +17,6 @@ import {
   DISPLAY_LEVEL_MAX,
   inspectRunSave,
   type RunPlayer,
-  RunEditError,
   SAVE_INT32_MAX,
   SAVE_INT32_MIN,
   setCurrency,
@@ -31,12 +31,6 @@ type EditorSection = "players" | "recharge" | "run" | "upgrades";
 
 const TABS: readonly EditorSection[] = ["players", "upgrades", "run", "recharge"];
 const TAB_OFFSETS: Readonly<Record<string, number>> = { ArrowLeft: -1, ArrowRight: 1 };
-const TAB_LABELS: Readonly<Record<EditorSection, string>> = {
-  players: "Players",
-  recharge: "Recharge",
-  run: "Run",
-  upgrades: "Upgrades",
-};
 const BASE_PLAYER_HEALTH = 100;
 const HEALTH_PER_UPGRADE = 20;
 
@@ -111,10 +105,6 @@ function IntegerInput({
   );
 }
 
-function mutationMessage(error: unknown): string {
-  return error instanceof RunEditError ? error.message : "This edit could not be staged safely.";
-}
-
 function maximumHealth(player: RunPlayer, upgrades: ReturnType<typeof inspectRunSave>["upgrades"]) {
   const healthUpgrade =
     upgrades.find(({ key }) => key === "playerUpgradeHealth")?.values.get(player.id) ?? 0;
@@ -123,13 +113,14 @@ function maximumHealth(player: RunPlayer, upgrades: ReturnType<typeof inspectRun
 
 function inspectWorkingSave(
   data: EditSession["working"],
+  errorMessage: string,
 ):
   | { readonly error: null; readonly state: ReturnType<typeof inspectRunSave> }
   | { readonly error: string; readonly state: null } {
   try {
     return { error: null, state: inspectRunSave(data) };
-  } catch (error) {
-    return { error: mutationMessage(error), state: null };
+  } catch {
+    return { error: errorMessage, state: null };
   }
 }
 
@@ -153,11 +144,12 @@ function rechargeSection(section: EditorSection, props: RunEditorProps) {
 }
 
 export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
+  const { formatNumber, t } = useI18n();
   const [section, setSection] = useState<EditorSection>("players");
   const [selectedPlayerId, setSelectedPlayerId] = useState<string | null>(null);
   const [mutationError, setMutationError] = useState<string | null>(null);
 
-  const inspection = inspectWorkingSave(session.working);
+  const inspection = inspectWorkingSave(session.working, t("run.unavailableMessage"));
   const state = inspection.state;
   const avatars = useSteamAvatars(state?.players ?? [], session.sessionToken);
 
@@ -168,7 +160,7 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
           className="font-display text-4xl font-semibold uppercase leading-none text-ink"
           id="run-editor-title"
         >
-          Run editor unavailable
+          {t("run.unavailable")}
         </h2>
         <p className="mt-2 text-sm text-accent" role="alert">
           {inspection.error}
@@ -185,21 +177,21 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
       mutation();
       setMutationError(null);
       onSessionChange({ ...session });
-    } catch (error) {
-      setMutationError(mutationMessage(error));
+    } catch {
+      setMutationError(t("run.editError"));
     }
   }
 
   const activeIndex = TABS.indexOf(section);
 
   return (
-    <section aria-label="Run save editor">
-      <nav className="overflow-x-auto border-b border-line" aria-label="Run editor sections">
+    <section aria-label={t("run.editor")}>
+      <nav className="overflow-x-auto border-b border-line" aria-label={t("run.sections")}>
         <div className="flex min-w-max gap-1 py-2" role="tablist">
           {TABS.map((tab, index) => (
             <button
               aria-controls="run-editor-panel"
-              aria-label={TAB_LABELS[tab]}
+              aria-label={t(`run.tabs.${tab}`)}
               aria-selected={section === tab}
               className={`rounded-sm px-4 py-2.5 text-sm font-semibold transition-colors ${
                 section === tab
@@ -214,7 +206,7 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
               onClick={() => setSection(tab)}
               onKeyDown={(event) => moveTab(event, index, setSection)}
             >
-              {TAB_LABELS[tab]}
+              {t(`run.tabs.${tab}`)}
             </button>
           ))}
         </div>
@@ -242,11 +234,11 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
               <section aria-labelledby="player-list-title">
                 <div className="flex items-end justify-between gap-3">
                   <h2 className="text-xl font-semibold text-ink" id="player-list-title">
-                    Players
+                    {t("run.players.title")}
                   </h2>
                   <span className="font-mono text-xs text-secondary">{state.players.length}</span>
                 </div>
-                <div className="mt-4 grid gap-2" aria-label="Players">
+                <div className="mt-4 grid gap-2" aria-label={t("run.players.list")}>
                   {state.players.map((option) => {
                     const selected = option.id === player.id;
                     return (
@@ -293,15 +285,15 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                         id="selected-player-health"
                       >
                         <HeartIcon aria-hidden="true" className="text-secondary" size={15} />
-                        Current health
+                        {t("run.players.currentHealth")}
                       </label>
-                      <p className="mt-1 text-xs/5 text-secondary">
-                        This creates an in-memory pending edit. It does not change your source file.
-                      </p>
+                      <p className="mt-1 text-xs/5 text-secondary">{t("run.players.editNotice")}</p>
                       <div className="mt-3 flex flex-wrap items-start gap-3">
                         <div className="flex items-center gap-2">
                           <IntegerInput
-                            error={`Current health must be a whole number between 0 and ${SAVE_INT32_MAX.toLocaleString("en-US")}.`}
+                            error={t("run.players.healthError", {
+                              maximum: formatNumber(SAVE_INT32_MAX),
+                            })}
                             id="run-player-health"
                             key={player.id}
                             maximum={SAVE_INT32_MAX}
@@ -324,12 +316,12 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                             )
                           }
                         >
-                          Heal to Full
+                          {t("run.players.heal")}
                         </button>
                       </div>
                       <div className="mt-4 flex items-center gap-3">
                         <progress
-                          aria-label="Current health"
+                          aria-label={t("run.players.currentHealth")}
                           className="sr-only"
                           max={maxHealth}
                           value={visibleHealth}
@@ -347,8 +339,7 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                         </span>
                       </div>
                       <p className="mt-4 flex items-center gap-2 text-xs text-secondary">
-                        <UserIcon aria-hidden="true" size={15} /> Health and Health upgrade are
-                        separate values.
+                        <UserIcon aria-hidden="true" size={15} /> {t("run.players.healthSeparate")}
                       </p>
                     </div>
                   );
@@ -357,7 +348,7 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
             </div>
           ) : null}
           {section === "players" && !player ? (
-            <p className="text-sm text-secondary">No players were found in this Run save.</p>
+            <p className="text-sm text-secondary">{t("run.players.empty")}</p>
           ) : null}
 
           {section === "upgrades" ? (
@@ -365,10 +356,10 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
               <div className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">
-                    Per-player values
+                    {t("run.upgrades.eyebrow")}
                   </p>
                   <h2 className="mt-1 text-2xl font-semibold text-ink" id="upgrades-title">
-                    Upgrades
+                    {t("run.upgrades.title")}
                   </h2>
                 </div>
                 {player ? (
@@ -379,9 +370,9 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                       onRejectAvatar={() => avatars.reject(player.id)}
                     />
                     <label className="min-w-0 text-sm font-semibold text-ink">
-                      <span>Player</span>
+                      <span>{t("run.players.player")}</span>
                       <select
-                        aria-label="Player"
+                        aria-label={t("run.players.player")}
                         className="mt-1 block min-w-52 max-w-full rounded-sm border border-control bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent"
                         value={player.id}
                         onChange={(event) => setSelectedPlayerId(event.target.value)}
@@ -416,7 +407,9 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                       </label>
                       <div className="mt-3">
                         <IntegerInput
-                          error={`Upgrade value must be a whole number between 0 and ${SAVE_INT32_MAX.toLocaleString("en-US")}.`}
+                          error={t("run.upgrades.error", {
+                            maximum: formatNumber(SAVE_INT32_MAX),
+                          })}
                           id={`run-upgrade-${index}`}
                           maximum={SAVE_INT32_MAX}
                           minimum={0}
@@ -433,9 +426,7 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                   ))}
                 </div>
               ) : (
-                <p className="mt-6 text-sm text-secondary">
-                  No supported player upgrade dictionaries were found in this save.
-                </p>
+                <p className="mt-6 text-sm text-secondary">{t("run.upgrades.empty")}</p>
               )}
             </section>
           ) : null}
@@ -443,26 +434,26 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
           {section === "run" ? (
             <section aria-labelledby="run-title">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">
-                Current expedition
+                {t("run.run.eyebrow")}
               </p>
               <h2 className="mt-1 text-2xl font-semibold text-ink" id="run-title">
-                Run
+                {t("run.run.title")}
               </h2>
-              <p className="mt-2 max-w-[58ch] text-sm/6 text-secondary">
-                Adjust the values below in memory. Your source file is never overwritten.
-              </p>
+              <p className="mt-2 max-w-[58ch] text-sm/6 text-secondary">{t("run.run.intro")}</p>
               <div className="mt-7 grid min-w-0 gap-x-8 gap-y-5 sm:grid-cols-2">
                 <div className="border-t border-line pt-4">
                   <label
                     className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink"
                     htmlFor="run-level"
                   >
-                    <ArrowUpIcon aria-hidden="true" className="text-secondary" size={15} /> Run
-                    level
+                    <ArrowUpIcon aria-hidden="true" className="text-secondary" size={15} />{" "}
+                    {t("run.run.level")}
                   </label>
                   <div className="mt-3">
                     <IntegerInput
-                      error={`Run level must be a whole number between 1 and ${DISPLAY_LEVEL_MAX.toLocaleString("en-US")}.`}
+                      error={t("run.run.levelError", {
+                        maximum: formatNumber(DISPLAY_LEVEL_MAX),
+                      })}
                       id="run-level"
                       maximum={DISPLAY_LEVEL_MAX}
                       minimum={1}
@@ -477,11 +468,15 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                     className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink"
                     htmlFor="run-currency"
                   >
-                    <CoinsIcon aria-hidden="true" className="text-secondary" size={15} /> Currency
+                    <CoinsIcon aria-hidden="true" className="text-secondary" size={15} />{" "}
+                    {t("run.run.currency")}
                   </label>
                   <div className="mt-3">
                     <IntegerInput
-                      error={`Currency must be a whole number between ${SAVE_INT32_MIN.toLocaleString("en-US")} and ${SAVE_INT32_MAX.toLocaleString("en-US")}.`}
+                      error={t("run.run.currencyError", {
+                        maximum: formatNumber(SAVE_INT32_MAX),
+                        minimum: formatNumber(SAVE_INT32_MIN),
+                      })}
                       id="run-currency"
                       maximum={SAVE_INT32_MAX}
                       minimum={SAVE_INT32_MIN}
@@ -496,8 +491,8 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                     className="inline-flex items-center gap-1.5 text-sm font-semibold text-ink"
                     htmlFor="run-resume-location"
                   >
-                    <MapPinIcon aria-hidden="true" className="text-secondary" size={15} /> Next
-                    spawn
+                    <MapPinIcon aria-hidden="true" className="text-secondary" size={15} />{" "}
+                    {t("run.run.nextSpawn")}
                   </label>
                   <ResumeLocationMenu
                     rawValue={state.resumeValue}
