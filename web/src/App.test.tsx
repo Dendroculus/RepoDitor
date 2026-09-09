@@ -541,7 +541,7 @@ describe("App", () => {
       target: { value: "-1" },
     });
 
-    expect(screen.getByRole("alert").textContent).toMatch(/between 0 and 2,147,483,647/iu);
+    expect((await screen.findByRole("alert")).textContent).toMatch(/between 0 and 2,147,483,647/iu);
     expect(screen.getByText("Clean")).toBeTruthy();
     expect(
       (screen.getByRole("button", { name: "Discard changes" }) as HTMLButtonElement).disabled,
