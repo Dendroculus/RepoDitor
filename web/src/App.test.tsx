@@ -111,6 +111,10 @@ afterEach(() => {
   vi.unstubAllGlobals();
   restoreUrlMethod("createObjectURL", createObjectUrlDescriptor);
   restoreUrlMethod("revokeObjectURL", revokeObjectUrlDescriptor);
+  window.history.replaceState(null, "", "/");
+  window.localStorage.clear();
+  delete document.documentElement.dataset.theme;
+  delete document.documentElement.dataset.themeReady;
 });
 
 describe("App", () => {
@@ -123,8 +127,10 @@ describe("App", () => {
         name: "Edit R.E.P.O. saves directly in your browser.",
       }),
     ).toBeTruthy();
-    expect(screen.getByText(/Save processing stays on this device/)).toBeTruthy();
-    expect(screen.getByText(/Save files and decrypted JSON are not uploaded/)).toBeTruthy();
+    expect(
+      screen.getAllByText(/Save contents are processed locally and are not persisted/).length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText(/save files and decrypted JSON are not uploaded/i)).toBeTruthy();
     expect(screen.getByText("or choose a supported .es3 save")).toBeTruthy();
     expect(screen.queryByText("or choose a .es3 file")).toBeNull();
     const supportedTypes = document.querySelector("#supported-save-types");
@@ -141,6 +147,36 @@ describe("App", () => {
     expect(screen.getByRole("link", { name: /get repoditor desktop/i }).getAttribute("href")).toBe(
       "https://github.com/Yoruxyv/RepoDitor/releases/latest",
     );
+  });
+
+  it("persists only an explicit theme preference and exposes the language shell", () => {
+    const storageWrite = vi.spyOn(Storage.prototype, "setItem");
+    render(<App />);
+
+    expect(storageWrite).not.toHaveBeenCalled();
+    expect(screen.getByRole("combobox", { name: "Language" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Switch to light theme" }));
+
+    expect(document.documentElement.dataset.theme).toBe("light");
+    expect(storageWrite).toHaveBeenCalledWith("repoditor-theme", "light");
+    expect(screen.getByRole("button", { name: "Switch to dark theme" })).toBeTruthy();
+  });
+
+  it("opens hash-addressable policy guidance and returns focus on browser Back", async () => {
+    render(<App />);
+    const trigger = screen.getByRole("link", { name: "Data & Privacy" });
+
+    trigger.focus();
+    fireEvent.click(trigger);
+    expect(window.location.hash).toBe("#privacy");
+    const dialog = document.querySelector('[aria-labelledby="policy-title"]');
+    expect(dialog?.hasAttribute("open")).toBe(true);
+    expect(screen.getByRole("heading", { name: "Data & Privacy" })).toBeTruthy();
+
+    window.history.replaceState(null, "", "/");
+    window.dispatchEvent(new PopStateEvent("popstate"));
+    await waitFor(() => expect(dialog?.hasAttribute("open")).toBe(false));
+    expect(document.activeElement).toBe(trigger);
   });
 
   it("reads and classifies a selected save without exposing its data", async () => {

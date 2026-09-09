@@ -27,23 +27,21 @@
   --font-ui: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color-scheme: light;
-    --theme-app: #f3f2ed;
-    --theme-surface: #fffdf7;
-    --theme-surface-raised: #eae8e1;
-    --theme-line: #d7d4ca;
-    --theme-line-strong: #b8b3a7;
-    --theme-control: #898377;
-    --theme-ink: #1a211e;
-    --theme-secondary: #48564f;
-    --theme-muted: #59645e;
-    --theme-accent: #934d0c;
-    --theme-accent-muted: rgb(169 95 22 / 0.12);
-    --theme-accent-ink: #fffaf3;
-    --theme-focus: #a95f16;
-  }
+:root[data-theme="light"] {
+  color-scheme: light;
+  --theme-app: #f3f2ed;
+  --theme-surface: #fffdf7;
+  --theme-surface-raised: #eae8e1;
+  --theme-line: #d7d4ca;
+  --theme-line-strong: #b8b3a7;
+  --theme-control: #898377;
+  --theme-ink: #1a211e;
+  --theme-secondary: #48564f;
+  --theme-muted: #59645e;
+  --theme-accent: #934d0c;
+  --theme-accent-muted: rgb(169 95 22 / 0.12);
+  --theme-accent-ink: #fffaf3;
+  --theme-focus: #a95f16;
 }
 
 @theme inline {
@@ -88,7 +86,8 @@
 
   a:focus-visible,
   button:focus-visible,
-  input:focus-visible {
+  input:focus-visible,
+  select:focus-visible {
     outline: 2px solid var(--theme-focus);
     outline-offset: 3px;
   }
@@ -106,7 +105,6 @@
 /* RepoDitor document scrollbar */
 html {
   scrollbar-color: var(--theme-line-strong) var(--theme-app);
-  scrollbar-gutter: stable;
   scrollbar-width: thin;
 }
 

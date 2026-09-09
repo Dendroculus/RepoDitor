@@ -1,7 +1,7 @@
 import { isInteger, LosslessNumber } from "lossless-json";
 
 import snapshot from "@/features/cosmetics/known-cosmetics.v1.json";
-import { classifySave } from "@/features/save-file/pipeline";
+import { classifySave } from "@/features/save-file/classification";
 import { isSaveNumber, isSaveObject, type SaveObject } from "@/features/save-file/serialization";
 
 export const KNOWN_COSMETIC_IDS: readonly number[] = Object.freeze([...snapshot.cosmeticIds]);

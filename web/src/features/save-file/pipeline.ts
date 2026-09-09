@@ -1,9 +1,6 @@
-import { isInteger } from "lossless-json";
-
 import { decryptEs3, encryptEs3, Es3CryptoError } from "@/features/save-file/es3";
+import { classifySave, type SaveKind } from "@/features/save-file/classification";
 import {
-  isSaveObject,
-  isSaveNumber,
   parseSaveJson,
   SaveSerializationError,
   serializeSaveJson,
@@ -12,9 +9,10 @@ import {
 
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const encoder = new TextEncoder();
+export const MAX_SAVE_FILE_BYTES = 16 * 1024 * 1024;
 
-export type SaveKind = "run" | "meta";
-export type SaveClassification = SaveKind | "unsupported";
+export { classifySave } from "@/features/save-file/classification";
+export type { SaveClassification, SaveKind } from "@/features/save-file/classification";
 
 export interface LoadedSave {
   readonly data: SaveObject;
@@ -37,54 +35,17 @@ export class SavePipelineError extends Error {
 
 export interface LocalSaveFile {
   readonly name: string;
+  readonly size?: number;
   arrayBuffer(): Promise<ArrayBuffer>;
 }
 
-function typedValue(data: SaveObject, key: string): unknown {
-  const entry = Object.hasOwn(data, key) ? data[key] : undefined;
-  return isSaveObject(entry) && Object.hasOwn(entry, "value") ? entry.value : undefined;
-}
-
-function isRunSave(data: SaveObject): boolean {
-  const players = typedValue(data, "playerNames");
-  const dictionaries = typedValue(data, "dictionaryOfDictionaries");
-  const runStats =
-    isSaveObject(dictionaries) && Object.hasOwn(dictionaries, "runStats")
-      ? dictionaries.runStats
-      : undefined;
-  return isSaveObject(players) && isSaveObject(runStats);
-}
-
-function isIntegerValue(value: unknown): boolean {
-  return isSaveNumber(value) && isInteger(value.value);
-}
-
-function hasIntegerList(data: SaveObject, key: string): boolean {
-  const value = typedValue(data, key);
-  return Array.isArray(value) && value.every(isIntegerValue);
-}
-
-function isMetaSave(data: SaveObject): boolean {
-  return (
-    hasIntegerList(data, "cosmeticHistory") &&
-    hasIntegerList(data, "cosmeticUnlocks") &&
-    Array.isArray(typedValue(data, "cosmeticPresets"))
-  );
-}
-
-export function classifySave(data: SaveObject): SaveClassification {
-  const run = isRunSave(data);
-  const meta = isMetaSave(data);
-  if (run === meta) {
-    return "unsupported";
-  }
-  if (run) {
-    return "run";
-  }
-  return "meta";
-}
-
 export async function loadSaveBytes(bytes: Uint8Array, fileName: string): Promise<LoadedSave> {
+  if (bytes.byteLength > MAX_SAVE_FILE_BYTES) {
+    throw new SavePipelineError(
+      "unsupported-file",
+      "This save is larger than the 16 MiB browser safety limit.",
+    );
+  }
   let plaintext: Uint8Array;
   try {
     plaintext = await decryptEs3(bytes);
@@ -128,6 +89,12 @@ export async function loadSaveBytes(bytes: Uint8Array, fileName: string): Promis
 export async function loadSaveFile(file: LocalSaveFile): Promise<LoadedSave> {
   if (!file.name.toLowerCase().endsWith(".es3")) {
     throw new SavePipelineError("unsupported-file", "Choose a R.E.P.O. .es3 save file.");
+  }
+  if (file.size !== undefined && file.size > MAX_SAVE_FILE_BYTES) {
+    throw new SavePipelineError(
+      "unsupported-file",
+      "This save is larger than the 16 MiB browser safety limit.",
+    );
   }
   return loadSaveBytes(new Uint8Array(await file.arrayBuffer()), file.name);
 }
