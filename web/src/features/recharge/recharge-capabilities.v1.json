@@ -1,0 +1,41 @@
+{
+  "snapshotVersion": 1,
+  "compatibility": {
+    "steamAppId": "3241660",
+    "steamBuildId": "23363152",
+    "unityVersion": "2022.3.67f2"
+  },
+  "provenance": "docs/research/reverse-engineering.md#installed-itembattery-capability-proof; validated installed resources.assets/globalgamemanagers.assets with exact parity between the Desktop parser and an independent UnityPy oracle",
+  "fullChargeRepresentation": "absent exact-instance entry in dictionaryOfDictionaries.value.itemStatBattery",
+  "rechargeableItemIdentities": [
+    "Item Cart Cannon",
+    "Item Cart Laser",
+    "Item Drone Feather",
+    "Item Drone Indestructible",
+    "Item Drone Torque",
+    "Item Drone Zero Gravity",
+    "Item Extraction Tracker",
+    "Item Gun Handgun",
+    "Item Gun Laser",
+    "Item Gun Shockwave",
+    "Item Gun Shotgun",
+    "Item Gun Stun",
+    "Item Gun Tranq",
+    "Item Leaf Blower",
+    "Item Melee Baseball Bat",
+    "Item Melee Frying Pan",
+    "Item Melee Inflatable Hammer",
+    "Item Melee Sledge Hammer",
+    "Item Melee Stun Baton",
+    "Item Melee Sword",
+    "Item Orb Zero Gravity",
+    "Item Phase Bridge",
+    "Item Rubber Duck",
+    "Item Staff Torque",
+    "Item Staff Void",
+    "Item Staff Zero Gravity",
+    "Item Valuable Tracker",
+    "Item Vehicle Semiscooter",
+    "Item Vehicle Semiscooter Small"
+  ]
+}

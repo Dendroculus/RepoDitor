@@ -144,7 +144,7 @@ export function FindSaveDialog() {
       <dialog
         aria-labelledby="find-save-title"
         aria-modal="true"
-        className="m-auto max-h-[90dvh] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto border border-control bg-surface p-0 text-ink shadow-panel backdrop:bg-app/85"
+        className="m-auto max-h-[calc(100dvh-4rem)] w-[calc(100%-2rem)] max-w-2xl overflow-y-auto border border-control bg-surface p-0 text-ink shadow-panel backdrop:bg-app/85"
         onCancel={(event) => {
           event.preventDefault();
           closeDialog();

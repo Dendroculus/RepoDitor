@@ -63,6 +63,10 @@ describe("Find My Save guidance", () => {
     const { dialog, trigger } = openDialog();
 
     expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(dialog.className).toContain("max-h-[calc(100dvh-4rem)]");
+    expect(dialog.className).toContain("overflow-y-auto");
+    expect(dialog.className).not.toContain("overflow-y-scroll");
+    expect(dialog.className).not.toContain("overflow-hidden");
     expect(document.activeElement).toBe(
       screen.getByRole("button", { name: "Close save location guide" }),
     );

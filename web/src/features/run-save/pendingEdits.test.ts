@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import type { LoadedSave } from "@/features/save-file/pipeline";
-import { createEditSession } from "@/features/save-file/session";
+import { createEditSession, resetEditSession } from "@/features/save-file/session";
 import { parseSaveJson } from "@/features/save-file/serialization";
+import { rechargeAllSupportedItems } from "@/features/recharge/recharge";
 import { getRunPendingEdits } from "@/features/run-save/pendingEdits";
 import {
   setCurrency,
@@ -17,6 +18,8 @@ const RUN_SOURCE = JSON.stringify({
     value: {
       playerHealth: { "111": 80 },
       playerUpgradeStrength: { "111": 2 },
+      item: { "Item Gun Tranq/1": 15, "Item Melee Inflatable Hammer/2": 21 },
+      itemStatBattery: { "Item Gun Tranq/1": 0, "Item Melee Inflatable Hammer/2": 20 },
       runStats: { currency: 12, level: 0, "save level": 0 },
     },
   },
@@ -77,5 +80,24 @@ describe("pending Run edits", () => {
     expect(getRunPendingEdits(editSession)).toHaveLength(1);
     setPlayerHealth(editSession.working, "111", 80);
     expect(getRunPendingEdits(editSession)).toEqual([]);
+  });
+
+  it("keeps recharge as one semantic baseline-to-current edit and discard removes it", () => {
+    const editSession = session();
+
+    expect(rechargeAllSupportedItems(editSession.working)).toBe(true);
+    expect(getRunPendingEdits(editSession)).toEqual([
+      {
+        after: "All supported items fully charged",
+        before: "2 items need recharging",
+        field: "Supported items",
+        id: "recharge:supported-items",
+        subject: "Recharge",
+      },
+    ]);
+    expect(rechargeAllSupportedItems(editSession.working)).toBe(false);
+    expect(getRunPendingEdits(editSession)).toHaveLength(1);
+
+    expect(getRunPendingEdits(resetEditSession(editSession))).toEqual([]);
   });
 });

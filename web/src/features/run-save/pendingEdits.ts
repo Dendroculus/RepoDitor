@@ -1,6 +1,7 @@
 import type { PendingEdit } from "@/features/save-file/pendingEdits";
 import type { EditSession } from "@/features/save-file/session";
 import { parseSaveJson } from "@/features/save-file/serialization";
+import { inspectRecharge } from "@/features/recharge/recharge";
 import { inspectRunSave, type ResumeLocation } from "@/features/run-save/runSave";
 
 function resumeLabel(value: ResumeLocation | null, raw: number): string {
@@ -41,12 +42,21 @@ function getUpgradeEdits(
   return edits;
 }
 
+function rechargeStateLabel(needingRechargeCount: number): string {
+  if (needingRechargeCount === 0) {
+    return "All supported items fully charged";
+  }
+  const noun = needingRechargeCount === 1 ? "item needs" : "items need";
+  return `${needingRechargeCount} ${noun} recharging`;
+}
+
 export function getRunPendingEdits(session: EditSession): PendingEdit[] {
   if (session.originalKind !== "run") {
     return [];
   }
 
-  const baseline = inspectRunSave(parseSaveJson(session.baselineSource));
+  const baselineData = parseSaveJson(session.baselineSource);
+  const baseline = inspectRunSave(baselineData);
   const working = inspectRunSave(session.working);
   const edits: PendingEdit[] = [];
   const baselinePlayers = new Map(baseline.players.map((player) => [player.id, player]));
@@ -95,6 +105,22 @@ export function getRunPendingEdits(session: EditSession): PendingEdit[] {
       id: "run:resume-location",
       subject: "Run",
     });
+  }
+
+  try {
+    const baselineRecharge = inspectRecharge(baselineData);
+    const workingRecharge = inspectRecharge(session.working);
+    if (baselineRecharge.needingRechargeCount !== workingRecharge.needingRechargeCount) {
+      edits.push({
+        after: rechargeStateLabel(workingRecharge.needingRechargeCount),
+        before: rechargeStateLabel(baselineRecharge.needingRechargeCount),
+        field: "Supported items",
+        id: "recharge:supported-items",
+        subject: "Recharge",
+      });
+    }
+  } catch {
+    // Malformed or unsupported item structures remain outside recharge editing.
   }
 
   return edits;
