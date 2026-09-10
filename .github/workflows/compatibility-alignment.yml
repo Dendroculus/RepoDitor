@@ -1,0 +1,45 @@
+name: Compatibility
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compatibility-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  desktop-web-alignment:
+    name: Desktop-Web Alignment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Sync locked capability dependencies
+        run: uv sync --project desktop/python --locked --group test
+
+      - name: Capability automation tests
+        run: uv run --project desktop/python --locked --group test pytest tools/capabilities/tests
+
+      - name: Desktop-Web capability alignment
+        working-directory: web
+        run: npm run capabilities:check

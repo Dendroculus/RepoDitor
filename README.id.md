@@ -109,7 +109,7 @@ Tindakan yang didukung saat ini:
   alasan lain;
 - **Hapus Semua Preset**, yang mengosongkan slot preset kosmetik/warna yang berpasangan.
 
-Kelayakan mutasi tetap dibatasi pada ID terpasang di dalam batas `0..546` yang
+Kelayakan mutasi tetap dibatasi pada ID terpasang dalam daftar ID eksplisit yang
 telah dibuktikan secara independen. ID kosmetik yang tidak dikenal atau muncul
 di versi mendatang tetap dipertahankan sebagai hanya-baca. Pengeditan token,
 equipment/warna secara bebas, serta pembuatan atau pengeditan preset secara

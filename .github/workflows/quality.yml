@@ -37,10 +37,10 @@ jobs:
         run: uv sync --locked
 
       - name: Ruff lint
-        run: uv run ruff check repo_save_editor tests
+        run: uv run ruff check repo_save_editor tests ../../tools/capabilities
 
       - name: Ruff format check
-        run: uv run ruff format --check repo_save_editor tests
+        run: uv run ruff format --check repo_save_editor tests ../../tools/capabilities
 
       - name: Mypy
         run: uv run mypy

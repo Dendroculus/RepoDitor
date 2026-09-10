@@ -74,7 +74,7 @@ supports the separately evidence-backed paired **Clear All Presets** operation a
 | Clean MetaSave | `49379a449ac38bc06d415231b7723e6e045fe84498bd4bbaa769ba7f23f463fa` | History, unlocks, and tokens were empty. |
 | Synthetic ID 28 unlock | `800afbd5f5309fdccf50a426e5ac7f1210e8e9eee8acb98c609986d3fb00cdbd` | ID 28 was added to history and unlocks only; R.E.P.O. loaded it as owned. |
 | Game rewrite after ID 28 unlock | `4f300925d20a4dd6ecd31f423b5e74a54709ee3807624864ee2bd422c8cd81ec` | The two lists remained `[28]` with zero semantic difference from the synthetic state. |
-| Game-generated full unlock | `22bbb9102d93d7fff8c4b2d3fb86dd6dc2c4475030ecb76a7c858c750741b483` | Both lists contained the exact 547-ID set `0..546`, without duplicates. |
+| Game-generated full unlock | `22bbb9102d93d7fff8c4b2d3fb86dd6dc2c4475030ecb76a7c858c750741b483` | Both lists contained the exact 547 explicit IDs currently observed (`0` through `546`), without duplicates. |
 | Synthetic Unlock All | `2cf98a08e4cfab88ba1c3460235379f57128585d0287bca16b39df06d6a6542d` | Missing known IDs were added through the ownership representation. |
 | Game rewrite after Unlock All | `6799fa1c9a145095411329020e0157e0b7cb3dde686204add031a89fc0ddfd5c` | All 547 known IDs remained owned with zero semantic difference. |
 | Synthetic ID 28 removal | `c5cde94309d5fec65e45580ab8350eb76dc38b35ff4ea62561b88365493bbe74` | Removing ID 28 from both lists made only that tested cosmetic unowned; R.E.P.O. loaded successfully. |
@@ -87,7 +87,9 @@ invented here.
 ### Confirmed
 
 - MetaSave decryptability and the two-list ownership representation.
-- The currently observed known catalog is the exact set `0..546`.
+- The currently observed known catalog is the explicit 547-ID set recorded in
+  `tools/capabilities/evidence/cosmetics.v1.json`. Contiguity is historical evidence, not a rule;
+  future gaps must remain gaps.
 - Individual unlock appends a missing known ID to both lists without duplicates.
 - Unlock All composes the individual rule and preserves existing order and unknown/future IDs.
 - Removing an unreferenced known ID from both lists made the tested ID 28 unowned.
@@ -107,8 +109,30 @@ references cannot be verified.
 - Catalog IDs added by future game versions. Existing unknown IDs are preserved and shown
   read-only; gaps are never inferred.
 
-Future research may look for a trustworthy local game-owned ID-to-name catalog. It
-must not copy a third-party hardcoded list or bundle extracted game artwork.
+### Installed cosmetic catalog proof
+
+For Steam build `23363152`, the game-owned identity relationship is exact:
+
+- `REPO_Data/level0` contains one `MetaManager.cosmeticAssets` pointer vector;
+- managed `MenuElementCosmeticButton.Start` resolves a `CosmeticAsset` with `IndexOf` on that
+  vector, then uses the resulting integer in both `cosmeticUnlocks` and `cosmeticHistory`;
+- the production standard-library parser and independent UnityPy oracle returned the same 547
+  ordered targets with no duplicates or mismatches;
+- those vector indices had exact set parity with the game-generated full-unlock MetaSave.
+
+The installed vector is therefore the canonical catalog-ID source, not an inferred `0..max` range.
+Desktop discovers it dynamically. The Web and Desktop mutation-policy artifacts are generated from
+the reviewed installed extraction. The full-unlock MetaSave remains historical corroboration that
+the vector-index relationship maps to ownership; it is not the normal source of future catalog
+updates.
+
+For a compatible update, the production standard-library extraction must match the independent
+UnityPy catalog exactly. The managed assembly must either retain the already-proven fingerprint or
+an independently reviewed managed-code proof must confirm the same normalized ownership/index
+contract. Parser failure, oracle disagreement, contract drift, null/duplicate targets, or ambiguous
+identity blocks generation. A new full-unlock MetaSave is needed only when those semantic checks
+cannot establish that the ownership proof still applies. See
+`docs/maintenance/game-update-capabilities.md`. No game artwork or binary data is committed.
 
 ## Advanced save discovery
 
@@ -257,6 +281,12 @@ was part of the controlled 60-item proof. Production does not ship the proof man
 IDs, `local-evidence`, UnityPy, TypeTreeGenerator, or a hardcoded rechargeable-name/category list.
 The parser is guarded to the validated Steam build and serialized layout; future or unreadable
 metadata therefore disables recharge claims while leaving normal save reads available.
+
+The approved cross-product subset and independent-oracle result are recorded in
+`tools/capabilities/evidence/recharge.v1.json`. `npm run capabilities:check` proves the generated Web
+snapshot still matches that evidence; `npm run capabilities:check:installed` separately reports
+local build and capability drift without updating policy. See
+`docs/maintenance/game-update-capabilities.md` for the approval workflow.
 
 The production semantic model is intentionally three-part:
 

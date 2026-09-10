@@ -5,6 +5,7 @@ coverage/
 build/
 dist/
 dist-electron/
+electron/ipc/known-cosmetics.cts
 release/
 playwright-report/
 test-results/

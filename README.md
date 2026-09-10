@@ -110,7 +110,7 @@ The current actions are:
 - **Clear All Presets**, which clears the paired cosmetic/color preset slots.
 
 Mutation eligibility remains limited to installed IDs within the independently
-proven `0..546` boundary. Unknown and future cosmetic IDs are preserved
+proven explicit cosmetic-ID list. Unknown and future cosmetic IDs are preserved
 read-only. Token editing, arbitrary equipment/color editing, and arbitrary
 preset creation/editing are not supported because their game semantics have
 not been established safely.
