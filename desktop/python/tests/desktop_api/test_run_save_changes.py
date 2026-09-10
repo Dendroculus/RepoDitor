@@ -1,3 +1,4 @@
+import re
 from copy import deepcopy
 
 import pytest
@@ -103,10 +104,8 @@ def test_change_envelope_validation_contract(
     changes: object,
     message: str,
 ) -> None:
-    with pytest.raises(ValueError) as exc_info:
+    with pytest.raises(ValueError, match=rf"^{re.escape(message)}$"):
         apply_run_save_changes(deepcopy(sample_save), changes)
-
-    assert str(exc_info.value) == message
 
 
 def test_requested_refill_item_types_preserves_first_seen_unique_item_types() -> None:

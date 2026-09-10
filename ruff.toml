@@ -17,6 +17,7 @@ extend-exclude = [
 
 [lint]
 select = [
+    "A",
     "B",
     "BLE",
     "C4",
@@ -26,6 +27,11 @@ select = [
     "F",
     "I",
     "PERF",
+    "PGH",
+    "PIE",
+    "PT",
+    "RET",
+    "RSE",
     "RUF",
     "SIM",
     "UP",
