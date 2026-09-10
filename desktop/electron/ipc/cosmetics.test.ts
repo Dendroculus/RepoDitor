@@ -7,6 +7,11 @@ import type { CosmeticDto, CosmeticsViewDto } from "../contracts.cjs";
 
 const require = createRequire(import.meta.url);
 const { getCosmetics, saveCosmetics } = require("../../dist-electron/ipc/cosmetics.cjs");
+const { PROVEN_COSMETIC_IDS } = require("../../dist-electron/ipc/known-cosmetics.cjs") as {
+  PROVEN_COSMETIC_IDS: ReadonlySet<number>;
+};
+const FUTURE_COSMETIC_ID =
+  [...PROVEN_COSMETIC_IDS].reduce((highest, id) => Math.max(highest, id), -1) + 1;
 
 const fingerprint = "a".repeat(64);
 const unknownReason =
@@ -28,8 +33,11 @@ function installedDisplayName(id: number): string {
   return `Installed ${id}`;
 }
 
-function installedCosmetic(id: number, owned = id === 1): CosmeticDto & { iconKey: null } {
-  const mutationEligible = id < 547;
+function installedCosmetic(
+  id: number,
+  owned = id === 1,
+  mutationEligible = PROVEN_COSMETIC_IDS.has(id),
+): CosmeticDto & { iconKey: null } {
   return {
     id,
     displayName: installedDisplayName(id),
@@ -83,6 +91,14 @@ function view(count = 3): CosmeticsViewDto {
     },
     cosmetics,
   };
+}
+
+function installedCosmeticAt(viewValue: CosmeticsViewDto, id: number): CosmeticDto {
+  const cosmetic = viewValue.cosmetics.find((candidate) => candidate.id === id);
+  if (!cosmetic?.known) {
+    throw new Error(`Missing installed cosmetic ${id}.`);
+  }
+  return cosmetic;
 }
 
 function degradedView(): CosmeticsViewDto {
@@ -175,18 +191,19 @@ describe("cosmetics IPC", () => {
   });
 
   it("accepts installed future IDs as read-only presentation metadata", async () => {
-    const futureView = view(548);
-    futureView.cosmetics[547].displayName = "Future Cosmetic";
+    const futureView = view(FUTURE_COSMETIC_ID + 1);
+    const futureCosmetic = installedCosmeticAt(futureView, FUTURE_COSMETIC_ID);
+    futureCosmetic.displayName = "Future Cosmetic";
 
     const result = await getCosmetics(client({ ok: true, cosmetics: futureView }));
 
     expect(result).toMatchObject({
       ok: true,
       data: {
-        knownCatalogCount: 548,
+        knownCatalogCount: FUTURE_COSMETIC_ID + 1,
         cosmetics: expect.arrayContaining([
           expect.objectContaining({
-            id: 547,
+            id: FUTURE_COSMETIC_ID,
             displayName: "Future Cosmetic",
             mutationEligible: false,
             state: "locked",
@@ -287,7 +304,14 @@ describe("cosmetics IPC", () => {
       error: { code: "invalid_response" },
     });
     for (const changes of [
-      [{ feature: "cosmetics", entity: "547", field: "owned", after: true }],
+      [
+        {
+          feature: "cosmetics",
+          entity: String(FUTURE_COSMETIC_ID),
+          field: "owned",
+          after: true,
+        },
+      ],
       [{ feature: "cosmetics", entity: "002", field: "owned", after: true }],
       [{ feature: "cosmetics", entity: "Duplicate Name", field: "owned", after: true }],
       [{ feature: "cosmetics", entity: "2", field: "tokens", after: 99 }],
@@ -320,9 +344,10 @@ describe("cosmetics IPC", () => {
       getCosmetics(client({ ok: true, cosmetics: fabricatedUnknown })),
     ).resolves.toMatchObject({ ok: false, error: { code: "invalid_response" } });
 
-    const writableFuture = view(548);
-    writableFuture.cosmetics[547].mutationEligible = true;
-    writableFuture.cosmetics[547].removalBlockedReason = null;
+    const writableFuture = view(FUTURE_COSMETIC_ID + 1);
+    const futureCosmetic = installedCosmeticAt(writableFuture, FUTURE_COSMETIC_ID);
+    futureCosmetic.mutationEligible = true;
+    futureCosmetic.removalBlockedReason = null;
     await expect(
       getCosmetics(client({ ok: true, cosmetics: writableFuture })),
     ).resolves.toMatchObject({ ok: false, error: { code: "invalid_response" } });

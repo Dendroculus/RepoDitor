@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+from repo_save_editor.services.cosmetics.known_cosmetics import PROVEN_COSMETIC_IDS
 from repo_save_editor.services.cosmetics.models import InstalledCosmeticMetadata
 
-# This range is evidence for the currently proven save-mutation boundary, not a catalog size.
+# This exact generated set is evidence for the currently proven save-mutation boundary,
+# not a catalog size. Gaps remain gaps when future evidence is non-contiguous.
 # Installed catalog data (including the derived disk cache) may only narrow this set. It can
 # never grant mutation authority to an ID outside this independently proven boundary.
-PROVEN_MUTATION_IDS = tuple(range(547))
+PROVEN_MUTATION_IDS = PROVEN_COSMETIC_IDS
 PROVEN_MUTATION_ID_SET = frozenset(PROVEN_MUTATION_IDS)
 
 CATALOG_UNAVAILABLE_REASON = (

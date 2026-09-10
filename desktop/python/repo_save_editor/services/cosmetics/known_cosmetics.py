@@ -1,21 +1,11 @@
-{
-  "snapshotVersion": 1,
-  "generatorVersion": 1,
-  "compatibility": {
-    "steamAppId": "3241660",
-    "steamBuildId": "23363152",
-    "unityVersion": "2022.3.67f2"
-  },
-  "gameCompatibility": "Installed MetaManager cosmeticAssets vector on Steam build 23363152, verified against UnityPy and the managed ownership/index contract",
-  "provenance": "docs/research/reverse-engineering.md#metasave-cosmetic-ownership and #installed-cosmetic-catalog-proof",
-  "evidenceSha256": "22bbb9102d93d7fff8c4b2d3fb86dd6dc2c4475030ecb76a7c858c750741b483",
-  "sourceDigests": {
-    "approvedEvidence": "sha256:a7d7b13ef3c3b0a3109869cc04c5ca457e1f2745360c39fad0e938c453751eab",
-    "desktop/python/repo_save_editor/services/cosmetics/installed_catalog.py": "sha256:b1ba3f560a0560467e8561a75f4068536df2bc3dcd711a3233ebcf193deb5c46",
-    "desktop/python/repo_save_editor/services/game/discovery.py": "sha256:5f625d9616f0427bd6dba682ff0d7447889009168cf390cb84ba0a6135a274f2",
-    "desktop/python/repo_save_editor/services/unity_serialized.py": "sha256:028a0f1b59d289a0436684f5f59c3b51a0ebbf77e52c656ba766df7cb07556cf"
-  },
-  "cosmeticIds": [
+"""Generated exact cosmetic mutation capability. Do not edit by hand."""
+
+from typing import Final
+
+SNAPSHOT_VERSION: Final = 1
+SOURCE_EVIDENCE: Final = "tools/capabilities/evidence/cosmetics.v1.json"
+SOURCE_SAVE_SHA256: Final = "22bbb9102d93d7fff8c4b2d3fb86dd6dc2c4475030ecb76a7c858c750741b483"
+PROVEN_COSMETIC_IDS: Final = (
     0,
     1,
     2,
@@ -562,6 +552,5 @@
     543,
     544,
     545,
-    546
-  ]
-}
+    546,
+)

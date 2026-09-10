@@ -34,13 +34,13 @@ jobs:
           python-version: "3.13"
 
       - name: Sync locked dependencies
-        run: uv sync --locked
+        run: uv sync --locked --group test
 
       - name: Ruff lint
-        run: uv run ruff check repo_save_editor tests
+        run: uv run ruff check repo_save_editor tests ../../tools/capabilities
 
       - name: Ruff format check
-        run: uv run ruff format --check repo_save_editor tests
+        run: uv run ruff format --check repo_save_editor tests ../../tools/capabilities
 
       - name: Mypy
         run: uv run mypy

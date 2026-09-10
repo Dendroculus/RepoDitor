@@ -6,3 +6,5 @@ package-lock.json
 .playwright-cli/
 playwright-report/
 test-results/
+src/features/cosmetics/known-cosmetics.v1.json
+src/features/recharge/recharge-capabilities.v1.json
