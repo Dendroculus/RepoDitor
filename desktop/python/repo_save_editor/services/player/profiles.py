@@ -6,7 +6,8 @@ from collections.abc import Callable
 from typing import cast
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
-from xml.etree import ElementTree
+
+from defusedxml import ElementTree
 
 STEAM_ID64_MIN = 76_561_197_960_265_728
 STEAM_ID64_MAX = STEAM_ID64_MIN + 2**32 - 1
@@ -30,9 +31,24 @@ def is_plausible_steam_id(player_id: str) -> bool:
 
 
 def _fetch_profile(url: str, timeout: float) -> bytes:
-    request = Request(url, headers={"User-Agent": "RepoDitor/0.1"})
-    with urlopen(request, timeout=timeout) as response:
+    parsed = urlparse(url)
+    if (
+        parsed.scheme != "https"
+        or parsed.hostname != "steamcommunity.com"
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.port not in (None, 443)
+    ):
+        raise ValueError("Steam profile URL is not allowed.")
+
+    # Ruff cannot infer the explicit HTTPS/host allowlist above.
+    request = Request(  # noqa: S310
+        url,
+        headers={"User-Agent": "RepoDitor/0.1"},
+    )
+    with urlopen(request, timeout=timeout) as response:  # noqa: S310
         body = cast(bytes, response.read(MAX_PROFILE_BYTES + 1))
+
     if len(body) > MAX_PROFILE_BYTES:
         raise ValueError("Steam profile response exceeded the size limit.")
     return body

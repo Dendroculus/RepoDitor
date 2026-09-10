@@ -23,7 +23,7 @@ class SaveCryptoError(ValueError):
 # AES-CBC, and PKCS#7 must remain exact or existing saves will no longer decrypt
 # and newly written saves will not match the observed format. See SECURITY.md
 # and the shared compatibility vector in compatibility/es3/known-vector.json.
-ES3_PASSWORD = "Why would you want to cheat?... :o It's no fun. :') :'D"
+ES3_PASSWORD = "Why would you want to cheat?... :o It's no fun. :') :'D"  # noqa: S105
 ES3_COMPAT_IV_SIZE_BYTES = 16
 ES3_COMPAT_PBKDF2_HASH = "sha1"
 ES3_COMPAT_PBKDF2_ITERATIONS = 100

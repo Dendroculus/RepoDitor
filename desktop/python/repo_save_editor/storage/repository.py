@@ -91,7 +91,7 @@ class EncryptedSaveRepository:
             if path.read_bytes() != source:
                 raise SaveStaleError("The save changed while edits were being prepared.")
             try:
-                os.replace(temp_path, path)
+                temp_path.replace(path)
             except OSError as exc:
                 raise SaveWriteError("The original save could not be replaced.") from exc
             temp_path = None
@@ -157,7 +157,7 @@ class EncryptedSaveRepository:
     def _write_atomic(path: Path, blob: bytes) -> None:
         temp_path = EncryptedSaveRepository._write_temp(path, blob)
         try:
-            os.replace(temp_path, path)
+            temp_path.replace(path)
         finally:
             with suppress(OSError):
                 temp_path.unlink(missing_ok=True)

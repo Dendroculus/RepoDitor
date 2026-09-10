@@ -207,7 +207,7 @@ def test_batch_keeps_individual_resolve_and_decode_failures_fail_soft(
         keys,
         installation,
         build,
-        on_texture=lambda key, texture: reported.__setitem__(key, texture),
+        on_texture=reported.__setitem__,
     )
 
     assert result.assets_ready is True

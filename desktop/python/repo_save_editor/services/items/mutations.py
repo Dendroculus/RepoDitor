@@ -34,9 +34,8 @@ def refill_item_to_full(data: SaveData, save_key: str) -> bool:
 
     if ITEM_KEY_PATTERN.fullmatch(save_key) is None or save_key not in item_entries:
         raise AdvancedSaveError("The selected item instance does not exist in this save.")
-    if save_key not in charge_entries:
+    if charge_container is None or save_key not in charge_entries:
         return False
 
-    assert charge_container is not None
     del charge_container[save_key]
     return True

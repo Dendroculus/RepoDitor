@@ -1,5 +1,8 @@
+import pytest
+
 from repo_save_editor.services.player.profiles import (
     STEAM_AVATAR_HOSTS,
+    _fetch_profile,
     get_steam_avatar_url,
     is_plausible_steam_id,
 )
@@ -80,3 +83,29 @@ def test_avatar_lookup_never_breaks_players_for_unexpected_remote_failures() -> 
         raise RuntimeError("unexpected remote failure")
 
     assert get_steam_avatar_url(STEAM_ID, fetch_profile=unexpected_failure) is None
+
+
+def test_profile_fetch_rejects_unsafe_urls_before_network() -> None:
+    for url in (
+        "http://steamcommunity.com/profiles/76561197960287930/?xml=1",
+        "https://example.com/profiles/76561197960287930/?xml=1",
+        "https://user:pass@steamcommunity.com/profiles/76561197960287930/?xml=1",
+        "https://steamcommunity.com:444/profiles/76561197960287930/?xml=1",
+    ):
+        with pytest.raises(ValueError, match=r"^Steam profile URL is not allowed\.$"):
+            _fetch_profile(url, 1.5)
+
+
+def test_avatar_lookup_rejects_xml_entities_fail_softly() -> None:
+    hostile_xml = (
+        b'<!DOCTYPE profile [<!ENTITY payload "unsafe">]>'
+        b"<profile><avatarMedium>&payload;</avatarMedium></profile>"
+    )
+
+    assert (
+        get_steam_avatar_url(
+            STEAM_ID,
+            fetch_profile=lambda _url, _timeout: hostile_xml,
+        )
+        is None
+    )

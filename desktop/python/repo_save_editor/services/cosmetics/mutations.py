@@ -28,8 +28,8 @@ def _require_mutation_eligible(
     reason = mutation_block_reason(cosmetic_id, installed_catalog)
     if reason is not None:
         raise CosmeticMutationError(reason)
-    assert isinstance(cosmetic_id, int)
-    assert not isinstance(cosmetic_id, bool)
+    if isinstance(cosmetic_id, bool) or not isinstance(cosmetic_id, int):
+        raise CosmeticMutationError("A canonical integer cosmetic ID is required.")
     return cosmetic_id
 
 
