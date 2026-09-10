@@ -45,7 +45,7 @@ def test_upgrades_are_dynamic_friendly_and_read_only(tmp_path: Path, sample_save
     result = list_upgrades(
         save_path.parent.name,
         tmp_path,
-        presentation_loader=lambda keys: {
+        presentation_loader=lambda _keys: {
             "playerUpgradeStrength": UpgradePresentation(
                 "Strength", UpgradePresentationSource.INSTALLED, gameplay_cap=10
             )
@@ -316,7 +316,7 @@ def test_advanced_read_enriches_only_currently_available_canonical_item_icons(
             )
             for name in names
         },
-        icon_availability_loader=lambda domain, keys: frozenset(keys),
+        icon_availability_loader=lambda _domain, keys: frozenset(keys),
     )
 
     assert result["advanced"]["items"][0]["iconKey"] == "item melee inflatable hammer.png"

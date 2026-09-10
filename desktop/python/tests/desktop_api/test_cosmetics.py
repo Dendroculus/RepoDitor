@@ -134,7 +134,7 @@ def test_get_cosmetics_maps_canonical_id_to_available_object_icon_key(tmp_path: 
     result = get_cosmetics(
         save_root,
         catalog_loader=lambda: tuple(catalog),
-        icon_availability_loader=lambda domain, keys: frozenset(keys),
+        icon_availability_loader=lambda _domain, keys: frozenset(keys),
     )
 
     assert result["cosmetics"]["cosmetics"][27]["iconKey"] == "cosmetic-object-27.png"

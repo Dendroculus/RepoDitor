@@ -25,7 +25,8 @@ MAX_CHANGES = 512
 
 def _integer(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
-        raise ValueError("A whole-number change value is required.")
+        # Pending-change validation intentionally exposes ValueError as one contract.
+        raise ValueError("A whole-number change value is required.")  # noqa: TRY004
     return value
 
 

@@ -36,7 +36,7 @@ def test_installed_upgrade_metadata_enriches_labels_caps_and_exact_available_ico
     result = discover_installed_upgrade_presentations(
         ("playerUpgradeStamina", "playerUpgradeLaunch", "playerUpgradeSpeed"),
         metadata_loader=_metadata,
-        icon_loader=lambda domain, keys: frozenset(keys),
+        icon_loader=lambda _domain, keys: frozenset(keys),
     )
 
     assert result["playerUpgradeStamina"].label == "Stamina"
