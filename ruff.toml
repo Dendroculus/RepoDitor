@@ -1,4 +1,4 @@
-target-version = "py311"
+﻿target-version = "py311"
 line-length = 100
 
 src = [
@@ -26,7 +26,7 @@ select = [
     "F",
     "I",
     "PERF",
-    "RUF",c
+    "RUF",
     "SIM",
     "UP",
     "W",
