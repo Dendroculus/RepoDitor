@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { createRequire } from "node:module";
+import { promises as fs } from "node:fs";
 import { lstat, mkdtemp, mkdir, readFile, rm, symlink, utimes, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -405,7 +406,7 @@ describe("local icon protocol", () => {
     const manifest = JSON.parse(
       await readFile(path.join(persistentRoot, "manifest.json"), "utf8"),
     ) as Record<string, unknown>;
-    expect(manifest.formatVersion).toBe(1);
+    expect(manifest.formatVersion).toBe(2);
     const artifactPath = path.join(persistentRoot, `${sourceIdentity}.png`);
     const manifestPath = path.join(persistentRoot, "manifest.json");
     const fixedTime = new Date("2024-01-02T03:04:05.000Z");
@@ -427,6 +428,50 @@ describe("local icon protocol", () => {
     expect(diagnostics.map((event) => event.reason)).toContain("persistent-hit");
     expect(diagnostics.map((event) => event.reason)).not.toContain("source-decode-required");
     expect(diagnostics.map((event) => event.reason)).not.toContain("persisted");
+  });
+
+  it("keeps a persistent hit across appmanifest, BuildID, and assembly-only changes", async () => {
+    const { base } = await fixture();
+    const watch = path.join(base, "resources.assets");
+    const appmanifest = path.join(base, "appmanifest_3241660.acf");
+    const assembly = path.join(base, "Assembly-CSharp.dll");
+    const persistentRoot = path.join(base, "presentation");
+    const sourceIdentity = "0".repeat(64);
+    await writeFile(watch, Buffer.from("source"));
+    await writeFile(appmanifest, Buffer.from('"buildid" "old"'));
+    await writeFile(assembly, Buffer.from("old assembly"));
+    const stat = await lstat(watch, { bigint: true });
+    const seeded = new DecodedUpgradeTextureCache(persistentRoot);
+    await seeded.storePrepared("playerUpgradeHealth", {
+      sourceIdentity,
+      pngBase64: png().toString("base64"),
+      width: 1,
+      height: 1,
+      watches: [{ path: watch, size: stat.size.toString(), mtimeNs: stat.mtimeNs.toString() }],
+    });
+    const artifactPath = path.join(persistentRoot, `${sourceIdentity}.png`);
+    const manifestPath = path.join(persistentRoot, "manifest.json");
+    const artifactBefore = await lstat(artifactPath, { bigint: true });
+    const manifestBefore = await lstat(manifestPath, { bigint: true });
+    const diagnostics: Array<{ reason: string }> = [];
+    const expectPersistentHit = async () => {
+      const client = { run: vi.fn(), dispose: vi.fn() };
+      const cache = new DecodedUpgradeTextureCache(persistentRoot, (event: { reason: string }) =>
+        diagnostics.push(event),
+      );
+      await expect(cache.get("playerUpgradeHealth", client)).resolves.toEqual(png());
+      expect(client.run).not.toHaveBeenCalled();
+    };
+
+    await utimes(appmanifest, new Date("2025-01-01T00:00:00Z"), new Date("2025-01-01T00:00:00Z"));
+    await expectPersistentHit();
+    await writeFile(appmanifest, Buffer.from('"AppState" { "buildid" "new" }'));
+    await writeFile(assembly, Buffer.from("new assembly"));
+    await expectPersistentHit();
+
+    expect((await lstat(artifactPath, { bigint: true })).mtimeNs).toBe(artifactBefore.mtimeNs);
+    expect((await lstat(manifestPath, { bigint: true })).mtimeNs).toBe(manifestBefore.mtimeNs);
+    expect(diagnostics.map((event) => event.reason)).toEqual(["persistent-hit", "persistent-hit"]);
   });
 
   it("prunes unreferenced derived PNGs while reusing the valid persistent entry", async () => {
@@ -624,14 +669,20 @@ describe("local icon protocol", () => {
 
     await expect(rebuiltCache.get("playerUpgradeHealth", rebuildClient)).resolves.toEqual(png());
     expect(rebuildClient.run).toHaveBeenCalledTimes(1);
-    expect(diagnostics.map((event) => event.reason)).toEqual(
-      expect.arrayContaining(["source-changed", "source-decode-required", "persisted"]),
-    );
+    expect(diagnostics.map((event) => event.reason)).toEqual([
+      "source-changed",
+      "source-decode-required",
+      "persisted",
+    ]);
 
     const warmClient = { run: vi.fn(), dispose: vi.fn() };
-    const warmCache = new DecodedUpgradeTextureCache(persistentRoot);
+    const warmDiagnostics: Array<{ reason: string }> = [];
+    const warmCache = new DecodedUpgradeTextureCache(persistentRoot, (event: { reason: string }) =>
+      warmDiagnostics.push(event),
+    );
     await expect(warmCache.get("playerUpgradeHealth", warmClient)).resolves.toEqual(png());
     expect(warmClient.run).not.toHaveBeenCalled();
+    expect(warmDiagnostics.map((event) => event.reason)).toEqual(["persistent-hit"]);
   });
 
   it("rebuilds a corrupt persistent PNG with an explicit artifact reason", async () => {
@@ -731,7 +782,7 @@ describe("local icon protocol", () => {
     const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
       formatVersion: number;
     };
-    await writeFile(manifestPath, JSON.stringify({ ...manifest, formatVersion: 0 }));
+    await writeFile(manifestPath, JSON.stringify({ ...manifest, formatVersion: 1 }));
     const oldFormatClient = {
       run: vi.fn().mockResolvedValue({
         ok: true,
@@ -759,6 +810,45 @@ describe("local icon protocol", () => {
       new DecodedUpgradeTextureCache(persistentRoot).get("playerUpgradeHealth", malformedClient),
     ).resolves.toBeNull();
     expect(malformedClient.run).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails safe when the persistent manifest cannot be read", async () => {
+    const { base } = await fixture();
+    const watch = path.join(base, "resources.assets");
+    const persistentRoot = path.join(base, "presentation");
+    await writeFile(watch, Buffer.from("source"));
+    const stat = await lstat(watch, { bigint: true });
+    const seeded = new DecodedUpgradeTextureCache(persistentRoot);
+    await seeded.storePrepared("playerUpgradeHealth", {
+      sourceIdentity: "6".repeat(64),
+      pngBase64: png().toString("base64"),
+      width: 1,
+      height: 1,
+      watches: [{ path: watch, size: stat.size.toString(), mtimeNs: stat.mtimeNs.toString() }],
+    });
+    const readFailure = Object.assign(new Error("fixture access denied"), { code: "EACCES" });
+    const readSpy = vi.spyOn(fs, "readFile").mockRejectedValueOnce(readFailure);
+    const diagnostics: Array<{ reason: string }> = [];
+    const client = {
+      run: vi.fn().mockResolvedValue({ ok: true, texture: null }),
+      dispose: vi.fn(),
+    };
+
+    try {
+      await expect(
+        new DecodedUpgradeTextureCache(persistentRoot, (event: { reason: string }) =>
+          diagnostics.push(event),
+        ).get("playerUpgradeHealth", client),
+      ).resolves.toBeNull();
+    } finally {
+      readSpy.mockRestore();
+    }
+    expect(client.run).toHaveBeenCalledTimes(1);
+    expect(diagnostics.map((event) => event.reason)).toEqual([
+      "manifest-unreadable",
+      "entry-missing",
+      "source-decode-required",
+    ]);
   });
 
   it("falls back to source preparation when a referenced persistent PNG is missing", async () => {

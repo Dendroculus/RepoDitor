@@ -252,6 +252,7 @@ The production upgrade-art fallback dynamically resolves installed upgrade ident
 prefab, material, and `Texture2D` metadata, validates referenced local stream byte ranges, and
 decodes supported DXT1/DXT5 payloads. Electron exposes the result through a renderer-safe opaque
 URL and keeps a source-validated local presentation cache. Valid artifacts are reused while their
-watched installed sources are unchanged; unreferenced hash-named derived PNGs are pruned without
-touching R.E.P.O.'s own icon cache. Production does not hardcode researched stream offsets or
-redistribute the decoded artwork.
+artifact-producing Unity files are unchanged; the Steam appmanifest and BuildID remain validation
+provenance and do not invalidate artwork by themselves. Unreferenced hash-named derived PNGs are
+pruned without touching R.E.P.O.'s own icon cache. Production does not hardcode researched stream
+offsets or redistribute the decoded artwork.

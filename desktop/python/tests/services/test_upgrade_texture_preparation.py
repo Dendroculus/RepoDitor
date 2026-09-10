@@ -68,8 +68,6 @@ def _patch_validated_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
             "REPO/REPO_Data",
             "resources.assets",
             "globalgamemanagers",
-            "Assembly-CSharp.dll",
-            "appmanifest_3241660.acf",
         )
     ]
     for path in paths:
@@ -81,7 +79,7 @@ def _patch_validated_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     monkeypatch.setattr(
         upgrade_textures,
         "_validated_paths",
-        lambda _installation, _build: (*paths, "23363152"),
+        lambda _installation, _build: tuple(paths),
     )
 
 

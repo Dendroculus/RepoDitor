@@ -11,10 +11,12 @@ from repo_save_editor.services.game.discovery import discover_game_installation
 from repo_save_editor.services.player import upgrade_textures
 from repo_save_editor.services.player.upgrade_textures import (
     UpgradeTextureError,
+    _decode_resolved_upgrade_texture,
     _front_uv_bounds,
     _resolve_stream,
     _resolve_texture_metadata,
     _resolve_upgrade_visual,
+    _ResolvedUpgradeVisual,
     _uv_crop,
     decode_installed_upgrade_texture,
 )
@@ -327,6 +329,40 @@ def _metadata(**overrides: object) -> Texture2DMetadata:
     }
     values.update(overrides)
     return Texture2DMetadata(**values)  # type: ignore[arg-type]
+
+
+def test_appmanifest_and_build_metadata_do_not_change_artifact_identity(tmp_path: Path) -> None:
+    data_root = tmp_path / "REPO_Data"
+    data_root.mkdir()
+    resources = data_root / "resources.assets"
+    resource_manager = data_root / "globalgamemanagers"
+    manifest = tmp_path / "appmanifest_3241660.acf"
+    stream = data_root / "resources.assets.resS"
+    for source in (resources, resource_manager):
+        source.parent.mkdir(parents=True, exist_ok=True)
+        source.write_bytes(b"source")
+    manifest.write_text('"buildid" "old"', encoding="utf-8")
+    stream.write_bytes(struct.pack("<HHI", 0xF800, 0, 0))
+    visual = _ResolvedUpgradeVisual(_metadata(), None)
+
+    before = _decode_resolved_upgrade_texture(
+        "playerUpgradeHealth",
+        visual,
+        data_root=data_root,
+        resources=resources,
+        resource_manager=resource_manager,
+    )
+    manifest.write_text('"buildid" "new-with-different-formatting"', encoding="utf-8")
+    after = _decode_resolved_upgrade_texture(
+        "playerUpgradeHealth",
+        visual,
+        data_root=data_root,
+        resources=resources,
+        resource_manager=resource_manager,
+    )
+
+    assert before.source_identity == after.source_identity
+    assert [watch.path for watch in after.watches] == [resources, resource_manager, stream]
 
 
 def test_dynamic_prefab_renderer_material_maintex_texture_chain(tmp_path: Path) -> None:
@@ -680,5 +716,16 @@ def test_decode_installed_upgrade_texture_uses_synthetic_installed_files(
     assert decoded.png.startswith(b"\x89PNG\r\n\x1a\n")
     assert (decoded.png_width, decoded.png_height) == (2, 2)
     assert struct.unpack_from(">II", decoded.png, 16) == (2, 2)
-    assert len(decoded.watches) == 5
+    assert [watch.path.name for watch in decoded.watches] == [
+        "resources.assets",
+        "globalgamemanagers",
+        "resources.assets.resS",
+    ]
     assert len(decoded.source_identity) == 64
+
+    def unexpected_index(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("assembly validation must block extraction")
+
+    monkeypatch.setattr(upgrade_textures, "SerializedFileIndex", unexpected_index)
+    assembly.write_bytes(b"changed assembly")
+    assert decode_installed_upgrade_texture("playerUpgradeHealth") is None

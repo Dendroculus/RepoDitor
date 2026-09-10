@@ -69,7 +69,7 @@ class UpgradeTextureError(ValueError):
 
 @dataclass(frozen=True, slots=True)
 class SourceWatch:
-    """File identity fields Electron rechecks before reusing derived artwork."""
+    """Artifact-source identity fields Electron rechecks before cache reuse."""
 
     path: Path
     size: int
@@ -184,7 +184,7 @@ def _sha256_file(path: Path) -> str:
 def _validated_paths(
     installation: GameInstallation,
     build: ValidatedInstalledBuild | None = None,
-) -> tuple[Path, Path, Path, Path, Path, Path, str]:
+) -> tuple[Path, Path, Path, Path]:
     resolved_build = build if build is not None else validated_installed_build(installation)
     if resolved_build is None:
         raise UpgradeTextureError("Installed Steam build is not the validated build.")
@@ -201,15 +201,8 @@ def _validated_paths(
     assembly = _regular_owned_file(game_root, ASSEMBLY_RELATIVE_PATH)
     if _sha256_file(assembly) != VALIDATED_ASSEMBLY_SHA256:
         raise UpgradeTextureError("Installed managed assembly does not match the validated build.")
-    return (
-        game_root,
-        data_root,
-        resources,
-        resource_manager,
-        assembly,
-        resolved_build.manifest_path.resolve(strict=True),
-        resolved_build.build_id,
-    )
+    resolved_build.manifest_path.resolve(strict=True)
+    return (game_root, data_root, resources, resource_manager)
 
 
 def _candidate_prefab_names(key: str) -> tuple[str, ...]:
@@ -514,7 +507,6 @@ def _watch(path: Path) -> SourceWatch:
 
 
 def _source_identity(
-    build_id: str,
     texture: Texture2DMetadata,
     framing: _VisualFraming | None,
     png_width: int,
@@ -530,7 +522,6 @@ def _source_identity(
             relative = watch.path.name
         sources.append({"path": relative, "size": watch.size, "mtimeNs": watch.mtime_ns})
     payload = {
-        "buildId": build_id,
         "sources": sources,
         "framing": (
             None
@@ -564,9 +555,6 @@ def _decode_resolved_upgrade_texture(
     data_root: Path,
     resources: Path,
     resource_manager: Path,
-    assembly: Path,
-    manifest: Path,
-    build_id: str,
 ) -> DecodedUpgradeTexture:
     texture = visual.texture
     stream, _stream_stat = _resolve_stream(data_root, texture)
@@ -606,7 +594,7 @@ def _decode_resolved_upgrade_texture(
             png_width = texture.width
             png_height = texture.height
     png = encode_rgba_png(rgba, png_width, png_height)
-    watch_paths = [manifest, assembly, resources, resource_manager, stream]
+    watch_paths = [resources, resource_manager, stream]
     if (
         applied_framing is not None
         and applied_framing.source_path is not None
@@ -615,7 +603,6 @@ def _decode_resolved_upgrade_texture(
         watch_paths.append(applied_framing.source_path)
     watches = tuple(_watch(path) for path in watch_paths)
     source_identity = _source_identity(
-        build_id,
         texture,
         applied_framing,
         png_width,
@@ -666,9 +653,6 @@ def _decode_upgrade_batch(
     data_root: Path,
     resources: Path,
     resource_manager: Path,
-    assembly: Path,
-    manifest: Path,
-    build_id: str,
     resolved: PreparationTextureCallback,
     on_decode_start: PreparationDecodeCallback | None,
 ) -> None:
@@ -686,9 +670,6 @@ def _decode_upgrade_batch(
                     data_root=data_root,
                     resources=resources,
                     resource_manager=resource_manager,
-                    assembly=assembly,
-                    manifest=manifest,
-                    build_id=build_id,
                 )
                 if png_bytes + len(candidate.png) > MAX_BATCH_PNG_BYTES:
                     budget_exhausted = True
@@ -744,9 +725,6 @@ def prepare_installed_upgrade_textures(
             data_root,
             resources_path,
             resource_manager_path,
-            assembly,
-            manifest,
-            build_id,
         ) = _validated_paths(installation, build)
         if not upgrade_keys:
             return UpgradeTextureBatchResult(True, True, True, ())
@@ -767,9 +745,6 @@ def prepare_installed_upgrade_textures(
                 data_root=data_root,
                 resources=resources_path,
                 resource_manager=resource_manager_path,
-                assembly=assembly,
-                manifest=manifest,
-                build_id=build_id,
                 resolved=resolved,
                 on_decode_start=on_decode_start,
             )
