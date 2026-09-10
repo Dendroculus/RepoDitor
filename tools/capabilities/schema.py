@@ -96,6 +96,19 @@ def sha256_file(path: Path) -> str:
     return f"{SHA256_PREFIX}{digest.hexdigest()}"
 
 
+def sha256_text_file(path: Path) -> str:
+    """Fingerprint UTF-8 text independently of platform line endings."""
+    try:
+        with path.open("r", encoding="utf-8", errors="strict", newline="") as handle:
+            text = handle.read()
+    except (OSError, UnicodeError) as error:
+        raise CapabilityDataError(f"Could not fingerprint {path.as_posix()}.") from error
+
+    canonical = text.replace("\r\n", "\n").replace("\r", "\n")
+    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    return f"{SHA256_PREFIX}{digest}"
+
+
 def cosmetics_contract_fingerprint(
     source_object: str,
     consumer_method: str,
@@ -430,7 +443,7 @@ def recharge_snapshot(evidence: RechargeEvidence, evidence_path: Path) -> dict[s
         },
         "provenance": evidence.provenance,
         "sourceDigests": {
-            "approvedEvidence": sha256_file(evidence_path),
+            "approvedEvidence": sha256_text_file(evidence_path),
             **dict(evidence.parser_source_digests),
         },
         "fullChargeRepresentation": evidence.full_charge_representation,
@@ -451,7 +464,7 @@ def cosmetics_snapshot(evidence: CosmeticsEvidence, evidence_path: Path) -> dict
         "provenance": evidence.provenance,
         "evidenceSha256": evidence.source_save_sha256,
         "sourceDigests": {
-            "approvedEvidence": sha256_file(evidence_path),
+            "approvedEvidence": sha256_text_file(evidence_path),
             **dict(evidence.parser_source_digests),
         },
         "cosmeticIds": list(evidence.cosmetic_ids),

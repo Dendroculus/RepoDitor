@@ -16,12 +16,26 @@ from tools.capabilities.schema import (
     load_recharge_evidence,
     recharge_snapshot,
     sha256_file,
+    sha256_text_file,
 )
 
 
 def _write_json(path: Path, value: object) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
+
+
+def test_text_fingerprint_normalizes_line_endings(tmp_path: Path) -> None:
+    lf = tmp_path / "lf.py"
+    crlf = tmp_path / "crlf.py"
+    changed = tmp_path / "changed.py"
+
+    lf.write_bytes(b"value = 1\nprint(value)\n")
+    crlf.write_bytes(b"value = 1\r\nprint(value)\r\n")
+    changed.write_bytes(b"value = 2\nprint(value)\n")
+
+    assert sha256_text_file(lf) == sha256_text_file(crlf)
+    assert sha256_text_file(lf) != sha256_text_file(changed)
 
 
 def _recharge_value(

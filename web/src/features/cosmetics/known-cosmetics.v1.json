@@ -10,10 +10,10 @@
   "provenance": "docs/research/reverse-engineering.md#metasave-cosmetic-ownership and #installed-cosmetic-catalog-proof",
   "evidenceSha256": "22bbb9102d93d7fff8c4b2d3fb86dd6dc2c4475030ecb76a7c858c750741b483",
   "sourceDigests": {
-    "approvedEvidence": "sha256:106431158b144b7811b33bfe75e8ee77fc6de7d68051e0630352f82fde743ec0",
-    "desktop/python/repo_save_editor/services/cosmetics/installed_catalog.py": "sha256:763d0fead97adc8d428713558b0411386a06a6edf6d5367a2777e6632944a521",
-    "desktop/python/repo_save_editor/services/game/discovery.py": "sha256:a4136b7e6910a6b735e6509adc3542afd66b2f049a548c15a321e3916bc27a85",
-    "desktop/python/repo_save_editor/services/unity_serialized.py": "sha256:a7568bdf76e6a8b36674878d6b726441299bd353467dd1fb4c6170dfd4274a22"
+    "approvedEvidence": "sha256:a7d7b13ef3c3b0a3109869cc04c5ca457e1f2745360c39fad0e938c453751eab",
+    "desktop/python/repo_save_editor/services/cosmetics/installed_catalog.py": "sha256:b1ba3f560a0560467e8561a75f4068536df2bc3dcd711a3233ebcf193deb5c46",
+    "desktop/python/repo_save_editor/services/game/discovery.py": "sha256:5f625d9616f0427bd6dba682ff0d7447889009168cf390cb84ba0a6135a274f2",
+    "desktop/python/repo_save_editor/services/unity_serialized.py": "sha256:028a0f1b59d289a0436684f5f59c3b51a0ebbf77e52c656ba766df7cb07556cf"
   },
   "cosmeticIds": [
     0,

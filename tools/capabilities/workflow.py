@@ -45,6 +45,7 @@ from tools.capabilities.schema import (
     read_json,
     recharge_snapshot,
     sha256_file,
+    sha256_text_file,
 )
 
 REPOSITORY_ROOT: Final = Path(__file__).resolve().parents[2]
@@ -108,7 +109,7 @@ class CosmeticsOracle:
 
 
 def _parser_source_digests(paths: tuple[str, ...]) -> tuple[tuple[str, str], ...]:
-    return tuple((path, sha256_file(REPOSITORY_ROOT / path)) for path in paths)
+    return tuple((path, sha256_text_file(REPOSITORY_ROOT / path)) for path in paths)
 
 
 def _validate_parser_sources(

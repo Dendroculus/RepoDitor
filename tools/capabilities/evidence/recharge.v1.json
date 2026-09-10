@@ -8,9 +8,9 @@
   "provenance": "docs/research/reverse-engineering.md#installed-itembattery-capability-proof; Desktop parser output validated against an independent UnityPy oracle",
   "fullChargeRepresentation": "absent exact-instance entry in dictionaryOfDictionaries.value.itemStatBattery",
   "parserSourceDigests": {
-    "desktop/python/repo_save_editor/services/items/installed_metadata.py": "sha256:32e5b4a8ea8b58e67987331184922bc24c2e35d75fbecc9599c021f8bb1c8e47",
-    "desktop/python/repo_save_editor/services/items/models.py": "sha256:30f2b057baf8b77e3da9d095afcba61f0b967716c219dab3a4c8f6a73e1dbbd1",
-    "desktop/python/repo_save_editor/services/unity_serialized.py": "sha256:a7568bdf76e6a8b36674878d6b726441299bd353467dd1fb4c6170dfd4274a22"
+    "desktop/python/repo_save_editor/services/items/installed_metadata.py": "sha256:713a562ad320dd8d57a10f25bbc49366085f3a602f0b20664a473af8cdc72fc8",
+    "desktop/python/repo_save_editor/services/items/models.py": "sha256:303a31d0a9ea3b520bf3f490feea1e199c5d11683c9cf134186d48848891aaef",
+    "desktop/python/repo_save_editor/services/unity_serialized.py": "sha256:028a0f1b59d289a0436684f5f59c3b51a0ebbf77e52c656ba766df7cb07556cf"
   },
   "desktopItemBatteryCapabilities": [
     { "itemIdentity": "Item Cart Cannon", "capability": "rechargeable" },
