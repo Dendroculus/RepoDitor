@@ -260,7 +260,7 @@ Save authority and presentation caching are deliberately separate:
 |---|---|
 | **Save state** | Every explicit open asks Python to read, decrypt, and validate the current `.es3`, then returns only typed projections and a source fingerprint. Decrypted save JSON is not persisted. The renderer may reuse typed editor-entry data during the current app session only after another open confirms the same fingerprint; a successful write invalidates that entry. |
 | **Game-generated item/cosmetic icons** | PNGs remain in R.E.P.O.'s LocalLow icon cache. Electron serves validated files through opaque in-memory tokens; cache paths and filenames do not cross into React. |
-| **Derived upgrade artwork** | Python resolves and decodes supported textures from the installed game. Electron stores validated derived PNGs under `%APPDATA%\repoditor-desktop\presentation`, reuses them only while watched source identities are unchanged, prunes unreferenced derived PNGs, and regenerates or falls back to Phosphor when an entry is missing, changed, malformed, or unreadable. |
+| **Derived upgrade artwork** | Python resolves and decodes supported textures from the installed game. Electron stores validated derived PNGs under `%APPDATA%\repoditor-desktop\presentation`, reuses them only while watched artifact-source identities are unchanged, prunes unreferenced derived PNGs, and regenerates or falls back to Phosphor when an entry is missing, changed, malformed, or unreadable. |
 | **Installed cosmetic metadata** | A derived catalog cache under `%LOCALAPPDATA%\RepoDitor\cache\cosmetics` is accepted only when its schema, Steam build, game root, and relevant installed-file identities still match. It provides presentation data, never ownership evidence or mutation authority. |
 
 Theme and language preferences use renderer storage. RepoDitor writes R.E.P.O.
@@ -275,6 +275,38 @@ To audit the derived presentation cache after restarting RepoDitor, run:
 
 The read-only script compares `manifest.json` with the stored hash-named PNGs
 and reports unreferenced or missing artifacts.
+
+Presentation-cache manifest format 2 maps each dynamic upgrade key to a derived
+PNG identity and the exact files used to produce it: `resources.assets`,
+`globalgamemanagers`, the texture stream (normally `resources.assets.resS`), and
+an independent mesh stream only when it supplied crop framing. Validation uses
+their size and mtime, avoiding large-file hashing during warm startup.
+
+`appmanifest_3241660.acf`, Steam App ID/BuildID, the install location, and the
+validated `Assembly-CSharp.dll` are discovery or compatibility provenance, not
+artwork inputs. Python still validates them before a decode, but their metadata
+is excluded from the artwork identity and source watches. A Steam metadata-only
+rewrite therefore remains a `persistent-hit`; a watched Unity source change is
+reported as `source-changed`, followed by `source-decode-required` and
+`persisted`, then `persistent-hit` on the next unchanged run. Existing format-1
+caches rebuild once so they acquire the narrower source watches.
+
+These are separate safety boundaries: a persistent artwork hit neither marks the
+installed build as verified nor authorizes a new extraction or any save mutation.
+Cold artwork extraction still requires the supported BuildID and validated assembly.
+Installed-build-dependent editing features revalidate their own evidence, while
+ordinary save edits retain their independent fingerprint, validation, backup, and
+atomic-write protections.
+
+The bounded local diagnostic log contains reasons such as `memory-hit`,
+`persistent-hit`, `source-changed`, `source-missing`, `source-decode-required`,
+`persisted`, `artifact-missing`, `artifact-invalid`, `manifest-invalid`, and
+cache read/write failures. It contains no local paths or save contents. Inspect
+recent decisions with:
+
+```powershell
+Get-Content "$env:APPDATA\repoditor-desktop\presentation-cache-diagnostics.jsonl" -Tail 100
+```
 
 ## 🌐 Languages & Appearance
 
