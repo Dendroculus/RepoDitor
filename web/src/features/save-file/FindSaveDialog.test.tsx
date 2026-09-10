@@ -99,11 +99,11 @@ describe("Find My Save guidance", () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it("closes with Escape and restores trigger focus", () => {
+  it("closes on the native Escape cancel event and restores trigger focus", () => {
     renderDialog();
     const { dialog, trigger } = openDialog();
 
-    fireEvent.keyDown(dialog, { key: "Escape" });
+    fireEvent(dialog, new Event("cancel", { cancelable: true }));
 
     expect(screen.queryByRole("dialog")).toBeNull();
     expect(document.activeElement).toBe(trigger);

@@ -14,6 +14,16 @@ import {
   session,
 } from "@/test/repoditorApiFixture";
 
+function button(element: HTMLElement): HTMLButtonElement {
+  if (!(element instanceof HTMLButtonElement)) throw new Error("Expected a button element.");
+  return element;
+}
+
+function input(element: HTMLElement): HTMLInputElement {
+  if (!(element instanceof HTMLInputElement)) throw new Error("Expected an input element.");
+  return element;
+}
+
 describe("run-save workspace integration", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -89,9 +99,7 @@ describe("run-save workspace integration", () => {
     );
     await user.click(await screen.findByRole("tab", { name: "Players" }, { timeout: 10_000 }));
     expect(screen.getByRole("heading", { name: "Beta" })).toBeTruthy();
-    expect(
-      (screen.getByRole("spinbutton", { name: "Current health" }) as HTMLInputElement).value,
-    ).toBe("42");
+    expect(input(screen.getByRole("spinbutton", { name: "Current health" })).value).toBe("42");
 
     await user.click(screen.getByRole("button", { name: "Revert" }));
     expect(screen.queryByTestId("pending-health-edit")).toBeNull();
@@ -129,25 +137,17 @@ describe("run-save workspace integration", () => {
     expect(screen.getByLabelText("Maximum health 100")).toBeTruthy();
     const heal = screen.getByRole("button", { name: "Heal to Full" });
     await user.click(heal);
-    expect(
-      (screen.getByRole("spinbutton", { name: "Current health" }) as HTMLInputElement).value,
-    ).toBe("100");
+    expect(input(screen.getByRole("spinbutton", { name: "Current health" })).value).toBe("100");
     expect((heal as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByTestId("pending-health-edit").textContent).toContain("0 → 100");
 
     await user.click(screen.getByRole("tab", { name: "Overview" }));
     await user.click(await screen.findByRole("tab", { name: "Players" }, { timeout: 10_000 }));
-    expect(
-      (screen.getByRole("spinbutton", { name: "Current health" }) as HTMLInputElement).value,
-    ).toBe("100");
+    expect(input(screen.getByRole("spinbutton", { name: "Current health" })).value).toBe("100");
 
     await user.click(screen.getByRole("button", { name: "Revert" }));
-    expect(
-      (screen.getByRole("spinbutton", { name: "Current health" }) as HTMLInputElement).value,
-    ).toBe("0");
-    expect(
-      (screen.getByRole("button", { name: "Heal to Full" }) as HTMLButtonElement).disabled,
-    ).toBe(false);
+    expect(input(screen.getByRole("spinbutton", { name: "Current health" })).value).toBe("0");
+    expect(button(screen.getByRole("button", { name: "Heal to Full" })).disabled).toBe(false);
   });
 
   it("disables Heal to Full when current health already equals max health", async () => {
@@ -160,9 +160,7 @@ describe("run-save workspace integration", () => {
     await user.click(await screen.findByRole("button", { name: /Open workspace/ }));
     await user.click(await screen.findByRole("tab", { name: "Players" }));
 
-    expect(
-      ((await screen.findByRole("button", { name: "Heal to Full" })) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(button(await screen.findByRole("button", { name: "Heal to Full" })).disabled).toBe(true);
     expect(screen.getByTestId("workspace-pending-edit-count").textContent).toBe(
       "No pending changes",
     );
@@ -220,13 +218,9 @@ describe("run-save workspace integration", () => {
     expect(document.querySelectorAll("details")).toHaveLength(1);
 
     await user.click(screen.getByRole("tab", { name: "Upgrades" }));
-    expect(
-      (screen.getByRole("spinbutton", { name: "Strength for Beta" }) as HTMLInputElement).value,
-    ).toBe("3");
+    expect(input(screen.getByRole("spinbutton", { name: "Strength for Beta" })).value).toBe("3");
     await user.click(screen.getByRole("tab", { name: "Run" }));
-    expect((screen.getByRole("spinbutton", { name: "Currency" }) as HTMLInputElement).value).toBe(
-      "20",
-    );
+    expect(input(screen.getByRole("spinbutton", { name: "Currency" })).value).toBe("20");
     await user.click(screen.getByRole("tab", { name: "Items" }));
     expect(screen.getByText("Pending: 99 → Full")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Revert recharge" }));
@@ -302,9 +296,7 @@ describe("run-save workspace integration", () => {
       "2 pending changes",
     );
     expect(screen.getAllByText(/Pending: .* Full/)).toHaveLength(2);
-    expect(
-      (screen.getByRole("button", { name: "Recharge All Tools" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(button(screen.getByRole("button", { name: "Recharge All Tools" })).disabled).toBe(true);
     expect(write).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Review" }));
@@ -346,9 +338,7 @@ describe("run-save workspace integration", () => {
 
     expect(await screen.findByText(/Saved safely · Backup created/)).toBeTruthy();
     expect(playerList).toHaveBeenCalledTimes(1);
-    expect(
-      (screen.getByRole("spinbutton", { name: "Current health" }) as HTMLInputElement).value,
-    ).toBe("100");
+    expect(input(screen.getByRole("spinbutton", { name: "Current health" })).value).toBe("100");
   });
 
   it("applies canonical Upgrades state without a post-save upgrades reread", async () => {
@@ -382,9 +372,7 @@ describe("run-save workspace integration", () => {
 
     expect(await screen.findByText(/Saved safely · Backup created/)).toBeTruthy();
     expect(upgradeList).toHaveBeenCalledTimes(1);
-    expect(
-      (screen.getByRole("spinbutton", { name: "Strength for Beta" }) as HTMLInputElement).value,
-    ).toBe("3");
+    expect(input(screen.getByRole("spinbutton", { name: "Strength for Beta" })).value).toBe("3");
     expect(screen.queryByTestId("asset-preparation")).toBeNull();
   });
 
@@ -491,9 +479,7 @@ describe("run-save workspace integration", () => {
     expect(upgradeList).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole("progressbar", { name: "Saving safely…" })).toBeNull();
     expect(screen.getByRole("tab", { name: "Items" }).getAttribute("aria-selected")).toBe("true");
-    expect(
-      (screen.getByRole("searchbox", { name: "Search items" }) as HTMLInputElement).value,
-    ).toBe("hammer");
+    expect(input(screen.getByRole("searchbox", { name: "Search items" })).value).toBe("hammer");
     expect(screen.queryByTestId("items-skeleton")).toBeNull();
     expect(screen.queryByTestId("asset-preparation")).toBeNull();
     expect(
@@ -546,9 +532,7 @@ describe("run-save workspace integration", () => {
     expect(screen.getByTestId("workspace-pending-edit-count").textContent).toBe(
       "No pending changes",
     );
-    expect((screen.getByRole("spinbutton", { name: "Currency" }) as HTMLInputElement).value).toBe(
-      "12",
-    );
+    expect(input(screen.getByRole("spinbutton", { name: "Currency" })).value).toBe("12");
     expect(write).not.toHaveBeenCalled();
 
     await user.clear(screen.getByRole("spinbutton", { name: "Currency" }));
@@ -608,9 +592,7 @@ describe("run-save workspace integration", () => {
     expect(screen.queryByTestId("asset-preparation")).toBeNull();
     expect(screen.queryByTestId("run-skeleton")).toBeNull();
     expect(screen.getByRole("tab", { name: "Run" }).getAttribute("aria-selected")).toBe("true");
-    expect(
-      ((await screen.findByRole("spinbutton", { name: "Currency" })) as HTMLInputElement).value,
-    ).toBe("20");
+    expect(input(await screen.findByRole("spinbutton", { name: "Currency" })).value).toBe("20");
     expect(screen.getByTestId("workspace-pending-edit-count").textContent).toBe(
       "No pending changes",
     );
@@ -651,9 +633,7 @@ describe("run-save workspace integration", () => {
 
     expect(await screen.findByText(/Saved safely · Backup created/)).toBeTruthy();
     expect(runGet).toHaveBeenCalledTimes(2);
-    expect(
-      ((await screen.findByRole("spinbutton", { name: "Currency" })) as HTMLInputElement).value,
-    ).toBe("20");
+    expect(input(await screen.findByRole("spinbutton", { name: "Currency" })).value).toBe("20");
   });
 
   it("falls back to refreshAfterSave when a successful write omits canonical state", async () => {
@@ -687,9 +667,7 @@ describe("run-save workspace integration", () => {
 
     expect(await screen.findByText(/Saved safely · Backup created/)).toBeTruthy();
     expect(runGet).toHaveBeenCalledTimes(2);
-    expect(
-      ((await screen.findByRole("spinbutton", { name: "Currency" })) as HTMLInputElement).value,
-    ).toBe("20");
+    expect(input(await screen.findByRole("spinbutton", { name: "Currency" })).value).toBe("20");
     expect(screen.getByTestId("workspace-pending-edit-count").textContent).toBe(
       "No pending changes",
     );

@@ -176,7 +176,7 @@ describe("cosmetics IPC", () => {
 
   it("accepts installed future IDs as read-only presentation metadata", async () => {
     const futureView = view(548);
-    futureView.cosmetics[547]!.displayName = "Future Cosmetic";
+    futureView.cosmetics[547].displayName = "Future Cosmetic";
 
     const result = await getCosmetics(client({ ok: true, cosmetics: futureView }));
 
@@ -200,8 +200,8 @@ describe("cosmetics IPC", () => {
     const updated = view();
     updated.knownOwnedCount = 2;
     updated.knownLockedCount = 1;
-    updated.cosmetics[2]!.owned = true;
-    updated.cosmetics[2]!.state = "owned";
+    updated.cosmetics[2].owned = true;
+    updated.cosmetics[2].state = "owned";
     const fake = client({
       ok: true,
       result: { backupPath: "C:\\fixture\\MetaSave.es3.bak-1", cosmetics: updated },
@@ -315,14 +315,14 @@ describe("cosmetics IPC", () => {
     ).resolves.toMatchObject({ ok: false, error: { code: "invalid_response" } });
 
     const fabricatedUnknown = degradedView();
-    fabricatedUnknown.cosmetics[0]!.type = 7;
+    fabricatedUnknown.cosmetics[0].type = 7;
     await expect(
       getCosmetics(client({ ok: true, cosmetics: fabricatedUnknown })),
     ).resolves.toMatchObject({ ok: false, error: { code: "invalid_response" } });
 
     const writableFuture = view(548);
-    writableFuture.cosmetics[547]!.mutationEligible = true;
-    writableFuture.cosmetics[547]!.removalBlockedReason = null;
+    writableFuture.cosmetics[547].mutationEligible = true;
+    writableFuture.cosmetics[547].removalBlockedReason = null;
     await expect(
       getCosmetics(client({ ok: true, cosmetics: writableFuture })),
     ).resolves.toMatchObject({ ok: false, error: { code: "invalid_response" } });

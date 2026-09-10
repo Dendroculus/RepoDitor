@@ -5,6 +5,11 @@ import type { CosmeticsViewDto } from "@electron/contracts";
 import { PreferencesProvider } from "@/app/PreferencesProvider";
 import { CosmeticsView } from "@/features/cosmetics/CosmeticsView";
 
+function button(element: HTMLElement): HTMLButtonElement {
+  if (!(element instanceof HTMLButtonElement)) throw new Error("Expected a button element.");
+  return element;
+}
+
 const blockedView: CosmeticsViewDto = {
   fingerprint: "c".repeat(64),
   catalogAvailable: true,
@@ -136,15 +141,11 @@ describe("CosmeticsView", () => {
       </PreferencesProvider>,
     );
 
-    expect(
-      (screen.getByRole("button", { name: "Unlock All Cosmetics" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    expect(
-      (screen.getByRole("button", { name: "Lock All Cosmetics" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
-    expect(
-      (screen.getByRole("button", { name: "Clear All Presets" }) as HTMLButtonElement).disabled,
-    ).toBe(false);
+    expect(button(screen.getByRole("button", { name: "Unlock All Cosmetics" })).disabled).toBe(
+      true,
+    );
+    expect(button(screen.getByRole("button", { name: "Lock All Cosmetics" })).disabled).toBe(true);
+    expect(button(screen.getByRole("button", { name: "Clear All Presets" })).disabled).toBe(false);
     expect(screen.getByRole("listitem", { name: "Cosmetic #27, ID 27, Unknown" })).toBeTruthy();
   });
 

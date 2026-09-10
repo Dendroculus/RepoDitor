@@ -486,8 +486,8 @@ describe("AssetPreparationService", () => {
     await service.prepareUpgradeVisuals(visuals);
 
     expect(service.getState()).toMatchObject({ completed: 7, total: 7, stage: "ready" });
-    expect(fakeClient.runRecords.mock.calls[0]![1]).toHaveLength(7);
-    expect(fakeClient.runRecords.mock.calls[0]![1]).toEqual(
+    expect(fakeClient.runRecords.mock.calls[0][1]).toHaveLength(7);
+    expect(fakeClient.runRecords.mock.calls[0][1]).toEqual(
       visuals.map((visual) => visual.upgradeKey),
     );
   });

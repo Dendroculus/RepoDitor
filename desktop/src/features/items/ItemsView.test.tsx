@@ -6,6 +6,11 @@ import type { AdvancedSaveDto } from "@electron/contracts";
 import { renderWithPreferences } from "@/test/render";
 import { ItemsView } from "./ItemsView";
 
+function button(element: HTMLElement): HTMLButtonElement {
+  if (!(element instanceof HTMLButtonElement)) throw new Error("Expected a button element.");
+  return element;
+}
+
 const readOnly = {
   canRead: true,
   canEdit: false as const,
@@ -461,9 +466,7 @@ describe("ItemsView", () => {
         loading={false}
       />,
     );
-    expect(
-      (screen.getByRole("button", { name: "Recharge All Tools" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(button(screen.getByRole("button", { name: "Recharge All Tools" })).disabled).toBe(true);
   });
 
   it("renders explicit charge states without guessing or enabling unsupported actions", () => {

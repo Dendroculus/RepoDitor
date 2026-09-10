@@ -5,6 +5,15 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { launchSourceE2eHarness, type SourceE2eHarness } from "./support/harness";
 import { waitForDiscoveredSave } from "./support/waits";
 
+const TEST_VALUES = {
+  cosmeticIcon27Loading: "cosmetic-icon-27-loading",
+  cosmeticsPendingEditCount: "cosmetics-pending-edit-count",
+  dataLoadedBeforeFilter: "data-loaded-before-filter",
+  pendingChange: "1 pending change",
+  revertAll: "Revert all",
+  searchCosmetics: "Search cosmetics",
+} as const;
+
 async function imageNaturalWidth(locator: Locator): Promise<number> {
   return locator.evaluate((element) => {
     if (!(element instanceof HTMLImageElement)) {
@@ -51,34 +60,46 @@ test("covers cosmetic catalog and pending-edit behavior", async () => {
     await selectCustomOption(page, "Type", "0");
     await expect(cosmeticIcon).toBeHidden();
     await selectCustomOption(page, "Type", "all");
-    await page.getByRole("searchbox", { name: "Search cosmetics" }).fill("missing cosmetic");
+    await page
+      .getByRole("searchbox", { name: TEST_VALUES.searchCosmetics })
+      .fill("missing cosmetic");
     await expect(cosmeticIcon).toBeHidden();
-    await page.getByRole("searchbox", { name: "Search cosmetics" }).fill("");
+    await page.getByRole("searchbox", { name: TEST_VALUES.searchCosmetics }).fill("");
     await selectCustomOption(page, "Ownership", "locked");
     await expect(cosmeticIcon).toBeHidden();
     await selectCustomOption(page, "Ownership", "all");
     await selectCustomOption(page, "Sort", "id-desc");
-    await expect(cosmeticIcon.locator("img")).toHaveAttribute("data-loaded-before-filter", "true");
-    await expect(page.getByTestId("cosmetic-icon-27-loading")).toHaveCount(0);
+    await expect(cosmeticIcon.locator("img")).toHaveAttribute(
+      TEST_VALUES.dataLoadedBeforeFilter,
+      "true",
+    );
+    await expect(page.getByTestId(TEST_VALUES.cosmeticIcon27Loading)).toHaveCount(0);
     await expect(page.getByTestId("cosmetic-icon-26")).toHaveAttribute(
       "data-icon-source",
       "fallback",
     );
     await expect(page.getByRole("button", { name: "Clear All Presets" })).toBeDisabled();
     await page.getByRole("button", { name: "Lock All Cosmetics", exact: true }).click();
-    await expect(page.getByTestId("cosmetics-pending-edit-count")).toHaveText("1 pending change");
-    await expect(page.locator("#cosmetics-pending")).toContainText("1 pending change");
+    await expect(page.getByTestId(TEST_VALUES.cosmeticsPendingEditCount)).toHaveText(
+      TEST_VALUES.pendingChange,
+    );
+    await expect(page.locator("#cosmetics-pending")).toContainText(TEST_VALUES.pendingChange);
     expect((await readFile(metaPath)).equals(metaBefore)).toBe(true);
     expect((await readFile(savePath)).equals(sourceBefore)).toBe(true);
     await page.getByRole("button", { name: "Run Saves" }).click();
     await page.getByRole("button", { name: "Cosmetics" }).click();
-    await expect(cosmeticIcon.locator("img")).toHaveAttribute("data-loaded-before-filter", "true");
-    await expect(page.getByTestId("cosmetic-icon-27-loading")).toHaveCount(0);
+    await expect(cosmeticIcon.locator("img")).toHaveAttribute(
+      TEST_VALUES.dataLoadedBeforeFilter,
+      "true",
+    );
+    await expect(page.getByTestId(TEST_VALUES.cosmeticIcon27Loading)).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Lock All pending" })).toBeDisabled();
-    await page.getByRole("button", { name: "Revert all" }).click();
+    await page.getByRole("button", { name: TEST_VALUES.revertAll }).click();
     await page.getByRole("button", { name: "Unlock All Cosmetics", exact: true }).click();
-    await expect(page.getByTestId("cosmetics-pending-edit-count")).toHaveText("1 pending change");
-    await page.getByRole("button", { name: "Revert all" }).click();
+    await expect(page.getByTestId(TEST_VALUES.cosmeticsPendingEditCount)).toHaveText(
+      TEST_VALUES.pendingChange,
+    );
+    await page.getByRole("button", { name: TEST_VALUES.revertAll }).click();
   } finally {
     await harness?.dispose();
   }

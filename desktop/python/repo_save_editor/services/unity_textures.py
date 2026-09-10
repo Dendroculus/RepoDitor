@@ -236,48 +236,42 @@ def parse_mesh_stream_metadata(
     return candidates[0] if candidates else None
 
 
-def _mesh_vertex_candidate(
-    raw: bytes,
-    offset: int,
-    endian: str,
-    path_id: int,
-    *,
-    stream_data: bytes | None,
-) -> MeshVertexData | None:
+_MeshChannel = tuple[int, int, int, int]
+
+
+def _mesh_channels(
+    raw: bytes, offset: int, endian: str
+) -> tuple[int, tuple[_MeshChannel, ...], int] | None:
     if offset < 0 or offset + 12 > len(raw):
         return None
     vertex_count, channel_count = struct.unpack_from(endian + "Ii", raw, offset)
     if not 3 <= vertex_count <= MAX_MESH_VERTICES or not 5 <= channel_count <= MAX_MESH_CHANNELS:
         return None
-
     channels_start = offset + 8
     channels_end = channels_start + channel_count * 4
     if channels_end + 4 > len(raw):
         return None
-    channels = [
-        tuple(raw[position : position + 4]) for position in range(channels_start, channels_end, 4)
-    ]
-
-    def channel_shape(channel_index: int) -> tuple[int, int]:
-        _stream, _channel_offset, format_id, raw_dimension = channels[channel_index]
-        return format_id, raw_dimension & 0x0F
-
-    position_format, position_dimension = channel_shape(0)
-    normal_format, normal_dimension = channel_shape(1)
-    uv_format, uv_dimension = channel_shape(4)
+    channels = tuple(
+        (raw[position], raw[position + 1], raw[position + 2], raw[position + 3])
+        for position in range(channels_start, channels_end, 4)
+    )
+    shapes = tuple((channel[2], channel[3] & 0x0F) for channel in channels)
     if (
-        position_format != 0
-        or position_dimension != 3
-        or normal_format not in (0, 1)
-        or normal_dimension not in (3, 4)
-        or uv_format not in (0, 1)
-        or uv_dimension != 2
+        shapes[0] != (0, 3)
+        or shapes[1][0] not in (0, 1)
+        or shapes[1][1] not in (3, 4)
+        or shapes[4][0] not in (0, 1)
+        or shapes[4][1] != 2
     ):
         return None
+    return vertex_count, channels, channels_end
 
-    active = []
-    for channel in channels:
-        stream, channel_offset, format_id, raw_dimension = channel
+
+def _mesh_stream_layout(
+    channels: tuple[_MeshChannel, ...], vertex_count: int
+) -> tuple[tuple[int, ...], tuple[int, ...], int] | None:
+    active: list[tuple[int, int, int, int]] = []
+    for stream, channel_offset, format_id, raw_dimension in channels:
         dimension = raw_dimension & 0x0F
         if dimension == 0:
             continue
@@ -288,78 +282,109 @@ def _mesh_vertex_candidate(
     if not active:
         return None
 
-    stream_count = 1 + max(stream for stream, _offset, _size, _dimension in active)
     stream_offsets: list[int] = []
     stream_strides: list[int] = []
     cursor = 0
-    for stream in range(stream_count):
+    for stream in range(1 + max(entry[0] for entry in active)):
         members = [entry for entry in active if entry[0] == stream]
-        if not members:
+        stride = sum(entry[2] * entry[3] for entry in members)
+        if not members or stride <= 0 or stride > 255:
             return None
-        stride = sum(
-            component_size * dimension for _stream, _offset, component_size, dimension in members
-        )
-        if stride <= 0 or stride > 255:
+        if any(entry[1] + entry[2] * entry[3] > stride for entry in members):
             return None
-        for _stream, channel_offset, component_size, dimension in members:
-            if channel_offset + component_size * dimension > stride:
-                return None
         stream_offsets.append(cursor)
         stream_strides.append(stride)
         cursor = _align16(cursor + vertex_count * stride)
-
     minimum_size = max(
-        stream_offsets[stream] + vertex_count * stream_strides[stream]
-        for stream in range(stream_count)
+        item_offset + vertex_count * stride
+        for item_offset, stride in zip(stream_offsets, stream_strides, strict=True)
     )
+    return tuple(stream_offsets), tuple(stream_strides), minimum_size
+
+
+def _mesh_vertex_bytes(
+    raw: bytes,
+    channels_end: int,
+    endian: str,
+    minimum_size: int,
+    stream_data: bytes | None,
+) -> bytes | None:
     data_size = struct.unpack_from(endian + "i", raw, channels_end)[0]
     if data_size < 0 or data_size > MAX_MESH_VERTEX_BYTES:
         return None
     if data_size == 0:
-        if stream_data is None:
-            return None
         data = stream_data
     else:
         data_start = channels_end + 4
         data_end = data_start + data_size
-        if data_end > len(raw):
-            return None
-        data = raw[data_start:data_end]
-    if len(data) < minimum_size or len(data) > _align16(minimum_size):
+        data = raw[data_start:data_end] if data_end <= len(raw) else None
+    if data is None or len(data) < minimum_size or len(data) > _align16(minimum_size):
         return None
+    return data
 
-    def read_channel(
-        channel_index: int,
-        components: int,
-    ) -> tuple[tuple[float, ...], ...] | None:
-        stream, channel_offset, format_id, raw_dimension = channels[channel_index]
-        dimension = raw_dimension & 0x0F
-        if format_id not in (0, 1) or dimension < components or stream >= len(stream_offsets):
+
+def _read_mesh_channel(
+    channels: tuple[_MeshChannel, ...],
+    channel_index: int,
+    components: int,
+    vertex_count: int,
+    stream_offsets: tuple[int, ...],
+    stream_strides: tuple[int, ...],
+    data: bytes,
+    endian: str,
+) -> tuple[tuple[float, ...], ...] | None:
+    stream, channel_offset, format_id, raw_dimension = channels[channel_index]
+    dimension = raw_dimension & 0x0F
+    if format_id not in (0, 1) or dimension < components or stream >= len(stream_offsets):
+        return None
+    component_size = _VERTEX_FORMAT_BYTES[format_id]
+    stride = stream_strides[stream]
+    start = stream_offsets[stream] + channel_offset
+    item_size = components * component_size
+    format_character = "f" if format_id == 0 else "e"
+    values: list[tuple[float, ...]] = []
+    for vertex in range(vertex_count):
+        position = start + vertex * stride
+        if position < 0 or position + item_size > len(data):
             return None
-        component_size = _VERTEX_FORMAT_BYTES[format_id]
-        stride = stream_strides[stream]
-        start = stream_offsets[stream] + channel_offset
-        item_size = components * component_size
-        format_character = "f" if format_id == 0 else "e"
-        values: list[tuple[float, ...]] = []
-        for vertex in range(vertex_count):
-            position = start + vertex * stride
-            if position < 0 or position + item_size > len(data):
-                return None
-            value = tuple(
-                float(item)
-                for item in struct.unpack_from(
-                    endian + (format_character * components), data, position
-                )
-            )
-            if not all(math.isfinite(item) for item in value):
-                return None
-            values.append(value)
-        return tuple(values)
+        value = tuple(
+            float(item)
+            for item in struct.unpack_from(endian + (format_character * components), data, position)
+        )
+        if not all(math.isfinite(item) for item in value):
+            return None
+        values.append(value)
+    return tuple(values)
 
-    positions_raw = read_channel(0, 3)
-    normals_raw = read_channel(1, 3)
-    uv_raw = read_channel(4, 2)
+
+def _mesh_vertex_candidate(
+    raw: bytes,
+    offset: int,
+    endian: str,
+    path_id: int,
+    *,
+    stream_data: bytes | None,
+) -> MeshVertexData | None:
+    channel_data = _mesh_channels(raw, offset, endian)
+    if channel_data is None:
+        return None
+    vertex_count, channels, channels_end = channel_data
+    stream_layout = _mesh_stream_layout(channels, vertex_count)
+    if stream_layout is None:
+        return None
+    stream_offsets, stream_strides, minimum_size = stream_layout
+    data = _mesh_vertex_bytes(raw, channels_end, endian, minimum_size, stream_data)
+    if data is None:
+        return None
+    positions_raw = _read_mesh_channel(
+        channels, 0, 3, vertex_count, stream_offsets, stream_strides, data, endian
+    )
+    normals_raw = _read_mesh_channel(
+        channels, 1, 3, vertex_count, stream_offsets, stream_strides, data, endian
+    )
+    uv_raw = _read_mesh_channel(
+        channels, 4, 2, vertex_count, stream_offsets, stream_strides, data, endian
+    )
     if positions_raw is None or normals_raw is None or uv_raw is None:
         return None
     positions = tuple((value[0], value[1], value[2]) for value in positions_raw)

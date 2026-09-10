@@ -556,7 +556,7 @@ describe("editor data IPC", () => {
     }
 
     const wrongDomain = structuredClone(advanced);
-    wrongDomain.domains[0]!.capabilities.canRefillToFull = true;
+    wrongDomain.domains[0].capabilities.canRefillToFull = true;
     await expect(
       getAdvancedSave(client({ ok: true, advanced: wrongDomain }), saveId),
     ).resolves.toMatchObject({ ok: false, error: { code: "invalid_response" } });

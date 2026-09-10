@@ -180,12 +180,10 @@ def _resolve_mono_scripts(
     }
 
 
-def _classify_variants(
+def _load_item_variants(
     resources: SerializedFileIndex,
-    globals_: SerializedFileIndex,
     variants_by_item: dict[str, tuple[ObjectRecord, ...]],
-    presentations: dict[str, ItemPresentation],
-) -> dict[str, InstalledItemMetadata]:
+) -> tuple[dict[int, GameObjectData], dict[str, tuple[int, ...]]]:
     game_objects: dict[int, GameObjectData] = {}
     item_variant_ids: dict[str, tuple[int, ...]] = {}
     for item_name, records in variants_by_item.items():
@@ -199,80 +197,53 @@ def _classify_variants(
             game_objects[record.path_id] = game_object
             ids.append(record.path_id)
         item_variant_ids[item_name] = tuple(ids)
+    return game_objects, item_variant_ids
 
-    component_ids = {
-        pointer.path_id
-        for game_object in game_objects.values()
-        for pointer in game_object.components
-    }
-    component_records = resources.find_records(component_ids)
-    mono_prefixes: dict[int, MonoBehaviourPrefix] = {}
-    for component_id, record in component_records.items():
-        if record.class_id == MONO_BEHAVIOUR_CLASS_ID:
-            mono_prefixes[component_id] = parse_mono_behaviour_prefix(resources, record)
-    scripts = _resolve_mono_scripts(resources, globals_, mono_prefixes.values())
 
-    variant_results: dict[int, VariantResult] = {}
-    for game_object_id, game_object in game_objects.items():
-        battery_metadata: list[tuple[int, int]] = []
-        incomplete = False
-        for pointer in game_object.components:
-            record = component_records[pointer.path_id]
-            if record.class_id != MONO_BEHAVIOUR_CLASS_ID:
-                continue
-            prefix = mono_prefixes[pointer.path_id]
-            if prefix.game_object != PPtr(0, game_object_id):
-                raise UnityMetadataError(
-                    "MonoBehaviour does not point back to its matched GameObject."
-                )
-            script = scripts[prefix.script.path_id]
-            if script.class_name != ITEM_BATTERY_CLASS:
-                continue
-            try:
-                battery_metadata.append(
-                    _item_battery_metadata(resources, record, prefix.field_offset)
-                )
-            except UnityMetadataError:
-                incomplete = True
-                break
-        if incomplete:
-            variant_results[game_object_id] = VariantResult(None, None)
-        elif not battery_metadata:
-            variant_results[game_object_id] = VariantResult(False, None)
-        elif len(set(battery_metadata)) != 1:
-            variant_results[game_object_id] = VariantResult(None, None)
-        else:
-            variant_results[game_object_id] = VariantResult(True, battery_metadata[0])
-
-    results: dict[str, InstalledItemMetadata] = {}
-    for item_name, variant_ids in item_variant_ids.items():
-        presentation = presentations[item_name]
-        item_variants = [variant_results[path_id] for path_id in variant_ids]
-        icon_keys = {
-            normalize_icon_cache_key(game_objects[path_id].name) for path_id in variant_ids
-        }
-        icon_key = next(iter(icon_keys)) if len(icon_keys) == 1 else None
-        presence = {result.has_battery for result in item_variants}
-        if None in presence or len(presence) != 1:
-            capability = ItemRechargeCapability.UNKNOWN
-            results[item_name] = InstalledItemMetadata(
-                capability,
-                icon_key,
-                presentation.canonical_name,
-                presentation.display_name,
-                presentation.gameplay_cap,
-            )
+def _classify_variant(
+    resources: SerializedFileIndex,
+    game_object_id: int,
+    game_object: GameObjectData,
+    component_records: dict[int, ObjectRecord],
+    mono_prefixes: dict[int, MonoBehaviourPrefix],
+    scripts: dict[int, MonoScriptData],
+) -> VariantResult:
+    battery_metadata: list[tuple[int, int]] = []
+    for pointer in game_object.components:
+        record = component_records[pointer.path_id]
+        if record.class_id != MONO_BEHAVIOUR_CLASS_ID:
             continue
-        if not item_variants[0].has_battery:
-            capability = ItemRechargeCapability.NOT_RECHARGEABLE
-            results[item_name] = InstalledItemMetadata(
-                capability,
-                icon_key,
-                presentation.canonical_name,
-                presentation.display_name,
-                presentation.gameplay_cap,
-            )
+        prefix = mono_prefixes[pointer.path_id]
+        if prefix.game_object != PPtr(0, game_object_id):
+            raise UnityMetadataError("MonoBehaviour does not point back to its matched GameObject.")
+        if scripts[prefix.script.path_id].class_name != ITEM_BATTERY_CLASS:
             continue
+        try:
+            battery_metadata.append(_item_battery_metadata(resources, record, prefix.field_offset))
+        except UnityMetadataError:
+            return VariantResult(None, None)
+    if not battery_metadata:
+        return VariantResult(False, None)
+    if len(set(battery_metadata)) != 1:
+        return VariantResult(None, None)
+    return VariantResult(True, battery_metadata[0])
+
+
+def _classify_item(
+    variant_ids: tuple[int, ...],
+    game_objects: dict[int, GameObjectData],
+    variant_results: dict[int, VariantResult],
+    presentation: ItemPresentation,
+) -> InstalledItemMetadata:
+    item_variants = [variant_results[path_id] for path_id in variant_ids]
+    icon_keys = {normalize_icon_cache_key(game_objects[path_id].name) for path_id in variant_ids}
+    icon_key = next(iter(icon_keys)) if len(icon_keys) == 1 else None
+    presence = {result.has_battery for result in item_variants}
+    if None in presence or len(presence) != 1:
+        capability = ItemRechargeCapability.UNKNOWN
+    elif not item_variants[0].has_battery:
+        capability = ItemRechargeCapability.NOT_RECHARGEABLE
+    else:
         variant_battery_metadata = {result.battery_metadata for result in item_variants}
         exceptional = any(
             result.battery_metadata is None or result.battery_metadata[1] != 0
@@ -283,13 +254,18 @@ def _classify_variants(
             if len(variant_battery_metadata) == 1 and not exceptional
             else ItemRechargeCapability.UNKNOWN
         )
-        results[item_name] = InstalledItemMetadata(
-            capability,
-            icon_key,
-            presentation.canonical_name,
-            presentation.display_name,
-            presentation.gameplay_cap,
-        )
+    return InstalledItemMetadata(
+        capability,
+        icon_key,
+        presentation.canonical_name,
+        presentation.display_name,
+        presentation.gameplay_cap,
+    )
+
+
+def _remove_ambiguous_icon_keys(
+    results: dict[str, InstalledItemMetadata],
+) -> dict[str, InstalledItemMetadata]:
     key_counts: dict[str, int] = {}
     for metadata in results.values():
         if metadata.icon_cache_key is not None:
@@ -306,6 +282,50 @@ def _classify_variants(
         )
         for name, metadata in results.items()
     }
+
+
+def _classify_variants(
+    resources: SerializedFileIndex,
+    globals_: SerializedFileIndex,
+    variants_by_item: dict[str, tuple[ObjectRecord, ...]],
+    presentations: dict[str, ItemPresentation],
+) -> dict[str, InstalledItemMetadata]:
+    game_objects, item_variant_ids = _load_item_variants(resources, variants_by_item)
+
+    component_ids = {
+        pointer.path_id
+        for game_object in game_objects.values()
+        for pointer in game_object.components
+    }
+    component_records = resources.find_records(component_ids)
+    mono_prefixes: dict[int, MonoBehaviourPrefix] = {}
+    for component_id, record in component_records.items():
+        if record.class_id == MONO_BEHAVIOUR_CLASS_ID:
+            mono_prefixes[component_id] = parse_mono_behaviour_prefix(resources, record)
+    scripts = _resolve_mono_scripts(resources, globals_, mono_prefixes.values())
+
+    variant_results = {
+        game_object_id: _classify_variant(
+            resources,
+            game_object_id,
+            game_object,
+            component_records,
+            mono_prefixes,
+            scripts,
+        )
+        for game_object_id, game_object in game_objects.items()
+    }
+
+    results = {
+        item_name: _classify_item(
+            variant_ids,
+            game_objects,
+            variant_results,
+            presentations[item_name],
+        )
+        for item_name, variant_ids in item_variant_ids.items()
+    }
+    return _remove_ambiguous_icon_keys(results)
 
 
 def discover_installed_item_metadata(

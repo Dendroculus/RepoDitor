@@ -35,9 +35,9 @@ describe("GameSafetyDialog", () => {
     const trigger = screen.getByRole("button", { name: "Open safety dialog" });
 
     await user.click(trigger);
-    const dialog = screen.getByRole("dialog") as HTMLDialogElement;
+    const dialog = screen.getByRole("dialog");
     const checkAgain = screen.getByRole("button", { name: "Check Again" });
-    expect(dialog.open).toBe(true);
+    expect(dialog.hasAttribute("open")).toBe(true);
     expect(document.activeElement).toBe(checkAgain);
     await user.tab({ shift: true });
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "Exit RepoDitor" }));
@@ -47,7 +47,7 @@ describe("GameSafetyDialog", () => {
     const cancel = new Event("cancel", { bubbles: false, cancelable: true });
     fireEvent(dialog, cancel);
     expect(cancel.defaultPrevented).toBe(true);
-    expect(dialog.open).toBe(true);
+    expect(dialog.hasAttribute("open")).toBe(true);
     expect(document.activeElement).toBe(checkAgain);
 
     await user.click(checkAgain);

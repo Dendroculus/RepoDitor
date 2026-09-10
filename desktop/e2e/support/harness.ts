@@ -156,7 +156,7 @@ export async function launchSourceE2eHarness(): Promise<SourceE2eHarness> {
     const page = await application.firstWindow();
     await application.evaluate(({ BrowserWindow }) => {
       const renderer = BrowserWindow.getAllWindows()[0];
-      if (!renderer || !renderer.webContents.isLoadingMainFrame()) return;
+      if (!renderer?.webContents.isLoadingMainFrame()) return;
       return new Promise<void>((resolve) => {
         renderer.webContents.once("did-finish-load", () => resolve());
       });

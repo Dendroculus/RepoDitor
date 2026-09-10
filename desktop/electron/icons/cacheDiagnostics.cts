@@ -27,7 +27,7 @@ async function rotateIfNeeded(logPath: string): Promise<void> {
   const kept: string[] = [];
   let keptBytes = 0;
   for (let index = lines.length - 1; index >= 0; index -= 1) {
-    const line = lines[index]!;
+    const line = lines[index];
     const bytes = Buffer.byteLength(`${line}\n`, "utf8");
     if (keptBytes + bytes > ROTATED_LOG_BYTES) break;
     kept.unshift(line);

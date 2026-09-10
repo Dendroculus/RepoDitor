@@ -10,6 +10,16 @@ import {
   players,
 } from "@/test/repoditorApiFixture";
 
+function button(element: HTMLElement): HTMLButtonElement {
+  if (!(element instanceof HTMLButtonElement)) throw new Error("Expected a button element.");
+  return element;
+}
+
+function input(element: HTMLElement): HTMLInputElement {
+  if (!(element instanceof HTMLInputElement)) throw new Error("Expected an input element.");
+  return element;
+}
+
 describe("cosmetics workspace integration", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -110,9 +120,9 @@ describe("cosmetics workspace integration", () => {
       screen.getByRole("listitem", { name: "Installed Cosmetic 28, ID 28, Owned" }),
     ).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Unlock Installed Cosmetic 28" })).toBeNull();
-    expect(
-      (screen.getByRole("button", { name: "Unlock All Cosmetics" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(button(screen.getByRole("button", { name: "Unlock All Cosmetics" })).disabled).toBe(
+      true,
+    );
     expect(cosmeticWrite).not.toHaveBeenCalled();
 
     await user.click(screen.getByRole("button", { name: "Review" }));
@@ -188,9 +198,7 @@ describe("cosmetics workspace integration", () => {
     expect(screen.getByTestId("cosmetics-pending-edit-count").textContent).toBe(
       "No pending changes",
     );
-    expect(
-      (screen.getByRole("button", { name: "Clear All Presets" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(button(screen.getByRole("button", { name: "Clear All Presets" })).disabled).toBe(true);
   }, 10_000);
 
   it("opens Cosmetics without a Run save and keeps Lock All pending until save", async () => {
@@ -207,9 +215,7 @@ describe("cosmetics workspace integration", () => {
     expect(screen.queryByLabelText("Search by cosmetic ID")).toBeNull();
     expect(await screen.findByText("Long Sleeve")).toBeTruthy();
     expect(screen.queryByText("Cosmetic #27")).toBeNull();
-    expect(
-      (screen.getByRole("button", { name: "Clear All Presets" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(button(screen.getByRole("button", { name: "Clear All Presets" })).disabled).toBe(true);
 
     await user.click(screen.getByRole("button", { name: /^Lock All Cosmetics$/ }));
     expect(screen.getByTestId("cosmetics-pending-edit-count").textContent).toBe("1 pending change");
@@ -217,9 +223,7 @@ describe("cosmetics workspace integration", () => {
 
     await user.click(screen.getByRole("button", { name: "Run Saves" }));
     await user.click(screen.getByRole("button", { name: "Cosmetics" }));
-    expect(
-      (screen.getByRole("button", { name: "Lock All pending" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(button(screen.getByRole("button", { name: "Lock All pending" })).disabled).toBe(true);
 
     await user.click(screen.getByRole("button", { name: "Save Changes" }));
 
@@ -251,9 +255,7 @@ describe("cosmetics workspace integration", () => {
     expect(screen.getByTestId("cosmetics-pending-edit-count").textContent).toBe("1 pending change");
 
     await user.click(screen.getByRole("button", { name: "Run Saves" }));
-    expect((screen.getByRole("spinbutton", { name: "Currency" }) as HTMLInputElement).value).toBe(
-      "20",
-    );
+    expect(input(screen.getByRole("spinbutton", { name: "Currency" })).value).toBe("20");
     expect(screen.getByTestId("workspace-pending-edit-count").textContent).toBe("1 pending change");
 
     await user.click(screen.getByRole("button", { name: "Cosmetics" }));
