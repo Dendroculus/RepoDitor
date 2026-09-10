@@ -1,4 +1,4 @@
-﻿target-version = "py311"
+target-version = "py311"
 line-length = 100
 
 src = [
@@ -17,6 +17,8 @@ extend-exclude = [
 
 [lint]
 select = [
+    "A",
+    "ARG",
     "B",
     "BLE",
     "C4",
@@ -26,10 +28,17 @@ select = [
     "F",
     "I",
     "PERF",
+    "PGH",
+    "PIE",
+    "PT",
+    "RET",
+    "RSE",
     "RUF",
     "SIM",
+    "TRY004",
     "UP",
     "W",
+    "PLE",
 ]
 ignore = ["E501"]
 

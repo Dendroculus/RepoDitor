@@ -321,7 +321,7 @@ def test_installed_cosmetics_distinguishes_empty_catalog_from_parser_failure(
     monkeypatch.setattr(
         workflow,
         "discover_installed_cosmetic_catalog",
-        lambda _game_dir, *, cache_dir: (),
+        lambda _game_dir, *, cache_dir: (),  # noqa: ARG005
     )
 
     assert workflow._installed_cosmetic_ids(None) == ((), "23363152")
@@ -329,7 +329,7 @@ def test_installed_cosmetics_distinguishes_empty_catalog_from_parser_failure(
     monkeypatch.setattr(
         workflow,
         "discover_installed_cosmetic_catalog",
-        lambda _game_dir, *, cache_dir: None,
+        lambda _game_dir, *, cache_dir: None,  # noqa: ARG005
     )
     with pytest.raises(CapabilityDataError):
         workflow._installed_cosmetic_ids(None)

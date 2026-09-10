@@ -211,12 +211,8 @@ def test_matched_prefab_still_requires_strict_game_object_validation(
     with SerializedFileIndex(resources) as index:
         record = next(index.iter_records(frozenset({1})))
         assert _read_game_object_name(index, record) == "Item Strict"
-        try:
+        with pytest.raises(UnityMetadataError, match="unsupported or null component pointer"):
             _parse_game_object(index, record)
-        except UnityMetadataError as error:
-            assert "unsupported or null component pointer" in str(error)
-        else:
-            raise AssertionError("Matched prefab bypassed strict GameObject validation.")
 
     assert discover_item_recharge_capabilities(resources, globals_, ("Item Strict",)) == {
         "Item Strict": ItemRechargeCapability.UNKNOWN
@@ -261,7 +257,8 @@ def test_explicit_game_directory_does_not_infer_steam_build_provenance(
     game_root = steamapps / "common" / "REPO"
     data_dir = game_root / "REPO_Data"
     resources, globals_ = _build_assets(data_dir)
-    assert resources.is_file() and globals_.is_file()
+    assert resources.is_file()
+    assert globals_.is_file()
     catalog = data_dir / "StreamingAssets" / "aa" / "catalog.json"
     catalog.parent.mkdir(parents=True)
     catalog.write_text("{}", encoding="utf-8")
@@ -284,7 +281,8 @@ def test_steam_discovery_requires_the_validated_game_build(
     game_root = steamapps / "common" / "REPO"
     data_dir = game_root / "REPO_Data"
     resources, globals_ = _build_assets(data_dir)
-    assert resources.is_file() and globals_.is_file()
+    assert resources.is_file()
+    assert globals_.is_file()
     catalog = data_dir / "StreamingAssets" / "aa" / "catalog.json"
     catalog.parent.mkdir(parents=True)
     catalog.write_text("{}", encoding="utf-8")

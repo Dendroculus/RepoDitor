@@ -28,7 +28,8 @@ def _require_mutation_eligible(
     reason = mutation_block_reason(cosmetic_id, installed_catalog)
     if reason is not None:
         raise CosmeticMutationError(reason)
-    assert isinstance(cosmetic_id, int) and not isinstance(cosmetic_id, bool)
+    assert isinstance(cosmetic_id, int)
+    assert not isinstance(cosmetic_id, bool)
     return cosmetic_id
 
 
