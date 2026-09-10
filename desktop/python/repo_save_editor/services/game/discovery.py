@@ -240,7 +240,7 @@ def find_windows_steam_roots(
         return ()
 
     try:
-        import winreg
+        import winreg  # noqa: PLC0415 - Windows-only module; import after platform guard.
     except ImportError:
         return ()
 

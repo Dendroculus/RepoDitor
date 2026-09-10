@@ -156,7 +156,7 @@ def test_png_encoder_emits_bounded_rgba_png() -> None:
 
 
 def test_png_encoder_rejects_encoded_output_over_protocol_bound() -> None:
-    rgba = random.Random(0).randbytes(768 * 768 * 4)
+    rgba = random.Random(0).randbytes(768 * 768 * 4)  # noqa: S311 - Deterministic non-security test data.
 
     with pytest.raises(TextureDecodeError, match="protocol bound"):
         encode_rgba_png(rgba, 768, 768)

@@ -1,4 +1,5 @@
 from copy import deepcopy
+from hashlib import sha256
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -127,8 +128,6 @@ def test_save_changes_writes_multiple_domains_with_exact_backup(tmp_path: Path, 
 
 
 def _fingerprint_from_bytes(source: bytes) -> str:
-    from hashlib import sha256
-
     return sha256(source).hexdigest()
 
 

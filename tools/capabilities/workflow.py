@@ -278,7 +278,7 @@ def _write_if_changed(path: Path, content: str) -> bool:
             handle.write(content)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, path)
+        temporary.replace(path)
     finally:
         temporary.unlink(missing_ok=True)
     return True

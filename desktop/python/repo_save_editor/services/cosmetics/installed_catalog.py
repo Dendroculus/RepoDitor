@@ -499,7 +499,7 @@ def _write_cache_atomic(path: Path, payload: dict[str, object]) -> None:
             handle.write("\n")
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, path)
+        temporary.replace(path)
     finally:
         with suppress(OSError):
             temporary.unlink(missing_ok=True)

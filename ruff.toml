@@ -33,14 +33,34 @@ select = [
     "PT",
     "RET",
     "RSE",
+    "S",
     "RUF",
     "SIM",
     "TRY004",
     "UP",
     "W",
     "PLE",
+    "PLC",
+    "PLW",
+    "ASYNC",
+    "G",
+    "LOG",
+    "TRY201",
+    "TRY203",
+    "TRY400",
+    "TRY401",
+    "N",
+    "PTH",
+    "T10",
+    "T20",
 ]
 ignore = ["E501"]
+
+[lint.per-file-ignores]
+"tools/capabilities/workflow.py" = ["T201"]
+"desktop/python/repo_save_editor/desktop_api/__main__.py" = ["T201"]
+"desktop/python/tests/**/*.py" = ["S101"]
+"tools/capabilities/tests/**/*.py" = ["S101"]
 
 [lint.mccabe]
 max-complexity = 15

@@ -110,7 +110,7 @@ def test_windows_steam_roots_use_registry_and_existing_program_files_fallbacks(
     fake_winreg = SimpleNamespace(
         HKEY_CURRENT_USER=hkey_current_user,
         HKEY_LOCAL_MACHINE=hkey_local_machine,
-        OpenKey=lambda hive, name: FakeKey(hive, name),
+        OpenKey=FakeKey,
         QueryValueEx=lambda key, value_name: (
             values[(key.hive, key.name, value_name)],
             1,

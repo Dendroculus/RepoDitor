@@ -8,8 +8,8 @@
   "gameCompatibility": "Installed MetaManager cosmeticAssets vector on Steam build 23363152, verified against UnityPy and the managed ownership/index contract",
   "provenance": "docs/research/reverse-engineering.md#metasave-cosmetic-ownership and #installed-cosmetic-catalog-proof",
   "parserSourceDigests": {
-    "desktop/python/repo_save_editor/services/cosmetics/installed_catalog.py": "sha256:b1ba3f560a0560467e8561a75f4068536df2bc3dcd711a3233ebcf193deb5c46",
-    "desktop/python/repo_save_editor/services/game/discovery.py": "sha256:5f625d9616f0427bd6dba682ff0d7447889009168cf390cb84ba0a6135a274f2",
+    "desktop/python/repo_save_editor/services/cosmetics/installed_catalog.py": "sha256:55c3a27514fc9ca7d749cf93d0d3c3303c784c22463f563a2a7173ebcf97c38b",
+    "desktop/python/repo_save_editor/services/game/discovery.py": "sha256:7baf6b52a1e83f2b4d2f09a18dbbe196bf2589cce956469fdff8496847c7939a",
     "desktop/python/repo_save_editor/services/unity_serialized.py": "sha256:028a0f1b59d289a0436684f5f59c3b51a0ebbf77e52c656ba766df7cb07556cf"
   },
   "sourceSaveSha256": "22bbb9102d93d7fff8c4b2d3fb86dd6dc2c4475030ecb76a7c858c750741b483",
