@@ -31,6 +31,10 @@ MAX_COMPONENTS: Final = 4_096
 KNOWN_BATTERY_BARS: Final = frozenset({5, 6, 8, 10, 12, 15, 18, 20})
 
 
+class InstalledItemCatalogError(RuntimeError):
+    """Raised when maintenance-mode installed item extraction is incomplete."""
+
+
 @dataclass(frozen=True, slots=True)
 class GameObjectData:
     """Minimal prefab identity and component links needed by item discovery."""
@@ -328,6 +332,78 @@ def _classify_variants(
     return _remove_ambiguous_icon_keys(results)
 
 
+def _discover_installed_item_metadata(
+    resources_path: Path,
+    global_managers_path: Path,
+    names: tuple[str, ...],
+    by_identity: dict[str, str],
+) -> dict[str, InstalledItemMetadata]:
+    """Read installed item metadata, propagating parser-wide failures."""
+    unknown = {name: InstalledItemMetadata(ItemRechargeCapability.UNKNOWN, None) for name in names}
+
+    with (
+        SerializedFileIndex(resources_path) as resources,
+        SerializedFileIndex(global_managers_path) as globals_,
+    ):
+        candidate_definitions: dict[str, list[tuple[ObjectRecord, MonoBehaviourPrefix]]] = {
+            identity: [] for identity in by_identity
+        }
+        for record in resources.iter_records(frozenset({MONO_BEHAVIOUR_CLASS_ID})):
+            prefix = parse_mono_behaviour_prefix(resources, record)
+            identity = prefix.name.casefold()
+            if identity in candidate_definitions:
+                candidate_definitions[identity].append((record, prefix))
+
+        relevant_prefixes = [
+            prefix
+            for candidates in candidate_definitions.values()
+            for _record, prefix in candidates
+        ]
+        definition_scripts = _resolve_mono_scripts(resources, globals_, relevant_prefixes)
+
+        verified_definitions: dict[str, ItemPresentation] = {}
+        for identity in by_identity:
+            item_definitions = [
+                (record, prefix)
+                for record, prefix in candidate_definitions[identity]
+                if definition_scripts[prefix.script.path_id].class_name == ITEM_CLASS
+            ]
+            if len(item_definitions) != 1:
+                continue
+            record, prefix = item_definitions[0]
+            definition_name = prefix.name
+            if definition_name.casefold() == identity:
+                try:
+                    presentation = _item_presentation(resources, record, prefix)
+                except UnityMetadataError:
+                    presentation = ItemPresentation(definition_name, None, None)
+                verified_definitions[identity] = presentation
+
+        variants: dict[str, list[ObjectRecord]] = {name: [] for name in names}
+        for record in resources.iter_records(frozenset({GAME_OBJECT_CLASS_ID})):
+            name = _read_game_object_name(resources, record)
+            if not name:
+                continue
+            identity = name.casefold()
+            if identity not in verified_definitions:
+                continue
+            game_object = _parse_game_object(resources, record)
+            if game_object.name.casefold() != identity:
+                raise UnityMetadataError(
+                    "Matched prefab GameObject identity changed during discovery."
+                )
+            variants[by_identity[identity]].append(record)
+
+        ready = {
+            name: tuple(records)
+            for name, records in variants.items()
+            if name.casefold() in verified_definitions and records
+        }
+        presentations = {name: verified_definitions[name.casefold()] for name in ready}
+        classified = _classify_variants(resources, globals_, ready, presentations) if ready else {}
+        return {name: classified.get(name, unknown[name]) for name in names}
+
+
 def discover_installed_item_metadata(
     resources_path: Path,
     global_managers_path: Path,
@@ -340,72 +416,12 @@ def discover_installed_item_metadata(
         return {}
     if not names:
         return {}
+
     unknown = {name: InstalledItemMetadata(ItemRechargeCapability.UNKNOWN, None) for name in names}
-
     try:
-        with (
-            SerializedFileIndex(resources_path) as resources,
-            SerializedFileIndex(global_managers_path) as globals_,
-        ):
-            candidate_definitions: dict[str, list[tuple[ObjectRecord, MonoBehaviourPrefix]]] = {
-                identity: [] for identity in by_identity
-            }
-            for record in resources.iter_records(frozenset({MONO_BEHAVIOUR_CLASS_ID})):
-                prefix = parse_mono_behaviour_prefix(resources, record)
-                identity = prefix.name.casefold()
-                if identity in candidate_definitions:
-                    candidate_definitions[identity].append((record, prefix))
-
-            relevant_prefixes = [
-                prefix
-                for candidates in candidate_definitions.values()
-                for _record, prefix in candidates
-            ]
-            definition_scripts = _resolve_mono_scripts(resources, globals_, relevant_prefixes)
-
-            verified_definitions: dict[str, ItemPresentation] = {}
-            for identity in by_identity:
-                item_definitions = [
-                    (record, prefix)
-                    for record, prefix in candidate_definitions[identity]
-                    if definition_scripts[prefix.script.path_id].class_name == ITEM_CLASS
-                ]
-                if len(item_definitions) != 1:
-                    continue
-                record, prefix = item_definitions[0]
-                definition_name = prefix.name
-                if definition_name.casefold() == identity:
-                    try:
-                        presentation = _item_presentation(resources, record, prefix)
-                    except UnityMetadataError:
-                        presentation = ItemPresentation(definition_name, None, None)
-                    verified_definitions[identity] = presentation
-
-            variants: dict[str, list[ObjectRecord]] = {name: [] for name in names}
-            for record in resources.iter_records(frozenset({GAME_OBJECT_CLASS_ID})):
-                name = _read_game_object_name(resources, record)
-                if not name:
-                    continue
-                identity = name.casefold()
-                if identity not in verified_definitions:
-                    continue
-                game_object = _parse_game_object(resources, record)
-                if game_object.name.casefold() != identity:
-                    raise UnityMetadataError(
-                        "Matched prefab GameObject identity changed during discovery."
-                    )
-                variants[by_identity[identity]].append(record)
-
-            ready = {
-                name: tuple(records)
-                for name, records in variants.items()
-                if name.casefold() in verified_definitions and records
-            }
-            presentations = {name: verified_definitions[name.casefold()] for name in ready}
-            classified = (
-                _classify_variants(resources, globals_, ready, presentations) if ready else {}
-            )
-            return {name: classified.get(name, unknown[name]) for name in names}
+        return _discover_installed_item_metadata(
+            resources_path, global_managers_path, names, by_identity
+        )
     except (OSError, UnityMetadataError, struct.error, OverflowError, ValueError):
         return unknown
 
@@ -424,4 +440,58 @@ def discover_item_recharge_capabilities(
     }
 
 
-__all__ = ["discover_installed_item_metadata", "discover_item_recharge_capabilities"]
+def discover_installed_item_catalog(
+    resources_path: Path,
+    global_managers_path: Path,
+) -> dict[str, InstalledItemMetadata]:
+    """Discover every installed Item definition through the proven parser path.
+
+    Desktop runtime normally asks only about item identities already observed in a
+    save. Capability snapshot maintenance needs the complete installed catalog so
+    additive game updates cannot be missed.
+    """
+    try:
+        with (
+            SerializedFileIndex(resources_path) as resources,
+            SerializedFileIndex(global_managers_path) as globals_,
+        ):
+            prefixes = [
+                parse_mono_behaviour_prefix(resources, record)
+                for record in resources.iter_records(frozenset({MONO_BEHAVIOUR_CLASS_ID}))
+            ]
+            scripts = _resolve_mono_scripts(resources, globals_, prefixes)
+            names_by_identity: dict[str, str] = {}
+            for prefix in prefixes:
+                if not prefix.name or scripts[prefix.script.path_id].class_name != ITEM_CLASS:
+                    continue
+                identity = prefix.name.casefold()
+                previous = names_by_identity.setdefault(identity, prefix.name)
+                if previous != prefix.name:
+                    raise UnityMetadataError(
+                        "Installed Item definitions collide case-insensitively."
+                    )
+        names, by_identity = _normalize_item_names(
+            sorted(names_by_identity.values(), key=str.casefold)
+        )
+        if not names:
+            raise UnityMetadataError("Installed Item catalog contains no Item definitions.")
+        return _discover_installed_item_metadata(
+            resources_path, global_managers_path, names, by_identity
+        )
+    except (
+        KeyError,
+        OSError,
+        UnityMetadataError,
+        struct.error,
+        OverflowError,
+        ValueError,
+    ) as error:
+        raise InstalledItemCatalogError("Installed Item catalog extraction failed.") from error
+
+
+__all__ = [
+    "InstalledItemCatalogError",
+    "discover_installed_item_catalog",
+    "discover_installed_item_metadata",
+    "discover_item_recharge_capabilities",
+]

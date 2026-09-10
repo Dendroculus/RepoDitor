@@ -20,12 +20,10 @@ import {
 } from "../contracts.cjs";
 import { PythonClientError, pythonClient, type PythonClient } from "../python/client.cjs";
 import { localIconRegistry, readIconKey, type LocalIconRegistry } from "../icons/registry.cjs";
+import { PROVEN_COSMETIC_IDS } from "./known-cosmetics.cjs";
 
 const FINGERPRINT_PATTERN = /^[a-f\d]{64}$/;
-// Mirrors the independently proven Python mutation trust boundary. This is not a
-// catalog-size assumption: dynamic installed catalogs may be smaller or larger.
-const PROVEN_MUTATION_ID_COUNT = 547;
-const MAX_CHANGES = PROVEN_MUTATION_ID_COUNT;
+const MAX_CHANGES = PROVEN_COSMETIC_IDS.size;
 const ERROR_CODES = new Set<DesktopOperationErrorCode>([
   "invalid_request",
   "game_running",
@@ -131,7 +129,7 @@ function readCosmetic(value: unknown): ParsedCosmetic {
       rarity === null ||
       status === null ||
       state !== (owned ? "owned" : "locked") ||
-      mutationEligible !== id < PROVEN_MUTATION_ID_COUNT ||
+      mutationEligible !== PROVEN_COSMETIC_IDS.has(id) ||
       (!mutationEligible && removalBlockedReason === null)
     ) {
       throw new CosmeticsProtocolError("Invalid installed cosmetic projection.");
@@ -285,7 +283,7 @@ function readChange(value: unknown): CosmeticChange {
   if (
     !Number.isSafeInteger(id) ||
     id < 0 ||
-    id >= PROVEN_MUTATION_ID_COUNT ||
+    !PROVEN_COSMETIC_IDS.has(id) ||
     value.field !== "owned" ||
     typeof value.after !== "boolean"
   ) {

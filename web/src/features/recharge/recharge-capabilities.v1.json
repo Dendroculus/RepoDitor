@@ -1,11 +1,18 @@
 {
   "snapshotVersion": 1,
+  "generatorVersion": 1,
   "compatibility": {
     "steamAppId": "3241660",
     "steamBuildId": "23363152",
     "unityVersion": "2022.3.67f2"
   },
-  "provenance": "docs/research/reverse-engineering.md#installed-itembattery-capability-proof; validated installed resources.assets/globalgamemanagers.assets with exact parity between the Desktop parser and an independent UnityPy oracle",
+  "provenance": "docs/research/reverse-engineering.md#installed-itembattery-capability-proof; Desktop parser output validated against an independent UnityPy oracle",
+  "sourceDigests": {
+    "approvedEvidence": "sha256:1be28a389c062df30f9006dda7314e5ee463cb15cbb511962da9774c59e69e35",
+    "desktop/python/repo_save_editor/services/items/installed_metadata.py": "sha256:32e5b4a8ea8b58e67987331184922bc24c2e35d75fbecc9599c021f8bb1c8e47",
+    "desktop/python/repo_save_editor/services/items/models.py": "sha256:30f2b057baf8b77e3da9d095afcba61f0b967716c219dab3a4c8f6a73e1dbbd1",
+    "desktop/python/repo_save_editor/services/unity_serialized.py": "sha256:a7568bdf76e6a8b36674878d6b726441299bd353467dd1fb4c6170dfd4274a22"
+  },
   "fullChargeRepresentation": "absent exact-instance entry in dictionaryOfDictionaries.value.itemStatBattery",
   "rechargeableItemIdentities": [
     "Item Cart Cannon",
