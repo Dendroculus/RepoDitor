@@ -171,7 +171,7 @@ test("blocks save writes while the R.E.P.O. process is running", async () => {
     }
   } finally {
     try {
-      if (repoProcess && repoProcess.exitCode === null) {
+      if (repoProcess?.exitCode === null) {
         await terminateChildProcess(repoProcess, "synthetic REPO.exe");
       }
     } finally {

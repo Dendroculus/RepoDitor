@@ -64,7 +64,7 @@ test("preserves safe writes, exact backups, and stale-save rejection", async () 
     );
     expect(metaBackups).toHaveLength(1);
     expect(
-      (await readFile(path.join(path.dirname(metaPath), metaBackups[0]!))).equals(metaBefore),
+      (await readFile(path.join(path.dirname(metaPath), metaBackups[0]))).equals(metaBefore),
     ).toBe(true);
     expect((await readFile(metaPath)).equals(metaBefore)).toBe(false);
     expect((await readFile(savePath)).equals(sourceBefore)).toBe(true);
@@ -104,7 +104,7 @@ test("preserves safe writes, exact backups, and stale-save rejection", async () 
     );
     expect(backups).toHaveLength(1);
     expect(
-      (await readFile(path.join(path.dirname(savePath), backups[0]!))).equals(sourceBefore),
+      (await readFile(path.join(path.dirname(savePath), backups[0]))).equals(sourceBefore),
     ).toBe(true);
     expect((await readFile(savePath)).equals(sourceBefore)).toBe(false);
 

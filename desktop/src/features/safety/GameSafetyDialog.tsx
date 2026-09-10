@@ -2,7 +2,7 @@
  * Modal fail-closed interruption for running or unverifiable game-process state.
  * Owns focus trapping/restoration only; status authority remains Python-owned.
  */
-import { useLayoutEffect, useRef, type KeyboardEvent, type RefObject } from "react";
+import { useLayoutEffect, useRef, type RefObject } from "react";
 
 import type { GameProcessStatus } from "@electron/contracts";
 import { usePreferences } from "@/app/preferences";
@@ -42,7 +42,23 @@ export function GameSafetyDialog({
     if (!modal.open) modal.showModal();
     (checkButton.current?.disabled ? exitButton.current : checkButton.current)?.focus();
 
+    function containFocus(event: KeyboardEvent): void {
+      if (event.key !== "Tab") return;
+      const first = checkButton.current?.disabled ? exitButton.current : checkButton.current;
+      const last = exitButton.current;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+
+    modal.addEventListener("keydown", containFocus);
+
     return () => {
+      modal.removeEventListener("keydown", containFocus);
       if (modal.open) modal.close();
       queueMicrotask(() => {
         if (modal.open) return;
@@ -59,19 +75,6 @@ export function GameSafetyDialog({
   const description =
     status === "running" ? t("safety.runningDescription") : t("safety.unknownDescription");
 
-  function containFocus(event: KeyboardEvent<HTMLDialogElement>): void {
-    if (event.key !== "Tab") return;
-    const first = checkButton.current?.disabled ? exitButton.current : checkButton.current;
-    const last = exitButton.current;
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last?.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first?.focus();
-    }
-  }
-
   return (
     <dialog
       ref={dialog}
@@ -83,7 +86,6 @@ export function GameSafetyDialog({
         event.preventDefault();
         (checkButton.current?.disabled ? exitButton.current : checkButton.current)?.focus();
       }}
-      onKeyDown={containFocus}
     >
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-warning">
         {t("safety.label")}

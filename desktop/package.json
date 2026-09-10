@@ -110,7 +110,7 @@
     "@typescript-eslint/eslint-plugin": "^8.66.0",
     "@typescript-eslint/parser": "^8.66.0",
     "@vitejs/plugin-react": "^6.0.4",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/coverage-v8": "^4.1.11",
     "concurrently": "^10.0.4",
     "cross-env": "^10.1.0",
     "electron": "^43.3.0",
@@ -131,7 +131,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "~6.0.2",
     "vite": "^8.2.0",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "wait-on": "^9.1.0"
   }
 }

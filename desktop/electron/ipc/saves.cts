@@ -400,7 +400,7 @@ function parseCanonicalRun(
       )
     )
       return undefined;
-    const hasResume = Object.prototype.hasOwnProperty.call(value, "resumeLocation");
+    const hasResume = Object.hasOwn(value, "resumeLocation");
     if (hasResume !== expectsResume) return undefined;
     return {
       stats,

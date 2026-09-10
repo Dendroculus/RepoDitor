@@ -8,6 +8,7 @@
     "build": "tsc -b && vite build",
     "imports:check": "eslint src --quiet",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run && node --test scripts/*.test.mjs",

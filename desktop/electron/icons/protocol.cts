@@ -683,7 +683,7 @@ export async function serveLocalIcon(
   }
   const parts = url.pathname.split("/").filter(Boolean);
   if (url.hostname !== "local" || parts.length !== 1 || url.search || url.hash) return notFound();
-  const entry = registry.get(parts[0]!);
+  const entry = registry.get(parts[0]);
   if (entry === undefined) return notFound();
   if (entry.kind === "cache") return serveCacheIcon(entry, roots);
   if (entry.cacheKey !== null) {

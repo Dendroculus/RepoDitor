@@ -160,12 +160,6 @@ export function FindSaveDialog() {
           event.preventDefault();
           closeDialog();
         }}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            event.preventDefault();
-            closeDialog();
-          }
-        }}
         ref={dialogRef}
       >
         <div className="flex max-h-[calc(100dvh-2rem)] flex-col">

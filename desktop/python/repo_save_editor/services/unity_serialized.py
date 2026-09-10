@@ -250,7 +250,7 @@ class SerializedFileIndex:
                 reader.skip(dependency_count * 4)
         return class_id
 
-    def _parse_metadata(self) -> None:
+    def _metadata_reader(self) -> tuple[_Reader, int, int]:
         if len(self._data) < 48:
             raise UnityMetadataError("Serialized file is too small for a version-22 header.")
         header = _Reader(self._data, 0, len(self._data), endian=">")
@@ -281,8 +281,9 @@ class SerializedFileIndex:
             or data_offset - metadata_end >= 16
         ):
             raise UnityMetadataError("Serialized-file metadata/data bounds are invalid.")
+        return _Reader(self._data, header.pos, metadata_end, endian="<"), data_offset, metadata_end
 
-        reader = _Reader(self._data, header.pos, metadata_end, endian="<")
+    def _parse_types(self, reader: _Reader) -> None:
         unity_version = reader.cstring(maximum=64)
         if unity_version != UNITY_VERSION:
             raise UnityMetadataError(f"Unsupported Unity version {unity_version!r}.")
@@ -302,6 +303,7 @@ class SerializedFileIndex:
             raise UnityMetadataError("Serialized file contains no object types.")
         self.types = tuple(types)
 
+    def _parse_objects_and_externals(self, reader: _Reader, data_offset: int) -> None:
         object_count = reader.i32()
         if not 0 <= object_count <= MAX_OBJECTS:
             raise UnityMetadataError("Serialized object count is outside the supported bound.")
@@ -334,6 +336,7 @@ class SerializedFileIndex:
         self.external_references = tuple(external_references)
         self.externals = tuple(reference.path for reference in external_references)
 
+    def _parse_reference_types(self, reader: _Reader, metadata_end: int) -> None:
         ref_type_count = reader.i32()
         if not 0 <= ref_type_count <= MAX_TYPES:
             raise UnityMetadataError("Reference type count is outside the supported bound.")
@@ -342,6 +345,12 @@ class SerializedFileIndex:
         reader.cstring()  # userInformation
         if reader.pos > metadata_end:
             raise UnityMetadataError("Serialized metadata extends past the declared metadata size.")
+
+    def _parse_metadata(self) -> None:
+        reader, data_offset, metadata_end = self._metadata_reader()
+        self._parse_types(reader)
+        self._parse_objects_and_externals(reader, data_offset)
+        self._parse_reference_types(reader, metadata_end)
         self.data_offset = data_offset
 
     def _record_at_table_index(self, index: int) -> ObjectRecord:
@@ -513,18 +522,7 @@ class SerializedFileIndex:
         return pointers
 
 
-def find_resource_manager_pointer(
-    index: SerializedFileIndex,
-    resource_keys: Iterable[str],
-) -> tuple[str, PPtr]:
-    """Resolve one exact ResourceManager container key to its serialized PPtr.
-
-    The validated Unity build serializes each ``m_Container`` entry as an aligned
-    string immediately followed by a PPtr.  This intentionally does not attempt to
-    parse unrelated ResourceManager fields: it searches only the unique class-147
-    object for exact bounded aligned-string encodings and fails closed on missing or
-    ambiguous matches.
-    """
+def _normalize_resource_keys(resource_keys: Iterable[str]) -> tuple[tuple[str, bytes], ...]:
     keys: list[tuple[str, bytes]] = []
     identities: set[str] = set()
     for value in resource_keys:
@@ -540,6 +538,55 @@ def find_resource_manager_pointer(
         keys.append((value, raw))
     if not keys:
         raise UnityMetadataError("ResourceManager lookup requires at least one key.")
+    return tuple(keys)
+
+
+def _resource_key_matches(
+    index: SerializedFileIndex,
+    record: ObjectRecord,
+    key: str,
+    raw: bytes,
+) -> list[tuple[str, PPtr]]:
+    record_end = record.byte_start + record.byte_size
+    needle = struct.pack("<i", len(raw)) + raw
+    cursor = record.byte_start
+    occurrences = 0
+    matches: list[tuple[str, PPtr]] = []
+    while cursor < record_end:
+        position = index._data.find(needle, cursor, record_end)
+        if position < 0:
+            break
+        occurrences += 1
+        if occurrences > MAX_RESOURCE_KEY_OCCURRENCES:
+            raise UnityMetadataError("ResourceManager key occurs too many times.")
+        cursor = position + 1
+        # Aligned Unity strings start on a four-byte boundary in this map layout.
+        if position % 4 != 0:
+            continue
+        pointer_offset = (position + len(needle) + 3) & ~3
+        if pointer_offset + 12 > record_end:
+            continue
+        if any(index._data[position + len(needle) : pointer_offset]):
+            continue
+        file_id, path_id = struct.unpack_from("<iq", index._data, pointer_offset)
+        if file_id > 0 and path_id != 0:
+            matches.append((key, PPtr(file_id, path_id)))
+    return matches
+
+
+def find_resource_manager_pointer(
+    index: SerializedFileIndex,
+    resource_keys: Iterable[str],
+) -> tuple[str, PPtr]:
+    """Resolve one exact ResourceManager container key to its serialized PPtr.
+
+    The validated Unity build serializes each ``m_Container`` entry as an aligned
+    string immediately followed by a PPtr.  This intentionally does not attempt to
+    parse unrelated ResourceManager fields: it searches only the unique class-147
+    object for exact bounded aligned-string encodings and fails closed on missing or
+    ambiguous matches.
+    """
+    keys = _normalize_resource_keys(resource_keys)
 
     managers = tuple(index.iter_records(frozenset({RESOURCE_MANAGER_CLASS_ID})))
     if len(managers) != 1:
@@ -547,33 +594,9 @@ def find_resource_manager_pointer(
     record = managers[0]
     if record.byte_size <= 0 or record.byte_size > MAX_RESOURCE_MANAGER_BYTES:
         raise UnityMetadataError("ResourceManager object size is outside the supported bound.")
-    record_end = record.byte_start + record.byte_size
-    matches: list[tuple[str, PPtr]] = []
-
-    for key, raw in keys:
-        needle = struct.pack("<i", len(raw)) + raw
-        cursor = record.byte_start
-        occurrences = 0
-        while cursor < record_end:
-            position = index._data.find(needle, cursor, record_end)
-            if position < 0:
-                break
-            occurrences += 1
-            if occurrences > MAX_RESOURCE_KEY_OCCURRENCES:
-                raise UnityMetadataError("ResourceManager key occurs too many times.")
-            cursor = position + 1
-            # Aligned Unity strings start on a four-byte boundary in this map layout.
-            if position % 4 != 0:
-                continue
-            pointer_offset = (position + len(needle) + 3) & ~3
-            if pointer_offset + 12 > record_end:
-                continue
-            if any(index._data[position + len(needle) : pointer_offset]):
-                continue
-            file_id, path_id = struct.unpack_from("<iq", index._data, pointer_offset)
-            if file_id <= 0 or path_id == 0:
-                continue
-            matches.append((key, PPtr(file_id, path_id)))
+    matches = [
+        match for key, raw in keys for match in _resource_key_matches(index, record, key, raw)
+    ]
 
     if len(matches) != 1:
         raise UnityMetadataError("ResourceManager prefab entry is missing or ambiguous.")

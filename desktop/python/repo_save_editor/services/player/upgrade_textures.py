@@ -634,6 +634,80 @@ def _decode_resolved_upgrade_texture(
     )
 
 
+def _resolve_upgrade_batch(
+    upgrade_keys: tuple[str, ...],
+    managers: SerializedFileIndex,
+    resources: SerializedFileIndex,
+    data_root: Path,
+    resolved: PreparationTextureCallback,
+) -> tuple[dict[str, DecodedUpgradeTexture | None], list[tuple[str, _ResolvedUpgradeVisual]]]:
+    outcomes: dict[str, DecodedUpgradeTexture | None] = {}
+    pending: list[tuple[str, _ResolvedUpgradeVisual]] = []
+    for key in upgrade_keys:
+        try:
+            visual = _resolve_upgrade_visual_from_indexes(
+                managers,
+                resources,
+                _candidate_prefab_names(key),
+                data_root=data_root,
+            )
+        except (OSError, UnityMetadataError, UpgradeTextureError, ValueError):
+            outcomes[key] = None
+            resolved(key, None)
+            continue
+        pending.append((key, visual))
+    return outcomes, pending
+
+
+def _decode_upgrade_batch(
+    pending: list[tuple[str, _ResolvedUpgradeVisual]],
+    outcomes: dict[str, DecodedUpgradeTexture | None],
+    *,
+    data_root: Path,
+    resources: Path,
+    resource_manager: Path,
+    assembly: Path,
+    manifest: Path,
+    build_id: str,
+    resolved: PreparationTextureCallback,
+    on_decode_start: PreparationDecodeCallback | None,
+) -> None:
+    png_bytes = 0
+    budget_exhausted = False
+    for key, visual in pending:
+        if on_decode_start is not None:
+            on_decode_start(key, visual.texture.name)
+        decoded: DecodedUpgradeTexture | None = None
+        if not budget_exhausted:
+            try:
+                candidate = _decode_resolved_upgrade_texture(
+                    key,
+                    visual,
+                    data_root=data_root,
+                    resources=resources,
+                    resource_manager=resource_manager,
+                    assembly=assembly,
+                    manifest=manifest,
+                    build_id=build_id,
+                )
+                if png_bytes + len(candidate.png) > MAX_BATCH_PNG_BYTES:
+                    budget_exhausted = True
+                else:
+                    png_bytes += len(candidate.png)
+                    decoded = candidate
+            except (
+                OSError,
+                OverflowError,
+                TextureDecodeError,
+                UnityMetadataError,
+                UpgradeTextureError,
+                ValueError,
+            ):
+                decoded = None
+        outcomes[key] = decoded
+        resolved(key, decoded)
+
+
 def prepare_installed_upgrade_textures(
     keys: Iterable[str],
     installation: GameInstallation,
@@ -682,57 +756,23 @@ def prepare_installed_upgrade_textures(
             SerializedFileIndex(resources_path) as resources,
         ):
             stage(UpgradePreparationStage.RESOLVING)
-            outcomes: dict[str, DecodedUpgradeTexture | None] = {}
-            pending: list[tuple[str, _ResolvedUpgradeVisual]] = []
-            for key in upgrade_keys:
-                try:
-                    visual = _resolve_upgrade_visual_from_indexes(
-                        managers,
-                        resources,
-                        _candidate_prefab_names(key),
-                        data_root=data_root,
-                    )
-                except (OSError, UnityMetadataError, UpgradeTextureError, ValueError):
-                    outcomes[key] = None
-                    resolved(key, None)
-                    continue
-                pending.append((key, visual))
+            outcomes, pending = _resolve_upgrade_batch(
+                upgrade_keys, managers, resources, data_root, resolved
+            )
 
             stage(UpgradePreparationStage.DECODING)
-            png_bytes = 0
-            budget_exhausted = False
-            for key, visual in pending:
-                if on_decode_start is not None:
-                    on_decode_start(key, visual.texture.name)
-                decoded: DecodedUpgradeTexture | None = None
-                if not budget_exhausted:
-                    try:
-                        candidate = _decode_resolved_upgrade_texture(
-                            key,
-                            visual,
-                            data_root=data_root,
-                            resources=resources_path,
-                            resource_manager=resource_manager_path,
-                            assembly=assembly,
-                            manifest=manifest,
-                            build_id=build_id,
-                        )
-                        if png_bytes + len(candidate.png) > MAX_BATCH_PNG_BYTES:
-                            budget_exhausted = True
-                        else:
-                            png_bytes += len(candidate.png)
-                            decoded = candidate
-                    except (
-                        OSError,
-                        OverflowError,
-                        TextureDecodeError,
-                        UnityMetadataError,
-                        UpgradeTextureError,
-                        ValueError,
-                    ):
-                        decoded = None
-                outcomes[key] = decoded
-                resolved(key, decoded)
+            _decode_upgrade_batch(
+                pending,
+                outcomes,
+                data_root=data_root,
+                resources=resources_path,
+                resource_manager=resource_manager_path,
+                assembly=assembly,
+                manifest=manifest,
+                build_id=build_id,
+                resolved=resolved,
+                on_decode_start=on_decode_start,
+            )
     except (OSError, OverflowError, UnityMetadataError, UpgradeTextureError, ValueError):
         return UpgradeTextureBatchResult(
             True,

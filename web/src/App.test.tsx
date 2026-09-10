@@ -16,6 +16,16 @@ import { inspectRunSave } from "@/features/run-save/runSave";
 const createObjectUrlDescriptor = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
 const revokeObjectUrlDescriptor = Object.getOwnPropertyDescriptor(URL, "revokeObjectURL");
 
+function button(element: HTMLElement): HTMLButtonElement {
+  if (!(element instanceof HTMLButtonElement)) throw new Error("Expected a button element.");
+  return element;
+}
+
+function input(element: HTMLElement): HTMLInputElement {
+  if (!(element instanceof HTMLInputElement)) throw new Error("Expected an input element.");
+  return element;
+}
+
 function restoreUrlMethod(
   name: "createObjectURL" | "revokeObjectURL",
   descriptor?: PropertyDescriptor,
@@ -301,18 +311,12 @@ describe("App", () => {
     expect(screen.queryByRole("button", { name: "Review changes" })).toBeNull();
     expect(screen.queryByTestId("pending-changes-review")).toBeNull();
     await waitFor(() =>
-      expect((screen.getByRole("spinbutton", { name: "Currency" }) as HTMLInputElement).value).toBe(
-        "12",
-      ),
+      expect(input(screen.getByRole("spinbutton", { name: "Currency" })).value).toBe("12"),
     );
     expect(screen.getByLabelText("Next spawn").textContent).toContain("Normal");
-    expect((screen.getByRole("spinbutton", { name: "Run level" }) as HTMLInputElement).value).toBe(
-      "1",
-    );
+    expect(input(screen.getByRole("spinbutton", { name: "Run level" })).value).toBe("1");
     fireEvent.click(screen.getByRole("tab", { name: "Players" }));
-    expect(
-      (screen.getByRole("spinbutton", { name: "Current health" }) as HTMLInputElement).value,
-    ).toBe("80");
+    expect(input(screen.getByRole("spinbutton", { name: "Current health" })).value).toBe("80");
   });
 
   it("offers only supported next-spawn choices without normalizing an unsupported value", async () => {
@@ -354,9 +358,7 @@ describe("App", () => {
     fireEvent.change(health, { target: { value: "80" } });
     expect(screen.getByText("Clean")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Review changes" })).toBeNull();
-    expect(
-      (screen.getByRole("button", { name: "Discard changes" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(button(screen.getByRole("button", { name: "Discard changes" })).disabled).toBe(true);
   });
 
   it("keeps one live pending edit per field and removes it at the baseline", async () => {
@@ -396,9 +398,7 @@ describe("App", () => {
     const identity = screen.getByTestId("selected-player-identity");
     expect(within(identity).getByRole("heading", { name: "Beta User" })).toBeTruthy();
     expect(screen.getByTestId("player-avatar-fallback").textContent).toBe("BU");
-    expect(
-      (screen.getByRole("spinbutton", { name: "Current health" }) as HTMLInputElement).value,
-    ).toBe("60");
+    expect(input(screen.getByRole("spinbutton", { name: "Current health" })).value).toBe("60");
 
     const playersTab = screen.getByRole("tab", { name: "Players" });
     fireEvent.keyDown(playersTab, { key: "ArrowRight" });
@@ -457,10 +457,10 @@ describe("App", () => {
       screen.getByText("No supported rechargeable items were found in this Run save."),
     ).toBeTruthy();
     expect(
-      (
+      button(
         screen.getByRole("button", {
           name: "Recharge All Supported Items",
-        }) as HTMLButtonElement
+        }),
       ).disabled,
     ).toBe(true);
     expect(screen.getByText("Clean")).toBeTruthy();
@@ -548,9 +548,7 @@ describe("App", () => {
 
     expect((await screen.findByRole("alert")).textContent).toMatch(/between 0 and 2,147,483,647/iu);
     expect(screen.getByText("Clean")).toBeTruthy();
-    expect(
-      (screen.getByRole("button", { name: "Discard changes" }) as HTMLButtonElement).disabled,
-    ).toBe(true);
+    expect(button(screen.getByRole("button", { name: "Discard changes" })).disabled).toBe(true);
   });
 
   it("does not stage or overwrite accepted state with invalid numeric drafts", async () => {
@@ -683,10 +681,10 @@ describe("App", () => {
     expect(screen.getByText("Clean")).toBeTruthy();
     expect(screen.getByText("546 of 547 supported cosmetics unlocked")).toBeTruthy();
     expect(
-      (
+      button(
         screen.getByRole("button", {
           name: "Unlock Remaining Cosmetics",
-        }) as HTMLButtonElement
+        }),
       ).disabled,
     ).toBe(false);
   });
@@ -700,10 +698,10 @@ describe("App", () => {
 
     expect(screen.getByText("All supported cosmetics are already unlocked.")).toBeTruthy();
     expect(
-      (
+      button(
         screen.getByRole("button", {
           name: "Unlock Remaining Cosmetics",
-        }) as HTMLButtonElement
+        }),
       ).disabled,
     ).toBe(true);
     expect(screen.getByText("Clean")).toBeTruthy();
@@ -818,15 +816,13 @@ describe("App", () => {
     expect(document.documentElement.lang).toBe("ja");
     expect(window.localStorage.getItem("repoditor-locale")).toBe("ja");
     expect(screen.getByRole("heading", { level: 1, name: "REPO_SAVE.es3" })).toBeTruthy();
-    expect((screen.getByRole("spinbutton", { name: "通貨" }) as HTMLInputElement).value).toBe("13");
+    expect(input(screen.getByRole("spinbutton", { name: "通貨" })).value).toBe("13");
     expect(screen.getByText("保留中の変更 1 件")).toBeTruthy();
     expect(file.arrayBuffer).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "言語：日本語" }));
     fireEvent.click(screen.getByRole("option", { name: "English" }));
-    expect((screen.getByRole("spinbutton", { name: "Currency" }) as HTMLInputElement).value).toBe(
-      "13",
-    );
+    expect(input(screen.getByRole("spinbutton", { name: "Currency" })).value).toBe("13");
     expect(screen.getByText("1 pending change")).toBeTruthy();
     expect(file.arrayBuffer).toHaveBeenCalledTimes(1);
   });

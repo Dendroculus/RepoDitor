@@ -696,7 +696,7 @@ describe("local icon protocol", () => {
     const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
       entries: Record<string, { sourceIdentity: string }>;
     };
-    manifest.entries.playerUpgradeHealth!.sourceIdentity = "invalid";
+    manifest.entries.playerUpgradeHealth.sourceIdentity = "invalid";
     await writeFile(manifestPath, JSON.stringify(manifest));
     const diagnostics: Array<{ reason: string }> = [];
     const client = { run: vi.fn(), dispose: vi.fn() };
