@@ -34,7 +34,7 @@ jobs:
           python-version: "3.13"
 
       - name: Sync locked dependencies
-        run: uv sync --locked
+        run: uv sync --locked --group test
 
       - name: Ruff lint
         run: uv run ruff check repo_save_editor tests ../../tools/capabilities
