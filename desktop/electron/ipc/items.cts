@@ -36,6 +36,12 @@ import {
   validSaveId,
 } from "./protocol.cjs";
 
+const ADVANCED_PROTOCOL_MESSAGE = {
+  invalidData: "Invalid advanced data.",
+  invalidDomain: "Invalid advanced domain.",
+  invalidItem: "Invalid advanced item.",
+} as const;
+
 const ADVANCED_DOMAIN_KEYS = new Set<AdvancedDomainKey>([
   "items",
   "currentCharge",
@@ -92,7 +98,7 @@ function parseAdvancedCapabilities(
 
 function parseAdvancedDomain(value: unknown): AdvancedDomainDto {
   if (!isRecord(value)) {
-    throw new EditorProtocolError("Invalid advanced domain.");
+    throw new EditorProtocolError(ADVANCED_PROTOCOL_MESSAGE.invalidDomain);
   }
   const key = readString(value.key, "advanced domain key");
   const status = readString(value.status, "advanced evidence status");
@@ -102,7 +108,7 @@ function parseAdvancedDomain(value: unknown): AdvancedDomainDto {
     !ADVANCED_STATUSES.has(status as AdvancedEvidenceStatus) ||
     (entryCount !== null && entryCount < 0)
   ) {
-    throw new EditorProtocolError("Invalid advanced domain.");
+    throw new EditorProtocolError(ADVANCED_PROTOCOL_MESSAGE.invalidDomain);
   }
   return {
     key: key as AdvancedDomainKey,
@@ -120,7 +126,7 @@ interface ParsedAdvancedItem extends Omit<AdvancedItemDto, "iconToken"> {
 
 function parseAdvancedItem(value: unknown): ParsedAdvancedItem {
   if (!isRecord(value)) {
-    throw new EditorProtocolError("Invalid advanced item.");
+    throw new EditorProtocolError(ADVANCED_PROTOCOL_MESSAGE.invalidItem);
   }
   const saveKey = readString(value.saveKey, "item save key");
   const instanceId = readString(value.instanceId, "item instance ID");
@@ -142,7 +148,7 @@ function parseAdvancedItem(value: unknown): ParsedAdvancedItem {
     (chargeState === "not_applicable" && rechargeCapability !== "not_rechargeable") ||
     (canRefillToFull && (chargeState !== "stored" || rechargeCapability !== "rechargeable"))
   ) {
-    throw new EditorProtocolError("Invalid advanced item.");
+    throw new EditorProtocolError(ADVANCED_PROTOCOL_MESSAGE.invalidItem);
   }
   let iconKey: string | null;
   try {
@@ -188,7 +194,7 @@ function parseAdvanced(
     !Array.isArray(value.advanced.domains) ||
     !Array.isArray(value.advanced.items)
   ) {
-    throw new EditorProtocolError("Invalid advanced data.");
+    throw new EditorProtocolError(ADVANCED_PROTOCOL_MESSAGE.invalidData);
   }
   const domains = value.advanced.domains.map(parseAdvancedDomain);
   const domainKeys = new Set(domains.map((domain) => domain.key));
@@ -202,7 +208,7 @@ function parseAdvanced(
     [...ADVANCED_DOMAIN_KEYS].some((key) => !domainKeys.has(key)) ||
     unlinkedChargeEntryCount < 0
   ) {
-    throw new EditorProtocolError("Invalid advanced data.");
+    throw new EditorProtocolError(ADVANCED_PROTOCOL_MESSAGE.invalidData);
   }
   const parsedItems = value.advanced.items.map(parseAdvancedItem);
   const tokens = icons.replaceVisuals(

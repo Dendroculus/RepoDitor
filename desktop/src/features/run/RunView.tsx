@@ -27,6 +27,10 @@ const RUN_STAT_ICONS = {
   totalHaul: PackageIcon,
 } as const;
 
+const RUN_TRANSLATION_KEY = {
+  pending: "status.pending",
+} as const;
+
 interface RunViewProps {
   readonly run: RunStateDto | null;
   readonly loading: boolean;
@@ -95,6 +99,9 @@ export function RunView({
     );
   }
   if (!run) return null;
+
+  const revertLabel = t("action.revert");
+  const resumeLocationLabel = t("run.resumeLocation");
 
   return (
     <section aria-busy={loading} aria-labelledby="run-title">
@@ -172,7 +179,7 @@ export function RunView({
                       onRevert(stat.key);
                     }}
                   >
-                    {t("action.revert")}
+                    {revertLabel}
                   </button>
                 ) : null}
               </div>
@@ -189,7 +196,7 @@ export function RunView({
                   data-testid={`pending-run-${stat.key}`}
                   id={pendingId}
                 >
-                  {t("status.pending", { before: edit.before, after: edit.after })}
+                  {t(RUN_TRANSLATION_KEY.pending, { before: edit.before, after: edit.after })}
                 </p>
               ) : null}
             </div>
@@ -201,11 +208,11 @@ export function RunView({
             htmlFor="run-resume-location"
           >
             <MapPinIcon aria-hidden="true" className="text-muted" size={15} />
-            {t("run.resumeLocation")}
+            {resumeLocationLabel}
           </label>
           <div className="mt-3 flex flex-wrap items-start gap-3">
             <Select<string>
-              ariaLabel={t("run.resumeLocation")}
+              ariaLabel={resumeLocationLabel}
               className="min-w-56 max-w-full"
               id="run-resume-location"
               options={run.resumeLocation.options.map((option) => ({
@@ -221,13 +228,13 @@ export function RunView({
                 type="button"
                 onClick={() => onRevert("resumeLocation")}
               >
-                {t("action.revert")}
+                {revertLabel}
               </button>
             ) : null}
           </div>
           {pendingByField.resumeLocation ? (
             <p className="mt-2 text-xs font-medium text-accent" data-testid="pending-run-resume">
-              {t("status.pending", {
+              {t(RUN_TRANSLATION_KEY.pending, {
                 before: pendingByField.resumeLocation.before,
                 after: pendingByField.resumeLocation.after,
               })}

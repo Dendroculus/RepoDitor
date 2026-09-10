@@ -18,6 +18,7 @@ interface CosmeticsEditorProps {
 export function CosmeticsEditor({ busy, onSessionChange, session }: CosmeticsEditorProps) {
   const { formatNumber, t } = useI18n();
   const [mutationError, setMutationError] = useState<string | null>(null);
+  const unavailableMessage = t("cosmetics.unavailableMessage");
 
   let state: MetaCosmeticsState;
   try {
@@ -32,7 +33,7 @@ export function CosmeticsEditor({ busy, onSessionChange, session }: CosmeticsEdi
           {t("cosmetics.unavailable")}
         </h2>
         <p className="mt-3 text-sm text-accent" role="alert">
-          {t("cosmetics.unavailableMessage")}
+          {unavailableMessage}
         </p>
       </section>
     );
@@ -54,7 +55,7 @@ export function CosmeticsEditor({ busy, onSessionChange, session }: CosmeticsEdi
       }
       setMutationError(null);
     } catch {
-      setMutationError(t("cosmetics.unavailableMessage"));
+      setMutationError(unavailableMessage);
     }
   }
 

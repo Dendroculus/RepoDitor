@@ -67,6 +67,7 @@ export function getRunPendingEdits(
   const baseline = inspectRunSave(baselineData);
   const working = inspectRunSave(session.working);
   const edits: PendingEdit[] = [];
+  const runSubject = t("run.run.title");
   const baselinePlayers = new Map(baseline.players.map((player) => [player.id, player]));
 
   for (const player of working.players) {
@@ -90,7 +91,7 @@ export function getRunPendingEdits(
       before: baseline.level,
       field: t("run.run.level"),
       id: "run:level",
-      subject: t("run.run.title"),
+      subject: runSubject,
     });
   }
   if (baseline.currency !== working.currency) {
@@ -99,7 +100,7 @@ export function getRunPendingEdits(
       before: baseline.currency,
       field: t("run.run.currency"),
       id: "run:currency",
-      subject: t("run.run.title"),
+      subject: runSubject,
     });
   }
 
@@ -111,7 +112,7 @@ export function getRunPendingEdits(
       before: beforeResume,
       field: t("run.run.nextSpawn"),
       id: "run:resume-location",
-      subject: t("run.run.title"),
+      subject: runSubject,
     });
   }
 

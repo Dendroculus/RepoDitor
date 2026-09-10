@@ -2,6 +2,21 @@ import { isInteger, LosslessNumber } from "lossless-json";
 
 import { isSaveNumber, isSaveObject, type SaveObject } from "@/features/save-file/serialization";
 
+const RUN_SAVE_KEY = {
+  level: "save level",
+} as const;
+
+const RUN_SAVE_MESSAGE = {
+  levelMissing: "Run level is not present in this save.",
+} as const;
+
+const RUN_VALUE_LABEL = {
+  currentHealth: "Current health",
+  playerHealth: "Player health",
+  resumeLocation: "Resume location",
+  upgradeValue: "Upgrade value",
+} as const;
+
 export const SAVE_INT32_MIN = -2_147_483_648;
 export const SAVE_INT32_MAX = 2_147_483_647;
 export const DISPLAY_LEVEL_MAX = SAVE_INT32_MAX + 1;
@@ -168,7 +183,8 @@ export function describeResumeLocation(value: ResumeLocation | null, raw: number
 
 export function inspectRunSave(data: SaveObject): RunSaveState {
   const names = playerNames(data);
-  const savedHealth = optionalObject(dictionaries(data), "playerHealth", "Player health") ?? {};
+  const savedHealth =
+    optionalObject(dictionaries(data), "playerHealth", RUN_VALUE_LABEL.playerHealth) ?? {};
   const players = Object.entries(names).map(([id, name]) => {
     if (typeof name !== "string") {
       throw new RunEditError(`Player '${id}' does not have a supported name.`);
@@ -190,9 +206,9 @@ export function inspectRunSave(data: SaveObject): RunSaveState {
     ),
   }));
   const stats = runStats(data);
-  const resumeValue = storedInteger(stats, "save level", 0, "Resume location");
+  const resumeValue = storedInteger(stats, RUN_SAVE_KEY.level, 0, RUN_VALUE_LABEL.resumeLocation);
   if (!Object.hasOwn(stats, "level")) {
-    throw new RunEditError("Run level is not present in this save.");
+    throw new RunEditError(RUN_SAVE_MESSAGE.levelMissing);
   }
 
   return {
@@ -206,12 +222,12 @@ export function inspectRunSave(data: SaveObject): RunSaveState {
 }
 
 export function setPlayerHealth(data: SaveObject, playerId: string, value: unknown): void {
-  const next = editableInteger(value, 0, SAVE_INT32_MAX, "Current health");
+  const next = editableInteger(value, 0, SAVE_INT32_MAX, RUN_VALUE_LABEL.currentHealth);
   requirePlayer(data, playerId);
   const values = dictionaries(data);
-  let health = optionalObject(values, "playerHealth", "Player health");
+  let health = optionalObject(values, "playerHealth", RUN_VALUE_LABEL.playerHealth);
   if (health) {
-    storedInteger(health, playerId, next, "Current health");
+    storedInteger(health, playerId, next, RUN_VALUE_LABEL.currentHealth);
   } else {
     health = {};
     values.playerHealth = health;
@@ -225,7 +241,7 @@ export function setPlayerUpgrade(
   key: string,
   value: unknown,
 ): void {
-  const next = editableInteger(value, 0, SAVE_INT32_MAX, "Upgrade value");
+  const next = editableInteger(value, 0, SAVE_INT32_MAX, RUN_VALUE_LABEL.upgradeValue);
   requirePlayer(data, playerId);
   const values = dictionaries(data);
   const upgrade =
@@ -238,7 +254,7 @@ export function setPlayerUpgrade(
   if (!upgrade) {
     throw new RunEditError("This upgrade is not present as a supported field in the save.");
   }
-  storedInteger(upgrade, playerId, next, "Upgrade value");
+  storedInteger(upgrade, playerId, next, RUN_VALUE_LABEL.upgradeValue);
   upgrade[playerId] = new LosslessNumber(String(next));
 }
 
@@ -250,7 +266,7 @@ export function setRunLevel(data: SaveObject, value: unknown): void {
   const displayed = editableInteger(value, 1, DISPLAY_LEVEL_MAX, "Run level");
   const stats = runStats(data);
   if (!Object.hasOwn(stats, "level")) {
-    throw new RunEditError("Run level is not present in this save.");
+    throw new RunEditError(RUN_SAVE_MESSAGE.levelMissing);
   }
   writeInteger(stats, "level", displayed - 1, 0, SAVE_INT32_MAX, "Run level");
 }
@@ -261,5 +277,12 @@ export function setResumeLocation(data: SaveObject, value: unknown): void {
       `Resume location must be ${RESUME_LOCATION_LABELS.normal} or ${RESUME_LOCATION_LABELS.shop}.`,
     );
   }
-  writeInteger(runStats(data), "save level", value === "normal" ? 0 : 1, 0, 1, "Resume location");
+  writeInteger(
+    runStats(data),
+    RUN_SAVE_KEY.level,
+    value === "normal" ? 0 : 1,
+    0,
+    1,
+    RUN_VALUE_LABEL.resumeLocation,
+  );
 }

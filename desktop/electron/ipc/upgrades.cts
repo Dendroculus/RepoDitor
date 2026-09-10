@@ -28,6 +28,8 @@ import {
   validSaveId,
 } from "./protocol.cjs";
 
+const INVALID_UPGRADE_VALUE_MESSAGE = "Invalid upgrade value.";
+
 const PLAYER_ID_PATTERN = /^\d{1,20}$/;
 const MAX_REQUIRED_VISUAL_KEYS = 512;
 
@@ -63,12 +65,12 @@ function parseUpgrade(value: unknown): ParsedUpgrade {
     iconKey,
     values: value.values.map((entry) => {
       if (!isRecord(entry)) {
-        throw new EditorProtocolError("Invalid upgrade value.");
+        throw new EditorProtocolError(INVALID_UPGRADE_VALUE_MESSAGE);
       }
       const playerId = readString(entry.playerId, "player ID");
       const upgradeValue = readInteger(entry.value, "upgrade value");
       if (!PLAYER_ID_PATTERN.test(playerId) || upgradeValue < 0) {
-        throw new EditorProtocolError("Invalid upgrade value.");
+        throw new EditorProtocolError(INVALID_UPGRADE_VALUE_MESSAGE);
       }
       return { playerId, value: upgradeValue };
     }),

@@ -158,5 +158,13 @@ export default defineConfig([
       "better-tailwindcss/enforce-canonical-classes": "error",
     },
   },
+  {
+    // Repeated fixture/assertion text and independent translation copy are intentionally local,
+    // as they are not part of the core application logic. Reducing duplication in these cases would reduce clarity and maintainability.
+    files: ["**/*.test.{ts,tsx}", "e2e/**/*.{ts,tsx}", "src/app/i18n/locales/**/*.{ts,tsx}"],
+    rules: {
+      "sonarjs/no-duplicate-string": "off",
+    },
+  },
   eslintConfigPrettier,
 ]);

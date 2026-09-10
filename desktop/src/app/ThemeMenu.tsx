@@ -88,6 +88,8 @@ export function ThemeMenu() {
     setActiveIndex(nextIndex);
   }
 
+  const themeLabel = t("utility.theme");
+
   return (
     <div className="relative" ref={container}>
       <button
@@ -95,7 +97,7 @@ export function ThemeMenu() {
         aria-controls={listboxId}
         aria-expanded={open}
         aria-haspopup="listbox"
-        aria-label={`${t("utility.theme")}: ${t(selectedTheme.labelKey)}`}
+        aria-label={`${themeLabel}: ${t(selectedTheme.labelKey)}`}
         className={utilityTriggerClassName(open)}
         type="button"
         onClick={() => (open ? closeMenu(false) : openMenu())}
@@ -118,7 +120,7 @@ export function ThemeMenu() {
           {/* Custom listbox keeps theme choices visually aligned with the language menu. */}
           {/* eslint-disable-next-line jsx-a11y/prefer-tag-over-role */}
           <div
-            aria-label={t("utility.theme")}
+            aria-label={themeLabel}
             className={`${menuSurfaceClassName} absolute right-0 z-30 mt-1.5 min-w-40 overflow-hidden`}
             id={listboxId}
             role="listbox"

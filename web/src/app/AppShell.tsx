@@ -7,6 +7,7 @@ import { LanguageMenu } from "./LanguageMenu";
 
 const GITHUB_URL = "https://github.com/Yoruxyv/RepoDitor";
 const THEME_KEY = "repoditor-theme";
+const VISIBLE_THEME_ICON_CLASS = "is-visible";
 
 type Theme = "dark" | "light";
 type Policy = "privacy" | "security" | "terms";
@@ -89,14 +90,14 @@ export function AppHeader() {
             <span aria-hidden="true" className="relative size-[17px] overflow-hidden">
               <MoonIcon
                 className={`theme-celestial theme-celestial--moon absolute inset-0 ${
-                  theme === "dark" ? "is-visible" : ""
+                  theme === "dark" ? VISIBLE_THEME_ICON_CLASS : ""
                 }`}
                 data-theme-icon="moon"
                 size={17}
               />
               <SunIcon
                 className={`theme-celestial theme-celestial--sun absolute inset-0 ${
-                  theme === "light" ? "is-visible" : ""
+                  theme === "light" ? VISIBLE_THEME_ICON_CLASS : ""
                 }`}
                 data-theme-icon="sun"
                 size={17}

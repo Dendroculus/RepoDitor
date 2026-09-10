@@ -8,6 +8,15 @@ import path from "node:path";
 import { spawn } from "node:child_process";
 import { app } from "electron";
 
+const PYTHON_CLIENT_MESSAGE = {
+  assetRequestTooLarge: "Python asset preparation request exceeded the protocol limit.",
+  commandFailed: "Python command failed.",
+  disposed: "Python client is no longer available.",
+  emptyResponse: "Python returned no response.",
+  executableUnavailable: "Python executable is unavailable.",
+  processStartFailed: "Python process could not be started.",
+} as const;
+
 const PYTHON_TIMEOUT_MS = 30_000;
 const UPGRADE_TEXTURE_TIMEOUT_MS = 60_000;
 const ASSET_PREPARATION_TIMEOUT_MS = 90_000;
@@ -19,22 +28,25 @@ const MAX_ASSET_PREPARATION_KEYS = 64;
 const MAX_ASSET_PREPARATION_KEY_BYTES = 512;
 const MAX_ASSET_PREPARATION_STDOUT_BYTES = 24 * 1024 * 1024;
 
-export type PythonCommand =
-  | "environment"
-  | "game-status"
-  | "saves-open"
-  | "saves-write"
-  | "players-list"
-  | "players-avatar"
-  | "upgrades-list"
-  | "upgrade-texture"
-  | "assets-prepare"
-  | "run-get"
-  | "advanced-get"
-  | "cosmetics-get"
-  | "cosmetics-write"
-  | "icons-roots"
-  | "maps-list";
+const PYTHON_COMMAND = {
+  advancedGet: "advanced-get",
+  assetsPrepare: "assets-prepare",
+  cosmeticsGet: "cosmetics-get",
+  cosmeticsWrite: "cosmetics-write",
+  environment: "environment",
+  gameStatus: "game-status",
+  iconsRoots: "icons-roots",
+  mapsList: "maps-list",
+  playersAvatar: "players-avatar",
+  playersList: "players-list",
+  runGet: "run-get",
+  savesOpen: "saves-open",
+  savesWrite: "saves-write",
+  upgradesList: "upgrades-list",
+  upgradeTexture: "upgrade-texture",
+} as const;
+
+export type PythonCommand = (typeof PYTHON_COMMAND)[keyof typeof PYTHON_COMMAND];
 
 export type PythonClientErrorCode =
   | "python_unavailable"
@@ -60,7 +72,7 @@ export interface PythonClient {
 
 export interface PythonRecordClient extends PythonClient {
   runRecords(
-    command: "assets-prepare",
+    command: typeof PYTHON_COMMAND.assetsPrepare,
     request: readonly string[],
     onRecord: (record: unknown) => void | Promise<void>,
   ): Promise<unknown>;
@@ -90,7 +102,7 @@ export function buildPythonArguments(
   arguments_: readonly string[],
   packaged: boolean,
 ): readonly string[] {
-  if (command === "assets-prepare" && arguments_.length !== 0) {
+  if (command === PYTHON_COMMAND.assetsPrepare && arguments_.length !== 0) {
     throw new Error("Asset preparation requests must use stdin, not process arguments.");
   }
   return packaged
@@ -125,7 +137,7 @@ class SpawnPythonClient implements PythonClient {
 
   async run(command: PythonCommand, arguments_: readonly string[] = []): Promise<unknown> {
     if (this.disposed) {
-      throw new PythonClientError("process_failed", "Python client is no longer available.");
+      throw new PythonClientError("process_failed", PYTHON_CLIENT_MESSAGE.disposed);
     }
 
     const invocation = getPythonInvocation(command, arguments_);
@@ -142,10 +154,10 @@ class SpawnPythonClient implements PythonClient {
       let stdout = "";
       let stdoutBytes = 0;
       const stdoutLimit =
-        command === "upgrade-texture" ? MAX_UPGRADE_TEXTURE_STDOUT_BYTES : MAX_STDOUT_BYTES;
+        command === PYTHON_COMMAND.upgradeTexture ? MAX_UPGRADE_TEXTURE_STDOUT_BYTES : MAX_STDOUT_BYTES;
 
       const timeoutMs =
-        command === "upgrade-texture" ? UPGRADE_TEXTURE_TIMEOUT_MS : PYTHON_TIMEOUT_MS;
+        command === PYTHON_COMMAND.upgradeTexture ? UPGRADE_TEXTURE_TIMEOUT_MS : PYTHON_TIMEOUT_MS;
       const timer = setTimeout(() => {
         child.kill();
         fail(new PythonClientError("process_timeout", "Python command timed out."));
@@ -198,8 +210,8 @@ class SpawnPythonClient implements PythonClient {
           new PythonClientError(
             code === "ENOENT" ? "python_unavailable" : "process_failed",
             code === "ENOENT"
-              ? "Python executable is unavailable."
-              : "Python process could not be started.",
+              ? PYTHON_CLIENT_MESSAGE.executableUnavailable
+              : PYTHON_CLIENT_MESSAGE.processStartFailed,
           ),
         );
       });
@@ -210,13 +222,13 @@ class SpawnPythonClient implements PythonClient {
           return;
         }
         if (code !== 0) {
-          fail(new PythonClientError("process_failed", "Python command failed."));
+          fail(new PythonClientError("process_failed", PYTHON_CLIENT_MESSAGE.commandFailed));
           return;
         }
 
         const output = stdout.trim();
         if (!output) {
-          fail(new PythonClientError("empty_response", "Python returned no response."));
+          fail(new PythonClientError("empty_response", PYTHON_CLIENT_MESSAGE.emptyResponse));
           return;
         }
 
@@ -230,12 +242,12 @@ class SpawnPythonClient implements PythonClient {
   }
 
   async runRecords(
-    command: "assets-prepare",
+    command: typeof PYTHON_COMMAND.assetsPrepare,
     request: readonly string[],
     onRecord: (record: unknown) => void | Promise<void>,
   ): Promise<unknown> {
     if (this.disposed) {
-      throw new PythonClientError("process_failed", "Python client is no longer available.");
+      throw new PythonClientError("process_failed", PYTHON_CLIENT_MESSAGE.disposed);
     }
 
     if (
@@ -244,14 +256,14 @@ class SpawnPythonClient implements PythonClient {
     ) {
       throw new PythonClientError(
         "process_failed",
-        "Python asset preparation request exceeded the protocol limit.",
+        PYTHON_CLIENT_MESSAGE.assetRequestTooLarge,
       );
     }
     const requestJson = JSON.stringify(request);
     if (Buffer.byteLength(requestJson, "utf8") > MAX_ASSET_PREPARATION_STDIN_BYTES) {
       throw new PythonClientError(
         "process_failed",
-        "Python asset preparation request exceeded the protocol limit.",
+        PYTHON_CLIENT_MESSAGE.assetRequestTooLarge,
       );
     }
     const invocation = getPythonInvocation(command, []);
@@ -395,8 +407,8 @@ class SpawnPythonClient implements PythonClient {
           new PythonClientError(
             code === "ENOENT" ? "python_unavailable" : "process_failed",
             code === "ENOENT"
-              ? "Python executable is unavailable."
-              : "Python process could not be started.",
+              ? PYTHON_CLIENT_MESSAGE.executableUnavailable
+              : PYTHON_CLIENT_MESSAGE.processStartFailed,
           ),
         );
       });
@@ -404,7 +416,7 @@ class SpawnPythonClient implements PythonClient {
         this.activeChildren.delete(child);
         if (settled) return;
         if (code !== 0) {
-          fail(new PythonClientError("process_failed", "Python command failed."));
+          fail(new PythonClientError("process_failed", PYTHON_CLIENT_MESSAGE.commandFailed));
           return;
         }
         consume(pending.replace(/\r$/, ""));
@@ -416,7 +428,7 @@ class SpawnPythonClient implements PythonClient {
                 new PythonClientError(
                   stdoutBytes === 0 ? "empty_response" : "malformed_response",
                   stdoutBytes === 0
-                    ? "Python returned no response."
+                    ? PYTHON_CLIENT_MESSAGE.emptyResponse
                     : "Python asset preparation returned no final record.",
                 ),
               );

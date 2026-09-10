@@ -34,6 +34,15 @@ import {
 import { PythonClientError, pythonClient, type PythonClient } from "../python/client.cjs";
 import { validSaveId } from "./protocol.cjs";
 
+const SAVE_PROTOCOL_MESSAGE = {
+  invalidCanonicalAdvancedItem: "Invalid canonical advanced item.",
+  invalidCanonicalPlayer: "Invalid canonical player value.",
+  invalidCanonicalRunStat: "Invalid canonical run stat.",
+  invalidCanonicalUpgrade: "Invalid canonical upgrade value.",
+  invalidResponse: "Invalid save response.",
+  responseIdMismatch: "Save response ID did not match the request.",
+} as const;
+
 const FINGERPRINT_PATTERN = /^[a-f\d]{64}$/;
 const PLAYER_ID_PATTERN = /^\d{1,20}$/;
 const MAX_CHANGES = 512;
@@ -145,7 +154,7 @@ function readFingerprint(value: unknown): string {
 
 function parseError(value: Record<string, unknown>): DesktopOperationFailure {
   if (value.ok !== false || !isRecord(value.error)) {
-    throw new SaveProtocolError("Invalid save response.");
+    throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.invalidResponse);
   }
   const code = readString(value.error.code, "error code");
   if (!SAVE_ERROR_CODES.has(code as DesktopOperationErrorCode)) {
@@ -167,7 +176,7 @@ interface ParsedOpenResponse {
 
 function parseOpenResponse(value: unknown): DesktopOperationResult<ParsedOpenResponse> {
   if (!isRecord(value)) {
-    throw new SaveProtocolError("Invalid save response.");
+    throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.invalidResponse);
   }
   if (value.ok === true) {
     return {
@@ -314,11 +323,12 @@ function parseCanonicalPlayers(
   }
   try {
     const parsed = value.map((entry) => {
-      if (!isRecord(entry)) throw new SaveProtocolError("Invalid canonical player value.");
+      if (!isRecord(entry))
+        throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.invalidCanonicalPlayer);
       const id = readString(entry.id, "canonical player ID");
       const health = readInteger(entry.health, "canonical player health");
       if (!PLAYER_ID_PATTERN.test(id) || health < 0) {
-        throw new SaveProtocolError("Invalid canonical player value.");
+        throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.invalidCanonicalPlayer);
       }
       return { id, health };
     });
@@ -346,7 +356,8 @@ function parseCanonicalUpgrades(
   }
   try {
     const parsed = value.map((entry) => {
-      if (!isRecord(entry)) throw new SaveProtocolError("Invalid canonical upgrade value.");
+      if (!isRecord(entry))
+        throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.invalidCanonicalUpgrade);
       const playerId = readString(entry.playerId, "canonical upgrade player ID");
       const key = readString(entry.key, "canonical upgrade key");
       const upgradeValue = readInteger(entry.value, "canonical upgrade value");
@@ -355,7 +366,7 @@ function parseCanonicalUpgrades(
         !key.startsWith("playerUpgrade") ||
         upgradeValue < 0
       ) {
-        throw new SaveProtocolError("Invalid canonical upgrade value.");
+        throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.invalidCanonicalUpgrade);
       }
       return { playerId, key, value: upgradeValue };
     });
@@ -385,11 +396,12 @@ function parseCanonicalRun(
   const expectsResume = expectedRun.some((change) => change.field === "resumeLocation");
   try {
     const stats: SaveCanonicalRunStatValue[] = value.stats.map((entry) => {
-      if (!isRecord(entry)) throw new SaveProtocolError("Invalid canonical run stat.");
+      if (!isRecord(entry))
+        throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.invalidCanonicalRunStat);
       const key = readString(entry.key, "canonical run key");
       const statValue = readInteger(entry.value, "canonical run value");
       if (!RUN_STAT_FIELDS.has(key) || (key === "level" && statValue < 1)) {
-        throw new SaveProtocolError("Invalid canonical run stat.");
+        throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.invalidCanonicalRunStat);
       }
       return { key: key as SaveCanonicalRunStatValue["key"], value: statValue };
     });
@@ -436,7 +448,8 @@ function parseCanonicalAdvanced(
     );
     if (currentChargeEntryCount < 0) return undefined;
     const items: SaveCanonicalAdvancedItem[] = value.items.map((entry) => {
-      if (!isRecord(entry)) throw new SaveProtocolError("Invalid canonical advanced item.");
+      if (!isRecord(entry))
+        throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.invalidCanonicalAdvancedItem);
       const saveKey = readString(entry.saveKey, "canonical item save key");
       const storedCharge = readNullableInteger(entry.storedCharge, "canonical stored charge");
       const chargeState = readString(entry.chargeState, "canonical charge state");
@@ -454,7 +467,7 @@ function parseCanonicalAdvanced(
         (chargeState === "not_applicable" && rechargeCapability !== "not_rechargeable") ||
         (canRefillToFull && (chargeState !== "stored" || rechargeCapability !== "rechargeable"))
       ) {
-        throw new SaveProtocolError("Invalid canonical advanced item.");
+        throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.invalidCanonicalAdvancedItem);
       }
       return {
         saveKey,
@@ -505,7 +518,7 @@ function parseWriteResponse(
   value: unknown,
   changes: readonly SaveChange[],
 ): DesktopOperationResult<SaveWriteResult> {
-  if (!isRecord(value)) throw new SaveProtocolError("Invalid save response.");
+  if (!isRecord(value)) throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.invalidResponse);
   if (value.ok !== true) return parseError(value);
   if (!isRecord(value.result)) throw new SaveProtocolError("Invalid save result.");
   const session = parseSession(value.result.session);
@@ -563,7 +576,7 @@ export async function openSave(
   try {
     const result = parseOpenResponse(await client.run("saves-open", [saveId]));
     if (result.ok && result.data.session.id !== saveId) {
-      throw new SaveProtocolError("Save response ID did not match the request.");
+      throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.responseIdMismatch);
     }
     if (!result.ok) return result;
     return {
@@ -611,7 +624,7 @@ export async function saveChanges(
     if (cachedEvidence !== null) arguments_.push(cachedEvidence);
     const result = parseWriteResponse(await client.run("saves-write", arguments_), safeChanges);
     if (result.ok && result.data.session.id !== saveId) {
-      throw new SaveProtocolError("Save response ID did not match the request.");
+      throw new SaveProtocolError(SAVE_PROTOCOL_MESSAGE.responseIdMismatch);
     }
     return result;
   } catch (error) {

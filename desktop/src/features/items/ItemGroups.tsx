@@ -31,7 +31,18 @@ interface ItemGroup {
 }
 
 type ItemFilter = "all" | "rechargeable" | "not_rechargeable" | "upgrades";
-type ItemSort = "name-asc" | "name-desc" | "quantity-desc";
+
+const ITEM_SORT = {
+  nameAscending: "name-asc",
+  nameDescending: "name-desc",
+  quantityDescending: "quantity-desc",
+} as const;
+
+type ItemSort = (typeof ITEM_SORT)[keyof typeof ITEM_SORT];
+
+const ITEM_TRANSLATION_KEY = {
+  fullDefault: "status.fullDefault",
+} as const;
 
 function groupItems(items: readonly AdvancedItemDto[]): ItemGroup[] {
   const groups = new Map<string, AdvancedItemDto[]>();
@@ -49,7 +60,7 @@ function chargeText(
   t: Translate,
 ): string | null {
   if (item.rechargeCapability !== "rechargeable") return null;
-  if (pending || item.chargeState === "default_full") return t("status.fullDefault");
+  if (pending || item.chargeState === "default_full") return t(ITEM_TRANSLATION_KEY.fullDefault);
   if (item.chargeState === "stored") {
     return t("items.chargeValue", { value: String(item.storedCharge) });
   }
@@ -67,8 +78,10 @@ export function ItemGroups({
   const { t } = usePreferences();
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<ItemFilter>("all");
-  const [sort, setSort] = useState<ItemSort>("name-asc");
+  const [sort, setSort] = useState<ItemSort>(ITEM_SORT.nameAscending);
   const searchInput = useRef<HTMLInputElement>(null);
+  const filterLabel = t("items.filterLabel");
+  const sortLabel = t("items.sortLabel");
   const query = search.trim().toLocaleLowerCase();
   const visibleItems = items.filter((item) => {
     const matchesSearch = !query || item.name.toLocaleLowerCase().includes(query);
@@ -85,11 +98,11 @@ export function ItemGroups({
   const hiddenPendingKey =
     hiddenPendingCount === 1 ? "items.hiddenPending.one" : "items.hiddenPending.many";
   const groups = groupItems(visibleItems).sort((left, right) => {
-    if (sort === "quantity-desc") {
+    if (sort === ITEM_SORT.quantityDescending) {
       return right.items.length - left.items.length || left.name.localeCompare(right.name);
     }
     const order = left.name.localeCompare(right.name);
-    return sort === "name-desc" ? -order : order;
+    return sort === ITEM_SORT.nameDescending ? -order : order;
   });
   const canRechargeAll =
     canRefillToFull && items.some((item) => item.canRefillToFull && !pendingByItem[item.saveKey]);
@@ -136,9 +149,9 @@ export function ItemGroups({
             </div>
           </div>
           <label className="min-w-44 flex-[1_1_11rem] text-sm font-semibold text-ink">
-            <span>{t("items.filterLabel")}</span>
+            <span>{filterLabel}</span>
             <Select<ItemFilter>
-              ariaLabel={t("items.filterLabel")}
+              ariaLabel={filterLabel}
               className="mt-2"
               options={[
                 { value: "all", label: t("items.filterAll") },
@@ -151,14 +164,14 @@ export function ItemGroups({
             />
           </label>
           <label className="min-w-44 flex-[1_1_11rem] text-sm font-semibold text-ink">
-            <span>{t("items.sortLabel")}</span>
+            <span>{sortLabel}</span>
             <Select<ItemSort>
-              ariaLabel={t("items.sortLabel")}
+              ariaLabel={sortLabel}
               className="mt-2"
               options={[
-                { value: "name-asc", label: t("items.sortNameAsc") },
-                { value: "name-desc", label: t("items.sortNameDesc") },
-                { value: "quantity-desc", label: t("items.sortQuantity") },
+                { value: ITEM_SORT.nameAscending, label: t("items.sortNameAsc") },
+                { value: ITEM_SORT.nameDescending, label: t("items.sortNameDesc") },
+                { value: ITEM_SORT.quantityDescending, label: t("items.sortQuantity") },
               ]}
               value={sort}
               onValueChange={setSort}
@@ -264,7 +277,7 @@ export function ItemGroups({
                             <p className="mt-2 font-mono text-xs text-secondary">
                               {t("status.pending", {
                                 before: pending.before,
-                                after: t("status.fullDefault"),
+                                after: t(ITEM_TRANSLATION_KEY.fullDefault),
                               })}
                             </p>
                           ) : null}

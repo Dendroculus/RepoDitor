@@ -1,5 +1,7 @@
 import { DOMParser, onWarningStopParsing } from "@xmldom/xmldom";
 
+const RESPONSE_SIZE_LIMIT_MESSAGE = "Response exceeded its size limit.";
+
 const STEAM_ID64_MIN = 76_561_197_960_265_728n;
 const STEAM_ID64_MAX = STEAM_ID64_MIN + 2n ** 32n - 1n;
 const STEAM_AVATAR_HOSTS = new Set([
@@ -108,7 +110,7 @@ function avatarFromProfile(xml: string): string | null {
 async function readBoundedText(source: Request | Response, maximumBytes: number): Promise<string> {
   const declaredLength = Number(source.headers.get("content-length"));
   if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
-    throw new AvatarRequestError("Response exceeded its size limit.");
+    throw new AvatarRequestError(RESPONSE_SIZE_LIMIT_MESSAGE);
   }
   if (!source.body) {
     return "";
@@ -126,7 +128,7 @@ async function readBoundedText(source: Request | Response, maximumBytes: number)
     bytesRead += result.value.byteLength;
     if (bytesRead > maximumBytes) {
       await reader.cancel();
-      throw new AvatarRequestError("Response exceeded its size limit.");
+      throw new AvatarRequestError(RESPONSE_SIZE_LIMIT_MESSAGE);
     }
     text += decoder.decode(result.value, { stream: true });
   }

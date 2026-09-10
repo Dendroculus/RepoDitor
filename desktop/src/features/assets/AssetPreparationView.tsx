@@ -10,6 +10,17 @@ const SEGMENT_COUNT = 18;
 const PROGRESS_REVEAL_DELAY_MS = 500;
 const SLOW_COPY_DELAY_MS = 6_000;
 
+const PREPARATION_TRANSLATION_KEY = {
+  progressCount: "assets.progressCount",
+  upgradeArtwork: "entry.detail.upgradeArtwork",
+  working: "assets.working",
+} as const;
+
+const PROGRESS_VISIBILITY_CLASS = {
+  hidden: "invisible opacity-0",
+  visible: "visible opacity-100",
+} as const;
+
 const STAGE_KEYS: Record<AssetPreparationStage, TranslationKey> = {
   idle: "assets.stage.idle",
   discovering: "assets.stage.discovering",
@@ -63,7 +74,7 @@ function savePreparationCopy(
   let detail = saveDetail ?? t("entry.detail.finalizing");
   if (artworkDetail) detail = t("entry.detail.preparingUpgradeArtwork");
   if (artworkDetail && state.currentAssetLabel !== null) {
-    detail = t("entry.detail.upgradeArtwork", { asset: state.currentAssetLabel });
+    detail = t(PREPARATION_TRANSLATION_KEY.upgradeArtwork, { asset: state.currentAssetLabel });
   }
   return {
     localPreparation: t("entry.localPreparation"),
@@ -96,7 +107,7 @@ function preparationCopy(
 
   let detail = t(STAGE_KEYS[state.stage]);
   if (state.currentAssetLabel !== null) {
-    detail = t("entry.detail.upgradeArtwork", { asset: state.currentAssetLabel });
+    detail = t(PREPARATION_TRANSLATION_KEY.upgradeArtwork, { asset: state.currentAssetLabel });
   } else if (state.currentAsset !== null) {
     detail = t("entry.detail.asset", { asset: state.currentAsset });
   }
@@ -122,7 +133,8 @@ function PreparationProgressDisplay({
 }) {
   const filledSegments = countFilledSegments(progress);
   const labelKey = mode === "save" ? "entry.progressLabel" : "assets.progressLabel";
-  const countKey = mode === "save" ? "entry.progressCount" : "assets.progressCount";
+  const countKey =
+    mode === "save" ? "entry.progressCount" : PREPARATION_TRANSLATION_KEY.progressCount;
   const progressAttributes =
     progress === null
       ? { role: "progressbar" as const, "aria-label": t(labelKey) }
@@ -137,8 +149,10 @@ function PreparationProgressDisplay({
             total: progress.total,
           }),
         };
-  const workingClass = progress === null ? "visible opacity-100" : "invisible opacity-0";
-  const countClass = progress !== null ? "visible opacity-100" : "invisible opacity-0";
+  const workingClass =
+    progress === null ? PROGRESS_VISIBILITY_CLASS.visible : PROGRESS_VISIBILITY_CLASS.hidden;
+  const countClass =
+    progress !== null ? PROGRESS_VISIBILITY_CLASS.visible : PROGRESS_VISIBILITY_CLASS.hidden;
   const progressCount =
     progress === null
       ? ""
@@ -182,7 +196,7 @@ function PreparationProgressDisplay({
           <span
             className={`col-start-1 row-start-1 transition-opacity duration-150 motion-reduce:transition-none ${workingClass}`}
           >
-            {t("assets.working")}
+            {t(PREPARATION_TRANSLATION_KEY.working)}
           </span>
           <span
             aria-hidden={progress === null}
@@ -390,8 +404,11 @@ export function AssetPreparationNotice({
   if (preparing) {
     const progress =
       state.completed !== null && state.total !== null
-        ? t("assets.progressCount", { completed: state.completed, total: state.total })
-        : t("assets.working");
+        ? t(PREPARATION_TRANSLATION_KEY.progressCount, {
+            completed: state.completed,
+            total: state.total,
+          })
+        : t(PREPARATION_TRANSLATION_KEY.working);
     return (
       <output
         className="mb-5 flex items-start gap-3 border-l-2 border-accent bg-accent-muted px-4 py-3 text-sm text-secondary"

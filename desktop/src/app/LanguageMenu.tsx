@@ -271,6 +271,8 @@ export function LanguageMenu() {
     setActiveIndex(nextIndex);
   }
 
+  const languageLabel = t("utility.language");
+
   return (
     <div className="relative" ref={container}>
       <button
@@ -278,7 +280,7 @@ export function LanguageMenu() {
         aria-controls={listboxId}
         aria-expanded={open}
         aria-haspopup="listbox"
-        aria-label={`${t("utility.language")}: ${selectedLanguage.nativeLabel}`}
+        aria-label={`${languageLabel}: ${selectedLanguage.nativeLabel}`}
         className={utilityTriggerClassName(open)}
         type="button"
         onClick={() => (open ? closeMenu(false) : openMenu())}
@@ -302,7 +304,7 @@ export function LanguageMenu() {
           {/* Native select popups cannot honor RepoDitor's dark/light surface tokens. */}
           {/* eslint-disable-next-line jsx-a11y/prefer-tag-over-role */}
           <div
-            aria-label={t("utility.language")}
+            aria-label={languageLabel}
             className={`${menuSurfaceClassName} absolute right-0 z-30 mt-1.5 w-max min-w-68 max-w-88 overflow-hidden`}
             id={listboxId}
             role="listbox"

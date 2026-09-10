@@ -11,6 +11,12 @@ import {
   WINDOWS_RUN_PATH,
 } from "@/features/save-file/saveLocations";
 
+const WINDOWS_PATH_STEP_KEYS = [
+  "save.find.pressWinR",
+  "save.find.pastePath",
+  "save.find.pressEnter",
+] as const satisfies readonly TranslationKey[];
+
 interface CopyPathButtonProps {
   readonly labelKey: TranslationKey;
   readonly onCopy: (path: string, labelKey: TranslationKey) => void;
@@ -227,9 +233,9 @@ export function FindSaveDialog() {
                   path={WINDOWS_RUN_PATH}
                 >
                   <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm/6 text-secondary">
-                    <li>{t("save.find.pressWinR")}</li>
-                    <li>{t("save.find.pastePath")}</li>
-                    <li>{t("save.find.pressEnter")}</li>
+                    {WINDOWS_PATH_STEP_KEYS.map((key) => (
+                      <li key={key}>{t(key)}</li>
+                    ))}
                     <li>{t("save.find.selectRun")}</li>
                   </ol>
                 </PathBlock>
@@ -242,9 +248,9 @@ export function FindSaveDialog() {
                   path={WINDOWS_META_PATH}
                 >
                   <ol className="mt-3 list-decimal space-y-1 pl-5 text-sm/6 text-secondary">
-                    <li>{t("save.find.pressWinR")}</li>
-                    <li>{t("save.find.pastePath")}</li>
-                    <li>{t("save.find.pressEnter")}</li>
+                    {WINDOWS_PATH_STEP_KEYS.map((key) => (
+                      <li key={key}>{t(key)}</li>
+                    ))}
                     <li>{t("save.find.selectMeta")}</li>
                   </ol>
                 </PathBlock>

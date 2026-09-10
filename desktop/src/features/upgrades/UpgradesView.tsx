@@ -121,6 +121,8 @@ export function UpgradesView({
     return <p className="text-sm text-secondary">{t("upgrades.noPlayers")}</p>;
   }
 
+  const playerLabel = t("upgrades.player");
+
   return (
     <section aria-busy={loading} aria-labelledby="upgrades-title">
       <div className="flex flex-col gap-4 pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -140,9 +142,9 @@ export function UpgradesView({
             onRejectAvatar={() => onRejectAvatar(player.id)}
           />
           <label className="min-w-0 text-sm font-semibold text-ink">
-            <span>{t("upgrades.player")}</span>
+            <span>{playerLabel}</span>
             <Select<string>
-              ariaLabel={t("upgrades.player")}
+              ariaLabel={playerLabel}
               className="mt-1 min-w-52 max-w-full"
               options={players.map((item) => ({ label: item.name, value: item.id }))}
               value={player.id}

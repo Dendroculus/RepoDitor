@@ -22,6 +22,8 @@ import { PythonClientError, pythonClient, type PythonClient } from "../python/cl
 import { localIconRegistry, readIconKey, type LocalIconRegistry } from "../icons/registry.cjs";
 import { PROVEN_COSMETIC_IDS } from "./known-cosmetics.cjs";
 
+const INVALID_COSMETICS_RESPONSE_MESSAGE = "Invalid cosmetics response.";
+
 const FINGERPRINT_PATTERN = /^[a-f\d]{64}$/;
 const MAX_CHANGES = PROVEN_COSMETIC_IDS.size;
 const ERROR_CODES = new Set<DesktopOperationErrorCode>([
@@ -228,7 +230,7 @@ function readView(value: unknown, icons: LocalIconRegistry): CosmeticsViewDto {
 
 function readError(value: Record<string, unknown>): DesktopOperationFailure {
   if (value.ok !== false || !isRecord(value.error)) {
-    throw new CosmeticsProtocolError("Invalid cosmetics response.");
+    throw new CosmeticsProtocolError(INVALID_COSMETICS_RESPONSE_MESSAGE);
   }
   const code = readString(value.error.code, "error code");
   if (!ERROR_CODES.has(code as DesktopOperationErrorCode)) {
@@ -248,7 +250,7 @@ function readGetResponse(
   icons: LocalIconRegistry,
 ): DesktopOperationResult<CosmeticsViewDto> {
   if (!isRecord(value)) {
-    throw new CosmeticsProtocolError("Invalid cosmetics response.");
+    throw new CosmeticsProtocolError(INVALID_COSMETICS_RESPONSE_MESSAGE);
   }
   return value.ok === true
     ? { ok: true, data: readView(value.cosmetics, icons) }
@@ -318,7 +320,7 @@ function readWriteResponse(
   icons: LocalIconRegistry,
 ): DesktopOperationResult<CosmeticsWriteResult> {
   if (!isRecord(value)) {
-    throw new CosmeticsProtocolError("Invalid cosmetics response.");
+    throw new CosmeticsProtocolError(INVALID_COSMETICS_RESPONSE_MESSAGE);
   }
   if (value.ok !== true) {
     return readError(value);
