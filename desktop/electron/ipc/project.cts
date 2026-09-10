@@ -9,6 +9,8 @@ import { ipcMain, net } from "electron";
 import { IPC_CHANNELS } from "../channels.cjs";
 import type { DesktopOperationResult, ProjectMetadata } from "../contracts.cjs";
 
+const GITHUB_METADATA_UNAVAILABLE_MESSAGE = "GitHub metadata is unavailable.";
+
 const PROJECT_API_URL = "https://api.github.com/repos/Yoruxyv/RepoDitor";
 
 interface ProjectResponse {
@@ -53,7 +55,7 @@ export async function getProjectMetadata(
     if (!response.ok) {
       return {
         ok: false,
-        error: { code: "backend_unavailable", message: "GitHub metadata is unavailable." },
+        error: { code: "backend_unavailable", message: GITHUB_METADATA_UNAVAILABLE_MESSAGE },
       };
     }
     return { ok: true, data: readMetadata(await response.json()) };
@@ -69,7 +71,7 @@ export async function getProjectMetadata(
         }
       : {
           ok: false,
-          error: { code: "backend_unavailable", message: "GitHub metadata is unavailable." },
+          error: { code: "backend_unavailable", message: GITHUB_METADATA_UNAVAILABLE_MESSAGE },
         };
   }
 }

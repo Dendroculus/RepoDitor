@@ -17,16 +17,18 @@ import {
   validSaveId,
 } from "./protocol.cjs";
 
+const INVALID_RUN_STAT_MESSAGE = "Invalid run stat.";
+
 const RUN_STAT_KEYS = new Set<RunStatDto["key"]>(["level", "currency", "lives", "totalHaul"]);
 
 function parseRunStat(value: unknown): RunStatDto {
   if (!isRecord(value)) {
-    throw new EditorProtocolError("Invalid run stat.");
+    throw new EditorProtocolError(INVALID_RUN_STAT_MESSAGE);
   }
   const key = readString(value.key, "run stat key");
   const statValue = readInteger(value.value, "run stat value");
   if (!RUN_STAT_KEYS.has(key as RunStatDto["key"]) || (key === "level" && statValue < 1)) {
-    throw new EditorProtocolError("Invalid run stat.");
+    throw new EditorProtocolError(INVALID_RUN_STAT_MESSAGE);
   }
   return {
     key: key as RunStatDto["key"],

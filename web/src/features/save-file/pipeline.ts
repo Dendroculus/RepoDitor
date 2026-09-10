@@ -7,6 +7,20 @@ import {
   type SaveObject,
 } from "@/features/save-file/serialization";
 
+const SAVE_PIPELINE_ERROR_CODE = {
+  decryptFailed: "decrypt-failed",
+  malformedSave: "malformed-save",
+  unsupportedFile: "unsupported-file",
+  unsupportedSave: "unsupported-save",
+} as const;
+
+type SavePipelineErrorCode =
+  (typeof SAVE_PIPELINE_ERROR_CODE)[keyof typeof SAVE_PIPELINE_ERROR_CODE];
+
+const SAVE_PIPELINE_MESSAGE = {
+  fileTooLarge: "This save is larger than the 16 MiB browser safety limit.",
+} as const;
+
 const decoder = new TextDecoder("utf-8", { fatal: true });
 const encoder = new TextEncoder();
 export const MAX_SAVE_FILE_BYTES = 16 * 1024 * 1024;
@@ -21,12 +35,9 @@ export interface LoadedSave {
 }
 
 export class SavePipelineError extends Error {
-  readonly code: "unsupported-file" | "decrypt-failed" | "malformed-save" | "unsupported-save";
+  readonly code: SavePipelineErrorCode;
 
-  constructor(
-    code: "unsupported-file" | "decrypt-failed" | "malformed-save" | "unsupported-save",
-    message: string,
-  ) {
+  constructor(code: SavePipelineErrorCode, message: string) {
     super(message);
     this.code = code;
     this.name = "SavePipelineError";
@@ -42,8 +53,8 @@ export interface LocalSaveFile {
 export async function loadSaveBytes(bytes: Uint8Array, fileName: string): Promise<LoadedSave> {
   if (bytes.byteLength > MAX_SAVE_FILE_BYTES) {
     throw new SavePipelineError(
-      "unsupported-file",
-      "This save is larger than the 16 MiB browser safety limit.",
+      SAVE_PIPELINE_ERROR_CODE.unsupportedFile,
+      SAVE_PIPELINE_MESSAGE.fileTooLarge,
     );
   }
   let plaintext: Uint8Array;
@@ -51,10 +62,10 @@ export async function loadSaveBytes(bytes: Uint8Array, fileName: string): Promis
     plaintext = await decryptEs3(bytes);
   } catch (error) {
     if (error instanceof Es3CryptoError && error.code === "invalid-container") {
-      throw new SavePipelineError("unsupported-file", error.message);
+      throw new SavePipelineError(SAVE_PIPELINE_ERROR_CODE.unsupportedFile, error.message);
     }
     throw new SavePipelineError(
-      "decrypt-failed",
+      SAVE_PIPELINE_ERROR_CODE.decryptFailed,
       "This save could not be decrypted. It may be corrupted or unsupported.",
     );
   }
@@ -64,11 +75,11 @@ export async function loadSaveBytes(bytes: Uint8Array, fileName: string): Promis
     data = parseSaveJson(decoder.decode(plaintext));
   } catch (error) {
     if (error instanceof SaveSerializationError) {
-      throw new SavePipelineError("malformed-save", error.message);
+      throw new SavePipelineError(SAVE_PIPELINE_ERROR_CODE.malformedSave, error.message);
     }
     if (error instanceof TypeError) {
       throw new SavePipelineError(
-        "malformed-save",
+        SAVE_PIPELINE_ERROR_CODE.malformedSave,
         "The file decrypted, but its save structure is malformed.",
       );
     }
@@ -78,7 +89,7 @@ export async function loadSaveBytes(bytes: Uint8Array, fileName: string): Promis
   const kind = classifySave(data);
   if (kind === "unsupported") {
     throw new SavePipelineError(
-      "unsupported-save",
+      SAVE_PIPELINE_ERROR_CODE.unsupportedSave,
       "This is valid save data, but its save type is not supported yet.",
     );
   }
@@ -88,12 +99,15 @@ export async function loadSaveBytes(bytes: Uint8Array, fileName: string): Promis
 
 export async function loadSaveFile(file: LocalSaveFile): Promise<LoadedSave> {
   if (!file.name.toLowerCase().endsWith(".es3")) {
-    throw new SavePipelineError("unsupported-file", "Choose a R.E.P.O. .es3 save file.");
+    throw new SavePipelineError(
+      SAVE_PIPELINE_ERROR_CODE.unsupportedFile,
+      "Choose a R.E.P.O. .es3 save file.",
+    );
   }
   if (file.size !== undefined && file.size > MAX_SAVE_FILE_BYTES) {
     throw new SavePipelineError(
-      "unsupported-file",
-      "This save is larger than the 16 MiB browser safety limit.",
+      SAVE_PIPELINE_ERROR_CODE.unsupportedFile,
+      SAVE_PIPELINE_MESSAGE.fileTooLarge,
     );
   }
   return loadSaveBytes(new Uint8Array(await file.arrayBuffer()), file.name);

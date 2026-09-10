@@ -12,6 +12,11 @@ import type { AssetPreparationStage, AssetPreparationState } from "../contracts.
 import { decodedUpgradeTextureCache, type DecodedUpgradeTextureCache } from "../icons/protocol.cjs";
 import { pythonClient, type PythonRecordClient } from "../python/client.cjs";
 
+const PREPARATION_ERROR_MESSAGE = {
+  inconsistentFinalCounts: "Asset preparation returned inconsistent final counts.",
+  inconsistentProgressCounts: "Asset preparation returned inconsistent progress counts.",
+} as const;
+
 const PREPARATION_STAGES = new Set<AssetPreparationStage>([
   "discovering",
   "validating",
@@ -192,12 +197,12 @@ function readProgressCompleted(
 ): number | null {
   if (overallTotal === null) {
     if (record.completed !== null || record.total !== null) {
-      throw new Error("Asset preparation returned inconsistent progress counts.");
+      throw new Error(PREPARATION_ERROR_MESSAGE.inconsistentProgressCounts);
     }
     return null;
   }
   if (record.completed === null || record.total !== batchTotal) {
-    throw new Error("Asset preparation returned inconsistent progress counts.");
+    throw new Error(PREPARATION_ERROR_MESSAGE.inconsistentProgressCounts);
   }
   return record.completed;
 }
@@ -209,12 +214,12 @@ function validateFinalCounts(
 ): void {
   if (overallTotal === null) {
     if (record.completed !== null || record.total !== null) {
-      throw new Error("Asset preparation returned inconsistent final counts.");
+      throw new Error(PREPARATION_ERROR_MESSAGE.inconsistentFinalCounts);
     }
     return;
   }
   if (record.completed !== batchTotal || record.total !== batchTotal) {
-    throw new Error("Asset preparation returned inconsistent final counts.");
+    throw new Error(PREPARATION_ERROR_MESSAGE.inconsistentFinalCounts);
   }
 }
 

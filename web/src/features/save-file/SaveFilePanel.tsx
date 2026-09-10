@@ -18,6 +18,7 @@ const SaveWorkspace = lazy(() =>
 );
 
 const DESKTOP_URL = "https://github.com/Yoruxyv/RepoDitor/releases/latest";
+const DEFAULT_LOAD_ERROR_KEY: TranslationKey = "save.picker.errorRead";
 
 type LoadState =
   | { readonly status: "idle" }
@@ -27,7 +28,7 @@ type LoadState =
 
 function loadErrorKey(error: unknown): TranslationKey {
   if (!(error instanceof Error) || error.name !== "SavePipelineError") {
-    return "save.picker.errorRead";
+    return DEFAULT_LOAD_ERROR_KEY;
   }
   const code = typeof Reflect.get(error, "code") === "string" ? Reflect.get(error, "code") : "";
   switch (code) {
@@ -40,7 +41,7 @@ function loadErrorKey(error: unknown): TranslationKey {
     case "unsupported-save":
       return "save.picker.errorUnsupportedSave";
     default:
-      return "save.picker.errorRead";
+      return DEFAULT_LOAD_ERROR_KEY;
   }
 }
 

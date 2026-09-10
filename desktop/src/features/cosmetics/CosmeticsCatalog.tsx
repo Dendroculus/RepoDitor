@@ -21,8 +21,22 @@ interface CosmeticsCatalogProps {
 }
 
 type OwnershipFilter = "all" | "owned" | "locked";
-type CosmeticSort = "name-asc" | "name-desc" | "rarity-asc" | "rarity-desc" | "id-asc" | "id-desc";
 type TypeFilter = "all" | number;
+
+const COSMETIC_SORT = {
+  idAscending: "id-asc",
+  idDescending: "id-desc",
+  nameAscending: "name-asc",
+  nameDescending: "name-desc",
+  rarityAscending: "rarity-asc",
+  rarityDescending: "rarity-desc",
+} as const;
+
+type CosmeticSort = (typeof COSMETIC_SORT)[keyof typeof COSMETIC_SORT];
+
+const COSMETIC_TRANSLATION_KEY = {
+  typeLabel: "cosmetics.typeLabel",
+} as const;
 
 const COSMETIC_TYPE_SYMBOLS = [
   "Hat",
@@ -88,7 +102,7 @@ function typeName(type: number): string | null {
 function cosmeticTypeLabel(type: number, t: Translate): string {
   const name = typeName(type);
   return name === null
-    ? t("cosmetics.typeLabel", { type })
+    ? t(COSMETIC_TRANSLATION_KEY.typeLabel, { type })
     : t("cosmetics.typeManagedLabel", { type: name });
 }
 
@@ -137,19 +151,19 @@ function compareRarity(left: CosmeticDto, right: CosmeticDto, direction: "asc" |
 function sortCosmetics(cosmetics: CosmeticDto[], sort: CosmeticSort): CosmeticDto[] {
   return cosmetics.sort((left, right) => {
     switch (sort) {
-      case "name-asc":
+      case COSMETIC_SORT.nameAscending:
         return compareDisplayName(left, right);
-      case "name-desc": {
+      case COSMETIC_SORT.nameDescending: {
         const nameOrder = right.displayName.localeCompare(left.displayName);
         return nameOrder || left.id - right.id;
       }
-      case "rarity-asc":
+      case COSMETIC_SORT.rarityAscending:
         return compareRarity(left, right, "asc");
-      case "rarity-desc":
+      case COSMETIC_SORT.rarityDescending:
         return compareRarity(left, right, "desc");
-      case "id-asc":
+      case COSMETIC_SORT.idAscending:
         return left.id - right.id;
-      case "id-desc":
+      case COSMETIC_SORT.idDescending:
         return right.id - left.id;
     }
   });
@@ -189,8 +203,11 @@ export function CosmeticsCatalog({
   const [search, setSearch] = useState("");
   const [ownershipFilter, setOwnershipFilter] = useState<OwnershipFilter>("all");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [sort, setSort] = useState<CosmeticSort>("name-asc");
+  const [sort, setSort] = useState<CosmeticSort>(COSMETIC_SORT.nameAscending);
   const searchInput = useRef<HTMLInputElement>(null);
+  const ownershipFilterLabel = t("cosmetics.ownershipFilterLabel");
+  const typeFilterLabel = t("cosmetics.typeFilterLabel");
+  const sortLabel = t("cosmetics.sortLabel");
   const typeOptions = cosmeticTypeOptions(view.cosmetics);
   const sortedCosmetics = sortCosmetics([...view.cosmetics], sort);
   const query = search.trim().toLocaleLowerCase();
@@ -265,9 +282,9 @@ export function CosmeticsCatalog({
           </div>
 
           <label className="min-w-36 flex-[1_1_9rem] text-sm font-semibold text-ink">
-            <span>{t("cosmetics.ownershipFilterLabel")}</span>
+            <span>{ownershipFilterLabel}</span>
             <Select<OwnershipFilter>
-              ariaLabel={t("cosmetics.ownershipFilterLabel")}
+              ariaLabel={ownershipFilterLabel}
               className="mt-2"
               options={[
                 { value: "all", label: t("cosmetics.filterAll") },
@@ -280,15 +297,15 @@ export function CosmeticsCatalog({
           </label>
 
           <label className="min-w-40 flex-[1_1_10rem] text-sm font-semibold text-ink">
-            <span>{t("cosmetics.typeFilterLabel")}</span>
+            <span>{typeFilterLabel}</span>
             <Select<TypeFilter>
-              ariaLabel={t("cosmetics.typeFilterLabel")}
+              ariaLabel={typeFilterLabel}
               className="mt-2"
               options={[
                 { value: "all", label: t("cosmetics.filterAllTypes") },
                 ...typeOptions.map((type) => ({
                   value: type,
-                  label: typeName(type) ?? t("cosmetics.typeLabel", { type }),
+                  label: typeName(type) ?? t(COSMETIC_TRANSLATION_KEY.typeLabel, { type }),
                 })),
               ]}
               value={typeFilter}
@@ -297,17 +314,17 @@ export function CosmeticsCatalog({
           </label>
 
           <label className="min-w-48 flex-[1_1_12rem] text-sm font-semibold text-ink">
-            <span>{t("cosmetics.sortLabel")}</span>
+            <span>{sortLabel}</span>
             <Select<CosmeticSort>
-              ariaLabel={t("cosmetics.sortLabel")}
+              ariaLabel={sortLabel}
               className="mt-2"
               options={[
-                { value: "name-asc", label: t("cosmetics.sortNameAsc") },
-                { value: "name-desc", label: t("cosmetics.sortNameDesc") },
-                { value: "rarity-asc", label: t("cosmetics.sortRarityAsc") },
-                { value: "rarity-desc", label: t("cosmetics.sortRarityDesc") },
-                { value: "id-asc", label: t("cosmetics.sortIdAsc") },
-                { value: "id-desc", label: t("cosmetics.sortIdDesc") },
+                { value: COSMETIC_SORT.nameAscending, label: t("cosmetics.sortNameAsc") },
+                { value: COSMETIC_SORT.nameDescending, label: t("cosmetics.sortNameDesc") },
+                { value: COSMETIC_SORT.rarityAscending, label: t("cosmetics.sortRarityAsc") },
+                { value: COSMETIC_SORT.rarityDescending, label: t("cosmetics.sortRarityDesc") },
+                { value: COSMETIC_SORT.idAscending, label: t("cosmetics.sortIdAsc") },
+                { value: COSMETIC_SORT.idDescending, label: t("cosmetics.sortIdDesc") },
               ]}
               value={sort}
               onValueChange={setSort}

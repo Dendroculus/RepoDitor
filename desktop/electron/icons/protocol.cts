@@ -51,23 +51,27 @@ interface PersistentTextureEntry {
   readonly watches: readonly SourceWatch[];
 }
 
+const PRESENTATION_CACHE_REASON = {
+  artifactInvalid: "artifact-invalid",
+  artifactMissing: "artifact-missing",
+  artifactReadFailed: "artifact-read-failed",
+  entryMissing: "entry-missing",
+  manifestInvalid: "manifest-invalid",
+  manifestMissing: "manifest-missing",
+  manifestUnreadable: "manifest-unreadable",
+  memoryHit: "memory-hit",
+  noPersistentRoot: "no-persistent-root",
+  persisted: "persisted",
+  persistentHit: "persistent-hit",
+  persistFailed: "persist-failed",
+  sourceChanged: "source-changed",
+  sourceDecodeRequired: "source-decode-required",
+  sourceMissing: "source-missing",
+  sourceReadFailed: "source-read-failed",
+} as const;
+
 export type PresentationCacheDiagnosticReason =
-  | "memory-hit"
-  | "persistent-hit"
-  | "no-persistent-root"
-  | "entry-missing"
-  | "manifest-missing"
-  | "manifest-invalid"
-  | "manifest-unreadable"
-  | "source-missing"
-  | "source-changed"
-  | "source-read-failed"
-  | "artifact-missing"
-  | "artifact-invalid"
-  | "artifact-read-failed"
-  | "source-decode-required"
-  | "persisted"
-  | "persist-failed";
+  (typeof PRESENTATION_CACHE_REASON)[keyof typeof PRESENTATION_CACHE_REASON];
 
 export interface PresentationCacheDiagnostic {
   readonly reason: PresentationCacheDiagnosticReason;
@@ -193,7 +197,11 @@ function parseDecodedTexture(value: unknown): DecodedTexture | null {
   return parseDecodedTexturePayload(value.texture);
 }
 
-type SourceWatchStatus = "unchanged" | "source-missing" | "source-changed" | "source-read-failed";
+type SourceWatchStatus =
+  | "unchanged"
+  | typeof PRESENTATION_CACHE_REASON.sourceMissing
+  | typeof PRESENTATION_CACHE_REASON.sourceChanged
+  | typeof PRESENTATION_CACHE_REASON.sourceReadFailed;
 
 async function sourceWatchStatus(watches: readonly SourceWatch[]): Promise<SourceWatchStatus> {
   try {
@@ -205,14 +213,14 @@ async function sourceWatchStatus(watches: readonly SourceWatch[]): Promise<Sourc
         stat.size !== watch.size ||
         stat.mtimeNs !== watch.mtimeNs
       ) {
-        return "source-changed";
+        return PRESENTATION_CACHE_REASON.sourceChanged;
       }
     }
     return "unchanged";
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === "ENOENT"
-      ? "source-missing"
-      : "source-read-failed";
+      ? PRESENTATION_CACHE_REASON.sourceMissing
+      : PRESENTATION_CACHE_REASON.sourceReadFailed;
   }
 }
 
@@ -366,7 +374,7 @@ export class DecodedUpgradeTextureCache {
       this.#diagnose(sourceStatus, upgradeKey);
       return false;
     }
-    this.#diagnose("source-decode-required", upgradeKey);
+    this.#diagnose(PRESENTATION_CACHE_REASON.sourceDecodeRequired, upgradeKey);
     const png = this.#store(upgradeKey, decoded);
     await this.#persistFailSoft(upgradeKey, decoded);
     this.#resolvePreparation(upgradeKey, png);
@@ -396,7 +404,7 @@ export class DecodedUpgradeTextureCache {
       if (cached !== undefined) {
         const sourceStatus = await sourceWatchStatus(cached.watches);
         if (sourceStatus === "unchanged") {
-          this.#diagnose("memory-hit", upgradeKey);
+          this.#diagnose(PRESENTATION_CACHE_REASON.memoryHit, upgradeKey);
           return cached.png;
         }
         this.#diagnose(sourceStatus, upgradeKey);
@@ -423,7 +431,7 @@ export class DecodedUpgradeTextureCache {
   }
 
   async #decode(upgradeKey: string, client: PythonClient): Promise<Buffer | null> {
-    this.#diagnose("source-decode-required", upgradeKey);
+    this.#diagnose(PRESENTATION_CACHE_REASON.sourceDecodeRequired, upgradeKey);
     let decoded: DecodedTexture | null;
     try {
       const run = this.#decodeTail.then(() => client.run("upgrade-texture", [upgradeKey]));
@@ -464,19 +472,20 @@ export class DecodedUpgradeTextureCache {
         stat.size <= 0 ||
         stat.size > MAX_PRESENTATION_MANIFEST_BYTES
       ) {
-        this.#diagnose("manifest-invalid");
+        this.#diagnose(PRESENTATION_CACHE_REASON.manifestInvalid);
         return;
       }
       const raw = await fs.readFile(manifestPath, "utf8");
       const parsed = parsePersistentManifest(JSON.parse(raw));
-      if (!parsed.valid) this.#diagnose("manifest-invalid");
+      if (!parsed.valid) this.#diagnose(PRESENTATION_CACHE_REASON.manifestInvalid);
       for (const [upgradeKey, entry] of parsed.entries) {
         this.#persistentEntries.set(upgradeKey, entry);
       }
     } catch (error) {
-      let reason: PresentationCacheDiagnosticReason = "manifest-unreadable";
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") reason = "manifest-missing";
-      else if (error instanceof SyntaxError) reason = "manifest-invalid";
+      let reason: PresentationCacheDiagnosticReason = PRESENTATION_CACHE_REASON.manifestUnreadable;
+      if ((error as NodeJS.ErrnoException).code === "ENOENT")
+        reason = PRESENTATION_CACHE_REASON.manifestMissing;
+      else if (error instanceof SyntaxError) reason = PRESENTATION_CACHE_REASON.manifestInvalid;
       this.#diagnose(reason);
       // Persistent presentation data is disposable. Any load failure falls back to source decode.
       return;
@@ -484,7 +493,7 @@ export class DecodedUpgradeTextureCache {
     try {
       await this.#prunePersistentArtifacts();
     } catch {
-      this.#diagnose("artifact-read-failed");
+      this.#diagnose(PRESENTATION_CACHE_REASON.artifactReadFailed);
     }
   }
 
@@ -509,13 +518,13 @@ export class DecodedUpgradeTextureCache {
 
   async #loadPersistent(upgradeKey: string): Promise<Buffer | null> {
     if (this.#persistentRoot === null) {
-      this.#diagnose("no-persistent-root", upgradeKey);
+      this.#diagnose(PRESENTATION_CACHE_REASON.noPersistentRoot, upgradeKey);
       return null;
     }
     await this.#ensurePersistentLoaded();
     const entry = this.#persistentEntries.get(upgradeKey);
     if (entry === undefined) {
-      this.#diagnose("entry-missing", upgradeKey);
+      this.#diagnose(PRESENTATION_CACHE_REASON.entryMissing, upgradeKey);
       return null;
     }
     const sourceStatus = await sourceWatchStatus(entry.watches);
@@ -528,13 +537,13 @@ export class DecodedUpgradeTextureCache {
     try {
       const stat = await fs.lstat(artifactPath);
       if (!stat.isFile() || stat.isSymbolicLink() || stat.size > MAX_ICON_BYTES) {
-        this.#diagnose("artifact-invalid", upgradeKey);
+        this.#diagnose(PRESENTATION_CACHE_REASON.artifactInvalid, upgradeKey);
         await this.#dropPersistentEntry(upgradeKey);
         return null;
       }
       const png = await fs.readFile(artifactPath);
       if (png.length !== stat.size || !validPng(png)) {
-        this.#diagnose("artifact-invalid", upgradeKey);
+        this.#diagnose(PRESENTATION_CACHE_REASON.artifactInvalid, upgradeKey);
         await this.#dropPersistentEntry(upgradeKey);
         return null;
       }
@@ -543,13 +552,13 @@ export class DecodedUpgradeTextureCache {
         png,
         watches: entry.watches,
       });
-      this.#diagnose("persistent-hit", upgradeKey);
+      this.#diagnose(PRESENTATION_CACHE_REASON.persistentHit, upgradeKey);
       return stored;
     } catch (error) {
       const reason =
         (error as NodeJS.ErrnoException).code === "ENOENT"
-          ? "artifact-missing"
-          : "artifact-read-failed";
+          ? PRESENTATION_CACHE_REASON.artifactMissing
+          : PRESENTATION_CACHE_REASON.artifactReadFailed;
       this.#diagnose(reason, upgradeKey);
       await this.#dropPersistentEntry(upgradeKey);
       return null;
@@ -568,9 +577,9 @@ export class DecodedUpgradeTextureCache {
           watches: decoded.watches,
         });
         await this.#writePersistentManifest();
-        this.#diagnose("persisted", upgradeKey);
+        this.#diagnose(PRESENTATION_CACHE_REASON.persisted, upgradeKey);
       } catch {
-        this.#diagnose("persist-failed", upgradeKey);
+        this.#diagnose(PRESENTATION_CACHE_REASON.persistFailed, upgradeKey);
         // Disk/cache failures never turn presentation state into save-editing authority.
       }
     });
@@ -588,7 +597,7 @@ export class DecodedUpgradeTextureCache {
       try {
         await this.#writePersistentManifest();
       } catch {
-        this.#diagnose("persist-failed", upgradeKey);
+        this.#diagnose(PRESENTATION_CACHE_REASON.persistFailed, upgradeKey);
         // A stale manifest is harmless: source watches are revalidated on every persistent hit.
       }
     });

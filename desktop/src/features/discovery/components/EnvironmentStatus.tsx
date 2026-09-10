@@ -73,6 +73,7 @@ function getSaveStatus(status: SaveRootStatus, count: number, t: Translate) {
 }
 
 function getGameStatus(status: GameDiscoveryStatus, t: Translate) {
+  const discoveryWorks = t("environment.discoveryWorks");
   if (status === "found") {
     return {
       status: t("environment.gameDetected"),
@@ -83,7 +84,7 @@ function getGameStatus(status: GameDiscoveryStatus, t: Translate) {
   if (status === "steam_not_found") {
     return {
       status: t("environment.steamMissing"),
-      detail: t("environment.discoveryWorks"),
+      detail: discoveryWorks,
       tone: "warning" as const,
     };
   }
@@ -96,7 +97,7 @@ function getGameStatus(status: GameDiscoveryStatus, t: Translate) {
   }
   return {
     status: t("environment.librariesUnavailable"),
-    detail: t("environment.discoveryWorks"),
+    detail: discoveryWorks,
     tone: "danger" as const,
   };
 }

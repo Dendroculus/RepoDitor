@@ -11,6 +11,13 @@ import { id } from "@/app/i18n/locales/id";
 import { ja } from "@/app/i18n/locales/ja";
 import { ko } from "@/app/i18n/locales/ko";
 
+const ERROR_TRANSLATION_KEY = {
+  saveInvalid: "error.saveInvalid",
+  saveMissing: "error.saveMissing",
+  service: "error.service",
+  write: "error.write",
+} as const;
+
 export type TranslationKey = keyof typeof en;
 export type TranslationValues = Readonly<Record<string, string | number>>;
 export type Translate = (key: TranslationKey, values?: TranslationValues) => string;
@@ -39,27 +46,27 @@ export const TRANSLATIONS: Record<Locale, Record<TranslationKey, string>> = {
 };
 
 const ERROR_KEYS: Record<DesktopOperationErrorCode, TranslationKey> = {
-  python_unavailable: "error.service",
-  process_failed: "error.service",
-  process_timeout: "error.service",
-  empty_response: "error.service",
-  malformed_response: "error.service",
-  invalid_response: "error.service",
+  python_unavailable: ERROR_TRANSLATION_KEY.service,
+  process_failed: ERROR_TRANSLATION_KEY.service,
+  process_timeout: ERROR_TRANSLATION_KEY.service,
+  empty_response: ERROR_TRANSLATION_KEY.service,
+  malformed_response: ERROR_TRANSLATION_KEY.service,
+  invalid_response: ERROR_TRANSLATION_KEY.service,
   invalid_request: "error.invalidRequest",
   game_running: "error.gameRunning",
   game_status_unknown: "error.gameUnknown",
-  save_missing: "error.saveMissing",
-  meta_missing: "error.saveMissing",
-  save_corrupt: "error.saveInvalid",
-  save_decrypt_failed: "error.saveInvalid",
-  save_unsupported: "error.saveInvalid",
+  save_missing: ERROR_TRANSLATION_KEY.saveMissing,
+  meta_missing: ERROR_TRANSLATION_KEY.saveMissing,
+  save_corrupt: ERROR_TRANSLATION_KEY.saveInvalid,
+  save_decrypt_failed: ERROR_TRANSLATION_KEY.saveInvalid,
+  save_unsupported: ERROR_TRANSLATION_KEY.saveInvalid,
   save_stale: "error.saveStale",
-  save_validation_failed: "error.saveInvalid",
-  backup_failed: "error.write",
-  save_write_failed: "error.write",
-  save_verification_failed: "error.write",
-  backend_unavailable: "error.service",
-  internal_error: "error.service",
+  save_validation_failed: ERROR_TRANSLATION_KEY.saveInvalid,
+  backup_failed: ERROR_TRANSLATION_KEY.write,
+  save_write_failed: ERROR_TRANSLATION_KEY.write,
+  save_verification_failed: ERROR_TRANSLATION_KEY.write,
+  backend_unavailable: ERROR_TRANSLATION_KEY.service,
+  internal_error: ERROR_TRANSLATION_KEY.service,
 };
 
 /**

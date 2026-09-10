@@ -183,6 +183,8 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
   }
 
   const activeIndex = TABS.indexOf(section);
+  const currentHealthLabel = t("run.players.currentHealth");
+  const playerLabel = t("run.players.player");
 
   return (
     <section aria-label={t("run.editor")}>
@@ -285,7 +287,7 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                         id="selected-player-health"
                       >
                         <HeartIcon aria-hidden="true" className="text-secondary" size={15} />
-                        {t("run.players.currentHealth")}
+                        {currentHealthLabel}
                       </label>
                       <p className="mt-1 text-xs/5 text-secondary">{t("run.players.editNotice")}</p>
                       <div className="mt-3 flex flex-wrap items-start gap-3">
@@ -321,7 +323,7 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                       </div>
                       <div className="mt-4 flex items-center gap-3">
                         <progress
-                          aria-label={t("run.players.currentHealth")}
+                          aria-label={currentHealthLabel}
                           className="sr-only"
                           max={maxHealth}
                           value={visibleHealth}
@@ -370,9 +372,9 @@ export function RunEditor({ busy, onSessionChange, session }: RunEditorProps) {
                       onRejectAvatar={() => avatars.reject(player.id)}
                     />
                     <label className="min-w-0 text-sm font-semibold text-ink">
-                      <span>{t("run.players.player")}</span>
+                      <span>{playerLabel}</span>
                       <select
-                        aria-label={t("run.players.player")}
+                        aria-label={playerLabel}
                         className="mt-1 block min-w-52 max-w-full rounded-sm border border-control bg-surface px-3 py-2.5 text-sm text-ink focus:border-accent"
                         value={player.id}
                         onChange={(event) => setSelectedPlayerId(event.target.value)}

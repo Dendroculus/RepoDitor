@@ -27,6 +27,7 @@ interface State {
 type CosmeticBulkEdit = CosmeticUnlockAllEdit | CosmeticLockAllEdit | CosmeticClearAllPresetsEdit;
 
 const INITIAL_STATE: State = { view: null, loadError: null, loading: false };
+const KNOWN_OWNERSHIP_LABEL = "Known ownership";
 
 function isBulkEdit(edit: CosmeticPendingEdit): edit is CosmeticBulkEdit {
   return edit.field !== "owned";
@@ -156,7 +157,7 @@ export function useCosmetics(active: boolean, recoveryGeneration: number) {
         field: "unlockAll",
         after: true,
         before: state.view.knownOwnedCount,
-        label: "Known ownership",
+        label: KNOWN_OWNERSHIP_LABEL,
         subject: "Cosmetics",
       },
     ]);
@@ -178,7 +179,7 @@ export function useCosmetics(active: boolean, recoveryGeneration: number) {
         field: "lockAll",
         after: false,
         before: state.view.knownOwnedCount,
-        label: "Known ownership",
+        label: KNOWN_OWNERSHIP_LABEL,
         subject: "Cosmetics",
       },
     ]);

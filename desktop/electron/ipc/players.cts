@@ -18,6 +18,8 @@ import {
 import { PythonClientError, pythonClient, type PythonClient } from "../python/client.cjs";
 import { validSaveId } from "./protocol.cjs";
 
+const INVALID_PLAYER_RESPONSE_MESSAGE = "Invalid player response.";
+
 const PLAYER_ID_PATTERN = /^\d{1,20}$/;
 const STEAM_AVATAR_HOSTS = new Set([
   "avatars.akamai.steamstatic.com",
@@ -47,7 +49,7 @@ function readString(value: unknown, field: string): string {
 
 function parseError(value: unknown): DesktopOperationFailure {
   if (!isRecord(value) || value.ok !== false || !isRecord(value.error)) {
-    throw new PlayerProtocolError("Invalid player response.");
+    throw new PlayerProtocolError(INVALID_PLAYER_RESPONSE_MESSAGE);
   }
   const code = readString(value.error.code, "error code");
   if (!PLAYER_ERROR_CODES.has(code as DesktopOperationErrorCode)) {
@@ -88,7 +90,7 @@ function parsePlayer(value: unknown): PlayerDto {
 
 function parsePlayers(value: unknown): DesktopOperationResult<PlayerDto[]> {
   if (!isRecord(value)) {
-    throw new PlayerProtocolError("Invalid player response.");
+    throw new PlayerProtocolError(INVALID_PLAYER_RESPONSE_MESSAGE);
   }
   if (value.ok !== true) {
     return parseError(value);

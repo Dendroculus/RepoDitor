@@ -13,6 +13,9 @@ export function getCosmeticPendingEdits(
     return [];
   }
 
+  const pendingValue = (count: number) =>
+    t("cosmetics.pendingValue", { count: formatNumber(count) });
+
   try {
     const baseline = inspectMetaCosmetics(parseSaveJson(session.baselineSource));
     const working = inspectMetaCosmetics(session.working);
@@ -21,10 +24,8 @@ export function getCosmeticPendingEdits(
     }
     return [
       {
-        after: t("cosmetics.pendingValue", { count: formatNumber(working.ownedSupportedCount) }),
-        before: t("cosmetics.pendingValue", {
-          count: formatNumber(baseline.ownedSupportedCount),
-        }),
+        after: pendingValue(working.ownedSupportedCount),
+        before: pendingValue(baseline.ownedSupportedCount),
         field: t("cosmetics.pendingField"),
         id: "cosmetics:supported-ownership",
         subject: t("cosmetics.title"),

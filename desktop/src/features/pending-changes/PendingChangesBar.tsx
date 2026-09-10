@@ -80,6 +80,7 @@ export function PendingChangesBar({
 }: PendingChangesBarProps) {
   const { t } = usePreferences();
   const [reviewing, setReviewing] = useState(false);
+  const savingSafelyLabel = t("status.savingSafely");
   const visible = edits.length > 0 || saving || error !== null || backupPath !== null;
 
   useEffect(() => {
@@ -104,7 +105,7 @@ export function PendingChangesBar({
       >
         {saving ? (
           <>
-            <progress aria-label={t("status.savingSafely")} className="sr-only" />
+            <progress aria-label={savingSafelyLabel} className="sr-only" />
             <div
               aria-hidden="true"
               className="absolute inset-x-0 top-0 h-0.5 overflow-hidden bg-accent-muted"
@@ -148,7 +149,7 @@ export function PendingChangesBar({
                 className="block font-semibold text-ink"
                 data-testid={`${testIdPrefix}-pending-edit-count`}
               >
-                {saving ? t("status.savingSafely") : changeCount(edits.length, t)}
+                {saving ? savingSafelyLabel : changeCount(edits.length, t)}
               </output>
               {error ? (
                 <p className="mt-2 wrap-break-word text-xs text-danger" role="alert">

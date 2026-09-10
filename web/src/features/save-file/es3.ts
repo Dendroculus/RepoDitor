@@ -1,3 +1,11 @@
+const ES3_CRYPTO_ERROR_CODE = {
+  decryptFailed: "decrypt-failed",
+  encryptFailed: "encrypt-failed",
+  invalidContainer: "invalid-container",
+} as const;
+
+type Es3CryptoErrorCode = (typeof ES3_CRYPTO_ERROR_CODE)[keyof typeof ES3_CRYPTO_ERROR_CODE];
+
 const ES3_PASSWORD = "Why would you want to cheat?... :o It's no fun. :') :'D";
 const IV_LENGTH = 16;
 const PBKDF2_ITERATIONS = 100;
@@ -5,9 +13,9 @@ const PBKDF2_ITERATIONS = 100;
 const encoder = new TextEncoder();
 
 export class Es3CryptoError extends Error {
-  readonly code: "invalid-container" | "decrypt-failed" | "encrypt-failed";
+  readonly code: Es3CryptoErrorCode;
 
-  constructor(code: "invalid-container" | "decrypt-failed" | "encrypt-failed", message: string) {
+  constructor(code: Es3CryptoErrorCode, message: string) {
     super(message);
     this.code = code;
     this.name = "Es3CryptoError";
@@ -25,7 +33,10 @@ function bytes(value: Uint8Array): Uint8Array<ArrayBuffer> {
 
 function webCrypto(): Crypto {
   if (!globalThis.crypto?.subtle) {
-    throw new Es3CryptoError("encrypt-failed", "Web Crypto is not available in this browser.");
+    throw new Es3CryptoError(
+      ES3_CRYPTO_ERROR_CODE.encryptFailed,
+      "Web Crypto is not available in this browser.",
+    );
   }
   return globalThis.crypto;
 }
@@ -56,7 +67,7 @@ export async function decryptEs3(
 ): Promise<Uint8Array<ArrayBuffer>> {
   if (container.length <= IV_LENGTH || (container.length - IV_LENGTH) % IV_LENGTH !== 0) {
     throw new Es3CryptoError(
-      "invalid-container",
+      ES3_CRYPTO_ERROR_CODE.invalidContainer,
       "The selected file is not a supported ES3 container.",
     );
   }
@@ -73,7 +84,7 @@ export async function decryptEs3(
       throw error;
     }
     throw new Es3CryptoError(
-      "decrypt-failed",
+      ES3_CRYPTO_ERROR_CODE.decryptFailed,
       "Unable to decrypt this save. It may be corrupted or unsupported.",
     );
   }
@@ -87,7 +98,10 @@ export async function encryptEs3(
     ? bytes(options.testIv)
     : webCrypto().getRandomValues(new Uint8Array(IV_LENGTH));
   if (iv.length !== IV_LENGTH) {
-    throw new Es3CryptoError("encrypt-failed", "The ES3 initialization vector is invalid.");
+    throw new Es3CryptoError(
+      ES3_CRYPTO_ERROR_CODE.encryptFailed,
+      "The ES3 initialization vector is invalid.",
+    );
   }
 
   try {
@@ -103,6 +117,9 @@ export async function encryptEs3(
     if (error instanceof Es3CryptoError) {
       throw error;
     }
-    throw new Es3CryptoError("encrypt-failed", "Unable to encrypt this save safely.");
+    throw new Es3CryptoError(
+      ES3_CRYPTO_ERROR_CODE.encryptFailed,
+      "Unable to encrypt this save safely.",
+    );
   }
 }

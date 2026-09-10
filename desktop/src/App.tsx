@@ -34,6 +34,16 @@ import { useGameSafety } from "@/features/safety/useGameSafety";
 
 type AppWorkspace = "run-saves" | "cosmetics";
 
+const RUN_ENTRY_PHASE = {
+  openingSave: "opening-save",
+  preparingEntry: "preparing-entry",
+} as const;
+
+const WORKSPACE_TAB_STATE_CLASS = {
+  active: "bg-accent text-accent-ink",
+  inactive: "text-secondary hover:bg-surface hover:text-ink",
+} as const;
+
 interface CachedRunEntry {
   readonly fingerprint: string;
   readonly data: RunEntryData;
@@ -41,12 +51,12 @@ interface CachedRunEntry {
 
 type PendingRunEntry =
   | {
-      readonly phase: "opening-save";
+      readonly phase: typeof RUN_ENTRY_PHASE.openingSave;
       readonly saveId: string;
       readonly requestId: number;
     }
   | {
-      readonly phase: "preparing-entry";
+      readonly phase: typeof RUN_ENTRY_PHASE.preparingEntry;
       readonly opened: SaveOpenResult;
       readonly requestId: number;
       readonly progress: RunEntryProgress;
@@ -92,6 +102,8 @@ function WorkspaceTabs({
   const { t } = usePreferences();
   const runActive = activeWorkspace === "run-saves";
   const cosmeticsActive = activeWorkspace === "cosmetics";
+  const runSavesLabel = t("app.runSaves");
+  const cosmeticsLabel = t("app.cosmetics");
 
   return (
     <nav
@@ -102,31 +114,27 @@ function WorkspaceTabs({
         <button
           aria-describedby={runPendingCount > 0 ? "run-saves-pending" : undefined}
           aria-current={runActive ? "page" : undefined}
-          aria-label={t("app.runSaves")}
+          aria-label={runSavesLabel}
           className={`ui-feedback rounded-sm px-4 py-2.5 text-sm font-semibold ${
-            runActive
-              ? "bg-accent text-accent-ink"
-              : "text-secondary hover:bg-surface hover:text-ink"
+            runActive ? WORKSPACE_TAB_STATE_CLASS.active : WORKSPACE_TAB_STATE_CLASS.inactive
           }`}
           type="button"
           onClick={() => onChange("run-saves")}
         >
-          {t("app.runSaves")}
+          {runSavesLabel}
           <PendingDot count={runPendingCount} id="run-saves-pending" />
         </button>
         <button
           aria-describedby={cosmeticsPendingCount > 0 ? "cosmetics-pending" : undefined}
           aria-current={cosmeticsActive ? "page" : undefined}
-          aria-label={t("app.cosmetics")}
+          aria-label={cosmeticsLabel}
           className={`ui-feedback rounded-sm px-4 py-2.5 text-sm font-semibold ${
-            cosmeticsActive
-              ? "bg-accent text-accent-ink"
-              : "text-secondary hover:bg-surface hover:text-ink"
+            cosmeticsActive ? WORKSPACE_TAB_STATE_CLASS.active : WORKSPACE_TAB_STATE_CLASS.inactive
           }`}
           type="button"
           onClick={() => onChange("cosmetics")}
         >
-          {t("app.cosmetics")}
+          {cosmeticsLabel}
           <PendingDot count={cosmeticsPendingCount} id="cosmetics-pending" />
         </button>
       </div>
@@ -157,7 +165,7 @@ function runSaveDetail(
   currentTask: RunEntryTask | null,
   t: Translate,
 ): string {
-  if (pendingEntry.phase === "opening-save") return t("entry.detail.readingSave");
+  if (pendingEntry.phase === RUN_ENTRY_PHASE.openingSave) return t("entry.detail.readingSave");
   if (currentTask === null) return t("entry.detail.finalizing");
   if (currentTask === "upgrades" && pendingEntry.opened.presentationReadiness === "unresolved") {
     return t("entry.detail.upgradeArtworkCache");
@@ -188,7 +196,9 @@ function RunSavesWorkspace({
       <div hidden={!active}>
         <AssetPreparationView
           artworkDetail={realAssetPreparation}
-          editorProgress={pendingEntry.phase === "preparing-entry" ? pendingEntry.progress : null}
+          editorProgress={
+            pendingEntry.phase === RUN_ENTRY_PHASE.preparingEntry ? pendingEntry.progress : null
+          }
           mode="save"
           state={assets}
           saveDetail={runSaveDetail(pendingEntry, currentTask, t)}
@@ -234,7 +244,7 @@ function isRealAssetPreparation(
   assets: ReturnType<typeof useAssetPreparation>,
 ): boolean {
   return (
-    pendingEntry?.phase === "preparing-entry" &&
+    pendingEntry?.phase === RUN_ENTRY_PHASE.preparingEntry &&
     pendingEntry.opened.presentationReadiness === "unresolved" &&
     assets.total !== null &&
     ACTIVE_ASSET_STAGES.has(assets.stage)
@@ -270,7 +280,7 @@ function AppContent() {
   function updateRunEntryProgress(requestId: number, progress: RunEntryProgress): void {
     if (runEntryRequest.current !== requestId) return;
     setPendingRunEntry((current) =>
-      current?.phase === "preparing-entry" && current.requestId === requestId
+      current?.phase === RUN_ENTRY_PHASE.preparingEntry && current.requestId === requestId
         ? { ...current, progress }
         : current,
     );
@@ -279,7 +289,7 @@ function AppContent() {
   async function openRunSave(saveId: string): Promise<void> {
     const requestId = ++runEntryRequest.current;
     const cachedCandidate = runEntryCache.current.get(saveId) ?? null;
-    setPendingRunEntry({ phase: "opening-save", saveId, requestId });
+    setPendingRunEntry({ phase: RUN_ENTRY_PHASE.openingSave, saveId, requestId });
 
     const opened = await save.open(saveId);
     if (runEntryRequest.current !== requestId) return;
@@ -298,7 +308,7 @@ function AppContent() {
     }
 
     setPendingRunEntry({
-      phase: "preparing-entry",
+      phase: RUN_ENTRY_PHASE.preparingEntry,
       opened,
       requestId,
       progress: initialRunEntryProgress(cached?.data ?? null),
@@ -342,7 +352,9 @@ function AppContent() {
   }
 
   const currentTask =
-    pendingRunEntry?.phase === "preparing-entry" ? pendingRunEntry.progress.currentTask : null;
+    pendingRunEntry?.phase === RUN_ENTRY_PHASE.preparingEntry
+      ? pendingRunEntry.progress.currentTask
+      : null;
   const realAssetPreparation = isRealAssetPreparation(pendingRunEntry, assets);
   return (
     <AppShell>

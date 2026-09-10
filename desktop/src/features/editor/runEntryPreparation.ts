@@ -14,6 +14,8 @@ import type {
   RunStateDto,
 } from "@electron/contracts";
 
+const UPGRADE_BRIDGE_FAILURE_MESSAGE = "The upgrade bridge failed unexpectedly.";
+
 export type RunEntryTask = "items" | "upgrades" | "players" | "avatars" | "run" | "maps";
 export type RunEntryTaskStatus = "waiting" | "running" | "completed";
 
@@ -162,7 +164,7 @@ export async function prepareRunEntryData({
     const upgrades = await tracked("upgrades", () =>
       safeResult(
         () => window.repoditor.upgrades.prepareEntry(saveId, [...requiredUpgradeVisualKeys]),
-        "The upgrade bridge failed unexpectedly.",
+        UPGRADE_BRIDGE_FAILURE_MESSAGE,
       ),
     );
     return { ...existingData, artworkDegraded: await currentArtworkDegraded(), upgrades };
@@ -180,7 +182,7 @@ export async function prepareRunEntryData({
         presentationReadiness === "ready"
           ? window.repoditor.upgrades.list(saveId)
           : window.repoditor.upgrades.prepareEntry(saveId, [...requiredUpgradeVisualKeys]),
-      "The upgrade bridge failed unexpectedly.",
+      UPGRADE_BRIDGE_FAILURE_MESSAGE,
     ),
   );
   const runPromise = tracked("run", () =>

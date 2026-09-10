@@ -104,6 +104,8 @@ export function PlayersView({
   onRetry,
 }: PlayersViewProps) {
   const { t } = usePreferences();
+  const playersLabel = t("nav.players");
+  const currentHealthLabel = t("players.currentHealth");
   const player = players.find((item) => item.id === selectedPlayerId) ?? null;
   const pending = player ? pendingByPlayer[player.id] : undefined;
   const health = pending?.after ?? player?.health ?? 0;
@@ -186,11 +188,11 @@ export function PlayersView({
       <section aria-labelledby="player-list-title">
         <div className="flex items-end justify-between gap-3">
           <h2 className="text-xl font-semibold text-ink" id="player-list-title">
-            {t("nav.players")}
+            {playersLabel}
           </h2>
           <span className="font-mono text-xs text-muted">{players.length}</span>
         </div>
-        <div className="mt-4 grid gap-2" aria-label={t("nav.players")}>
+        <div className="mt-4 grid gap-2" aria-label={playersLabel}>
           {players.map((item) => {
             const selected = item.id === player.id;
             return (
@@ -231,7 +233,7 @@ export function PlayersView({
             htmlFor="player-health"
           >
             <HeartIcon aria-hidden="true" className="text-muted" size={15} />
-            {t("players.currentHealth")}
+            {currentHealthLabel}
           </label>
           <p className="mt-1 text-xs/5 text-muted" id="player-health-help">
             {t("players.healthHelper")}
@@ -279,7 +281,7 @@ export function PlayersView({
           <div className="mt-4 flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <progress
-                aria-label={t("players.currentHealth")}
+                aria-label={currentHealthLabel}
                 aria-valuemax={player.maxHealth}
                 aria-valuemin={0}
                 aria-valuenow={visualHealth}

@@ -78,6 +78,8 @@ export async function resolveSteamAvatarUrls(
     const response = await fetchEndpoint("/api/steam-avatars", {
       body: JSON.stringify({ steamIds: playerIds }),
       cache: "no-store",
+      // Credentials and referrer policy are independent controls that intentionally share this value.
+      // eslint-disable-next-line sonarjs/no-duplicate-string
       credentials: "same-origin",
       headers: { "Content-Type": "application/json" },
       method: "POST",
