@@ -17,6 +17,15 @@ import { defineConfig, globalIgnores } from "eslint/config";
 const configDirectory = dirname(fileURLToPath(import.meta.url));
 const webEntryPoint = fileURLToPath(new URL("./src/index.css", import.meta.url));
 const webTsconfig = fileURLToPath(new URL("./tsconfig.app.json", import.meta.url));
+// Resource lifecycle handlers such as onLoad/onError are not user interactions.
+const interactionHandlers = [
+  "onClick",
+  "onMouseDown",
+  "onMouseUp",
+  "onKeyPress",
+  "onKeyDown",
+  "onKeyUp",
+];
 
 export default defineConfig([
   globalIgnores([
@@ -60,6 +69,10 @@ export default defineConfig([
       "no-undef": "off",
       "no-unused-vars": "off",
       "@typescript-eslint/no-explicit-any": "error",
+      "@typescript-eslint/no-unnecessary-type-assertion": "error",
+      "@typescript-eslint/prefer-optional-chain": "error",
+      "prefer-object-has-own": "error",
+      "no-nested-ternary": "error",
       "@typescript-eslint/no-unused-vars": [
         "error",
         {
@@ -76,6 +89,7 @@ export default defineConfig([
       "sonarjs/no-selector-parameter": "warn",
       "sonarjs/prefer-regexp-exec": "warn",
       "sonarjs/void-use": "error",
+      "sonarjs/no-duplicate-string": ["warn", { threshold: 2 }],
     },
   },
   {
@@ -101,6 +115,20 @@ export default defineConfig([
       "react/hook-use-state": "warn",
       "react-refresh/only-export-components": "error",
       "jsx-a11y/prefer-tag-over-role": "warn",
+      "jsx-a11y/no-static-element-interactions": [
+        "error",
+        {
+          handlers: interactionHandlers,
+          allowExpressionValues: true,
+        },
+      ],
+      "jsx-a11y/no-noninteractive-element-interactions": [
+        "error",
+        {
+          handlers: interactionHandlers,
+        },
+      ],
+      "jsx-a11y/click-events-have-key-events": "error",
       "jsx-a11y/alt-text": "warn",
       "jsx-a11y/aria-role": "warn",
       "no-restricted-imports": [

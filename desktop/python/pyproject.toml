@@ -42,6 +42,7 @@ select = [
     "B",
     "BLE",
     "C4",
+    "C90",
     "DTZ",
     "E",
     "F",
@@ -53,6 +54,9 @@ select = [
     "W",
 ]
 ignore = ["E501"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
 
 [tool.ruff.lint.isort]
 known-first-party = ["repo_save_editor"]
