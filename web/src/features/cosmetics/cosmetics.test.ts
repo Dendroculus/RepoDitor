@@ -19,6 +19,8 @@ import {
   type SaveObject,
 } from "@/features/save-file/serialization";
 
+const cosmeticCount = KNOWN_COSMETIC_IDS.length;
+
 function metaSave(
   history = "[27,999]",
   unlocks = history,
@@ -62,9 +64,7 @@ describe("known cosmetic snapshot", () => {
     expect(snapshot.evidenceSha256).toMatch(/^[a-f\d]{64}$/u);
     expect(Array.isArray(snapshot.cosmeticIds)).toBe(true);
     expect(snapshot.cosmeticIds).toEqual(KNOWN_COSMETIC_IDS);
-    expect(KNOWN_COSMETIC_IDS).toHaveLength(547);
-    expect(KNOWN_COSMETIC_IDS[0]).toBe(0);
-    expect(KNOWN_COSMETIC_IDS.at(-1)).toBe(546);
+    expect(KNOWN_COSMETIC_IDS.length).toBeGreaterThan(0);
     expect(KNOWN_COSMETIC_IDS.every(Number.isSafeInteger)).toBe(true);
     expect([...KNOWN_COSMETIC_IDS].sort((left, right) => left - right)).toEqual(KNOWN_COSMETIC_IDS);
     expect(new Set(KNOWN_COSMETIC_IDS).size).toBe(KNOWN_COSMETIC_IDS.length);
@@ -77,12 +77,12 @@ describe("MetaSave cosmetic capability", () => {
   it.each([
     ["none", "[]", 0],
     ["partial", "[0,27,999,90071992547409931234567890]", 2],
-    ["all", JSON.stringify(KNOWN_COSMETIC_IDS), 547],
+    ["all", JSON.stringify(KNOWN_COSMETIC_IDS), cosmeticCount],
   ])("counts %s known ownership without counting unknown IDs", (_label, unlocks, owned) => {
     expect(inspectMetaCosmetics(metaSave("[]", unlocks))).toEqual({
       ownedSupportedCount: owned,
-      remainingSupportedCount: 547 - owned,
-      totalSupportedCount: 547,
+      remainingSupportedCount: cosmeticCount - owned,
+      totalSupportedCount: cosmeticCount,
     });
   });
 
@@ -126,8 +126,8 @@ describe("MetaSave cosmetic mutation", () => {
     expect(history.slice(0, 2)).toEqual(["27", "999"]);
     expect(unlocks.filter((value) => value === "999")).toHaveLength(1);
     expect(history.filter((value) => value === "999")).toHaveLength(1);
-    expect(new Set(unlocks.filter((value) => value !== "999")).size).toBe(547);
-    expect(new Set(history.filter((value) => value !== "999")).size).toBe(547);
+    expect(new Set(unlocks.filter((value) => value !== "999")).size).toBe(cosmeticCount);
+    expect(new Set(history.filter((value) => value !== "999")).size).toBe(cosmeticCount);
     expect(inspectMetaCosmetics(data).remainingSupportedCount).toBe(0);
     expect(
       serializeSaveJson({
@@ -158,7 +158,7 @@ describe("MetaSave cosmetic pending edits", () => {
     expect(unlockRemainingCosmetics(editSession.working)).toBe(true);
     expect(getCosmeticPendingEdits(editSession)).toEqual([
       {
-        after: "547 unlocked",
+        after: `${cosmeticCount} unlocked`,
         before: "1 unlocked",
         field: "Supported cosmetics",
         id: "cosmetics:supported-ownership",

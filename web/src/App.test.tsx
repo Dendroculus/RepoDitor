@@ -15,6 +15,7 @@ import { inspectRunSave } from "@/features/run-save/runSave";
 
 const createObjectUrlDescriptor = Object.getOwnPropertyDescriptor(URL, "createObjectURL");
 const revokeObjectUrlDescriptor = Object.getOwnPropertyDescriptor(URL, "revokeObjectURL");
+const cosmeticCount = KNOWN_COSMETIC_IDS.length;
 
 function button(element: HTMLElement): HTMLButtonElement {
   if (!(element instanceof HTMLButtonElement)) throw new Error("Expected a button element.");
@@ -655,13 +656,16 @@ describe("App", () => {
   it("unlocks remaining supported cosmetics with one immediate semantic pending edit", async () => {
     render(<App />);
     const partialIds = [...KNOWN_COSMETIC_IDS.slice(0, -1), 999];
+    const partialCount = cosmeticCount - 1;
 
     fireEvent.change(screen.getByLabelText(/drop a save here/i), {
       target: { files: [await metaFile(partialIds, [[27], [], [999]])] },
     });
     await screen.findByTestId("save-workspace");
 
-    expect(screen.getByText("546 of 547 supported cosmetics unlocked")).toBeTruthy();
+    expect(
+      screen.getByText(`${partialCount} of ${cosmeticCount} supported cosmetics unlocked`),
+    ).toBeTruthy();
     expect(screen.getByText("1 supported cosmetic remains locked.")).toBeTruthy();
     const unlock = screen.getByRole("button", { name: "Unlock Remaining Cosmetics" });
     expect((unlock as HTMLButtonElement).disabled).toBe(false);
@@ -669,17 +673,21 @@ describe("App", () => {
     fireEvent.click(unlock);
 
     expect(screen.getByText("1 pending change")).toBeTruthy();
-    expect(screen.getByText("547 of 547 supported cosmetics unlocked")).toBeTruthy();
+    expect(
+      screen.getByText(`${cosmeticCount} of ${cosmeticCount} supported cosmetics unlocked`),
+    ).toBeTruthy();
     expect(screen.getByText("All supported cosmetics are already unlocked.")).toBeTruthy();
     expect((unlock as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Review changes" }));
     expect(screen.getByRole("listitem").textContent).toBe(
-      "Cosmetics · Supported cosmetics546 unlocked → 547 unlocked",
+      `Cosmetics · Supported cosmetics${partialCount} unlocked → ${cosmeticCount} unlocked`,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
     expect(screen.getByText("Clean")).toBeTruthy();
-    expect(screen.getByText("546 of 547 supported cosmetics unlocked")).toBeTruthy();
+    expect(
+      screen.getByText(`${partialCount} of ${cosmeticCount} supported cosmetics unlocked`),
+    ).toBeTruthy();
     expect(
       button(
         screen.getByRole("button", {
@@ -746,9 +754,9 @@ describe("App", () => {
       "MetaSave.repoditor.es3",
     );
     expect(inspectMetaCosmetics(reopened.data)).toEqual({
-      ownedSupportedCount: 547,
+      ownedSupportedCount: cosmeticCount,
       remainingSupportedCount: 0,
-      totalSupportedCount: 547,
+      totalSupportedCount: cosmeticCount,
     });
 
     const unlockEntry = reopened.data.cosmeticUnlocks;
