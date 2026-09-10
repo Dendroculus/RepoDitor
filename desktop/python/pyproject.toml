@@ -22,56 +22,14 @@ where = ["."]
 include = ["repo_save_editor*"]
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["."]
-
-[tool.ruff]
-target-version = "py311"
-line-length = 100
-src = ["repo_save_editor", "tests"]
-extend-exclude = [
-    ".pytest_cache",
-    ".ruff_cache",
-    ".venv",
-    "build",
-    "dist",
-]
-
-[tool.ruff.lint]
-select = [
-    "B",
-    "BLE",
-    "C4",
-    "C90",
-    "DTZ",
-    "E",
-    "F",
-    "I",
-    "PERF",
-    "RUF",
-    "SIM",
-    "UP",
-    "W",
-]
-ignore = ["E501"]
-
-[tool.ruff.lint.mccabe]
-max-complexity = 15
-
-[tool.ruff.lint.isort]
-known-first-party = ["repo_save_editor"]
-
-[tool.ruff.format]
-quote-style = "double"
-indent-style = "space"
-line-ending = "auto"
-docstring-code-format = true
+testpaths = ["tests", "../../tools/capabilities/tests"]
+pythonpath = [".", "../.."]
 
 [tool.mypy]
 python_version = "3.11"
 platform = "win32"
-mypy_path = "."
-files = ["repo_save_editor"]
+mypy_path = [".", "../.."]
+files = ["repo_save_editor", "../../tools/capabilities"]
 strict = true
 warn_unreachable = true
 enable_error_code = ["ignore-without-code"]

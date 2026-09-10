@@ -21,8 +21,10 @@ from tests.unity_serialized_fixture import (
 from repo_save_editor.services.game.discovery import discover_game_installation
 from repo_save_editor.services.items import recharge_evidence
 from repo_save_editor.services.items.installed_metadata import (
+    InstalledItemCatalogError,
     _parse_game_object,
     _read_game_object_name,
+    discover_installed_item_catalog,
     discover_installed_item_metadata,
     discover_item_recharge_capabilities,
 )
@@ -122,6 +124,31 @@ def test_dynamic_mapping_classifies_rechargeable_not_rechargeable_and_exceptiona
         "Item Not Rechargeable": ItemRechargeCapability.NOT_RECHARGEABLE,
         "Item Drone Battery": ItemRechargeCapability.UNKNOWN,
     }
+
+
+def test_complete_catalog_discovers_item_definitions_without_a_candidate_list(
+    tmp_path: Path,
+) -> None:
+    resources, globals_ = _build_assets(tmp_path)
+
+    result = discover_installed_item_catalog(resources, globals_)
+
+    assert {name: metadata.recharge_capability for name, metadata in result.items()} == {
+        "Item Conflict": ItemRechargeCapability.UNKNOWN,
+        "Item Drone Battery": ItemRechargeCapability.UNKNOWN,
+        "Item Not Rechargeable": ItemRechargeCapability.NOT_RECHARGEABLE,
+        "Item Rechargeable": ItemRechargeCapability.RECHARGEABLE,
+    }
+
+
+def test_complete_catalog_extraction_failure_cannot_look_like_an_empty_catalog(
+    tmp_path: Path,
+) -> None:
+    resources, globals_ = _build_assets(tmp_path)
+    resources.unlink()
+
+    with pytest.raises(InstalledItemCatalogError):
+        discover_installed_item_catalog(resources, globals_)
 
 
 def test_dynamic_mapping_returns_canonical_prefab_icon_key(tmp_path: Path) -> None:

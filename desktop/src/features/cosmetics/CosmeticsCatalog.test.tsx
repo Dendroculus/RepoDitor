@@ -22,10 +22,7 @@ function installedCosmetic(
   options: InstalledCosmeticOptions = {},
 ): CosmeticDto {
   const owned = options.owned ?? false;
-  const mutationEligible = id < 547;
-  if (options.mutationEligible !== undefined) {
-    expect(options.mutationEligible).toBe(mutationEligible);
-  }
+  const mutationEligible = options.mutationEligible ?? true;
   return {
     id,
     displayName,
@@ -59,14 +56,6 @@ function unknownCosmetic(id: number): CosmeticDto {
 
 function catalogView(cosmetics: CosmeticDto[], catalogAvailable = true): CosmeticsViewDto {
   const knownCosmetics = cosmetics.filter((cosmetic) => cosmetic.known);
-  if (catalogAvailable) {
-    expect(knownCosmetics.map((cosmetic) => cosmetic.id)).toEqual(
-      Array.from({ length: knownCosmetics.length }, (_, id) => id),
-    );
-    for (const cosmetic of knownCosmetics) {
-      expect(cosmetic.mutationEligible).toBe(cosmetic.id < 547);
-    }
-  }
   const knownOwnedCount = knownCosmetics.filter((cosmetic) => cosmetic.owned).length;
   const mutationAvailable =
     catalogAvailable && knownCosmetics.some((cosmetic) => cosmetic.mutationEligible);
@@ -448,13 +437,19 @@ describe("CosmeticsCatalog", () => {
   });
 
   it("keeps a future installed ID visible but read-only", () => {
-    const futureCatalog = Array.from({ length: 548 }, (_, id) =>
-      installedCosmetic(id, id === 547 ? "Future Installed Cosmetic" : `Installed Cosmetic ${id}`),
-    );
+    const futureCosmeticId = 9_001;
+    const futureCatalog = [
+      installedCosmetic(0, "Installed Cosmetic 0"),
+      installedCosmetic(futureCosmeticId, "Future Installed Cosmetic", {
+        mutationEligible: false,
+      }),
+    ];
     renderCatalog(catalogView(futureCatalog));
 
-    const row = screen.getByRole("listitem", { name: "Future Installed Cosmetic, ID 547, Locked" });
-    expect(row.getAttribute("data-cosmetic-id")).toBe("547");
+    const row = screen.getByRole("listitem", {
+      name: `Future Installed Cosmetic, ID ${futureCosmeticId}, Locked`,
+    });
+    expect(row.getAttribute("data-cosmetic-id")).toBe(String(futureCosmeticId));
     expect(within(row).getByText("Read only")).toBeTruthy();
     expect(within(row).queryByRole("button", { name: /Unlock/ })).toBeNull();
   });

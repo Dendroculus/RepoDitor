@@ -1,0 +1,1 @@
+"""Capability automation regression tests."""

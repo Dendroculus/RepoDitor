@@ -54,9 +54,10 @@ function session(data: SaveObject) {
 describe("known cosmetic snapshot", () => {
   it("is explicit, versioned, deterministic, and duplicate-free", () => {
     expect(snapshot.snapshotVersion).toBe(1);
-    expect(snapshot.gameCompatibility).toMatch(/game-generated full-unlock/iu);
+    expect(snapshot.gameCompatibility).toMatch(/installed MetaManager cosmeticAssets/iu);
+    expect(snapshot.gameCompatibility).toMatch(/verified against UnityPy/iu);
     expect(snapshot.provenance).toBe(
-      "docs/research/reverse-engineering.md#metasave-cosmetic-ownership",
+      "docs/research/reverse-engineering.md#metasave-cosmetic-ownership and #installed-cosmetic-catalog-proof",
     );
     expect(snapshot.evidenceSha256).toMatch(/^[a-f\d]{64}$/u);
     expect(Array.isArray(snapshot.cosmeticIds)).toBe(true);
