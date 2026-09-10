@@ -321,6 +321,38 @@ def update() -> int:
     return 0
 
 
+def _write_approved_evidence(evidence_path: Path, evidence_value: object) -> int:
+    paths = (
+        evidence_path,
+        WEB_RECHARGE_PATH,
+        WEB_COSMETICS_PATH,
+        DESKTOP_COSMETICS_PATH,
+        ELECTRON_COSMETICS_PATH,
+    )
+    previous = {path: _read_text(path) if path.is_file() else None for path in paths}
+
+    def restore() -> None:
+        for path, content in previous.items():
+            if content is None:
+                path.unlink(missing_ok=True)
+            else:
+                _write_if_changed(path, content)
+
+    try:
+        _write_json_if_changed(evidence_path, evidence_value)
+        result = update()
+    except OSError as error:
+        restore()
+        raise CapabilityDataError(
+            "Capability approval failed while writing evidence or generated artifacts."
+        ) from error
+
+    if result == 0:
+        return 0
+    restore()
+    return result
+
+
 def _installation(game_dir: Path | None) -> tuple[GameInstallation, str | None]:
     result = discover_game_installation(game_dir)
     installation = result.installation
@@ -710,8 +742,7 @@ def approve_installed_recharge(game_dir: Path | None, oracle_path: Path) -> int:
                 "itemBatteryIdentities": list(oracle_names),
             },
         }
-        _write_json_if_changed(RECHARGE_EVIDENCE_PATH, evidence_value)
-        return update()
+        return _write_approved_evidence(RECHARGE_EVIDENCE_PATH, evidence_value)
     except CapabilityDataError as error:
         print(f"Recharge evidence update blocked: {error}")
         return 1
@@ -860,8 +891,7 @@ def approve_installed_cosmetics(
             assembly_digest,
             sha256_file(oracle_path),
         )
-        _write_json_if_changed(COSMETICS_EVIDENCE_PATH, evidence_value)
-        return update()
+        return _write_approved_evidence(COSMETICS_EVIDENCE_PATH, evidence_value)
     except CapabilityDataError as error:
         print(f"Cosmetics evidence update blocked: {error}")
         return 1
@@ -923,8 +953,7 @@ def approve_cosmetics_save(
             source_save_sha256=sha256_file(save_path).removeprefix("sha256:"),
             source_save_build_id=source_save_build_id,
         )
-        _write_json_if_changed(COSMETICS_EVIDENCE_PATH, evidence_value)
-        return update()
+        return _write_approved_evidence(COSMETICS_EVIDENCE_PATH, evidence_value)
     except CapabilityDataError as error:
         print(f"Cosmetics evidence update blocked: {error}")
         return 1

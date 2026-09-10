@@ -5,7 +5,6 @@ import struct
 from pathlib import Path
 
 import pytest
-from tests.unity_serialized_fixture import aligned_string, pptr, write_serialized_file
 
 from repo_save_editor.services.game.discovery import discover_game_installation
 from repo_save_editor.services.player import upgrade_textures
@@ -28,6 +27,7 @@ from repo_save_editor.services.unity_textures import (
     parse_mesh_vertex_data,
     parse_texture2d,
 )
+from tests.unity_serialized_fixture import aligned_string, pptr, write_serialized_file
 
 
 def _game_object(name: str, components: list[int]) -> bytes:
