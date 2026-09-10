@@ -5,18 +5,6 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import pytest
-from tests.unity_serialized_fixture import (
-    aligned_string as _aligned_string,
-)
-from tests.unity_serialized_fixture import (
-    mono_script as _mono_script,
-)
-from tests.unity_serialized_fixture import (
-    pptr as _pptr,
-)
-from tests.unity_serialized_fixture import (
-    write_serialized_file as _write_serialized_file,
-)
 
 from repo_save_editor.services.game.discovery import discover_game_installation
 from repo_save_editor.services.items import recharge_evidence
@@ -34,6 +22,18 @@ from repo_save_editor.services.items.recharge_capability import (
     discover_installed_recharge_capabilities,
 )
 from repo_save_editor.services.unity_serialized import SerializedFileIndex, UnityMetadataError
+from tests.unity_serialized_fixture import (
+    aligned_string as _aligned_string,
+)
+from tests.unity_serialized_fixture import (
+    mono_script as _mono_script,
+)
+from tests.unity_serialized_fixture import (
+    pptr as _pptr,
+)
+from tests.unity_serialized_fixture import (
+    write_serialized_file as _write_serialized_file,
+)
 
 
 def _game_object(name: str, components: Iterable[int]) -> bytes:

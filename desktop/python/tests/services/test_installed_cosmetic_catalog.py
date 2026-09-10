@@ -8,6 +8,17 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+
+from repo_save_editor.services.cosmetics import installed_catalog
+from repo_save_editor.services.cosmetics.installed_catalog import (
+    CACHE_SCHEMA_VERSION,
+    PARSER_SCHEMA_VERSION,
+)
+from repo_save_editor.services.cosmetics.installed_catalog import (
+    discover_installed_cosmetic_catalog as _discover_installed_cosmetic_catalog,
+)
+from repo_save_editor.services.cosmetics.models import InstalledCosmeticMetadata
+from repo_save_editor.services.game.discovery import GameInstallation, discover_game_installation
 from tests.unity_serialized_fixture import (
     UNITY_VERSION,
 )
@@ -23,17 +34,6 @@ from tests.unity_serialized_fixture import (
 from tests.unity_serialized_fixture import (
     write_serialized_file as _write_serialized_file,
 )
-
-from repo_save_editor.services.cosmetics import installed_catalog
-from repo_save_editor.services.cosmetics.installed_catalog import (
-    CACHE_SCHEMA_VERSION,
-    PARSER_SCHEMA_VERSION,
-)
-from repo_save_editor.services.cosmetics.installed_catalog import (
-    discover_installed_cosmetic_catalog as _discover_installed_cosmetic_catalog,
-)
-from repo_save_editor.services.cosmetics.models import InstalledCosmeticMetadata
-from repo_save_editor.services.game.discovery import GameInstallation, discover_game_installation
 
 
 def _mono_behaviour_prefix(script_file_id: int, script_path_id: int, name: str = "") -> bytes:

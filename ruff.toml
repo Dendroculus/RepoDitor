@@ -2,9 +2,8 @@ target-version = "py311"
 line-length = 100
 
 src = [
-    "desktop/python/repo_save_editor",
-    "desktop/python/tests",
-    "tools/capabilities",
+    "desktop/python",
+    ".",
 ]
 
 extend-exclude = [
