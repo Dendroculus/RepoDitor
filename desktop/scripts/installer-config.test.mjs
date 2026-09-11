@@ -108,7 +108,10 @@ test("the native host locks WebView2 to local production assets and allowlisted 
   assert.doesNotMatch(host, /AddHostObjectToScript|ExecuteScriptAsync/);
 
   assert.match(build, /\$sdkVersion = "1\.0\.4191\.47"/);
-  assert.match(build, /\$sdkSha256 = "F492BBF547D0DA329553B6727435B677579B1E9F91CC9E4A1AD029366D5F23D0"/);
+  assert.match(
+    build,
+    /\$sdkSha256 = "F492BBF547D0DA329553B6727435B677579B1E9F91CC9E4A1AD029366D5F23D0"/,
+  );
   assert.match(build, /Microsoft\.Web\.WebView2\.Core\.dll/);
   assert.match(build, /Microsoft\.Web\.WebView2\.WinForms\.dll/);
   assert.match(build, /WebView2Loader\.dll/);
@@ -138,7 +141,10 @@ test("NSIS stages the WebView2 bootstrapper and exposes no classic custom pages"
   assert.match(include, /Exec '"\$RepoDitor\.StageDirectory\\RepoDitorInstallerHost\.exe"/);
   assert.match(include, /!macro customUnInit[\s\S]*\$\{StdUtils\.ExecShellAsUser\}/);
   assert.match(include, /--mode uninstall --engine "\$EXEPATH"/);
-  assert.doesNotMatch(include, /\b(?:Uninst)?Page custom\b|nsDialogs|MUI_PAGE_WELCOME|MUI_PAGE_DIRECTORY/);
+  assert.doesNotMatch(
+    include,
+    /\b(?:Uninst)?Page custom\b|nsDialogs|MUI_PAGE_WELCOME|MUI_PAGE_DIRECTORY/,
+  );
 
   assert.match(include, /PathIsNetworkPathW/);
   assert.match(include, /PathIsRootW/);
