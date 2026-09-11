@@ -44,7 +44,7 @@ test("the approved artwork and exact HTML composition are production assets", as
   assert.equal(artwork.readUInt32BE(20), 941);
   assert.equal(sha256(artwork), "d72487503d259d659900df058114f6d30a6e1ed5bf7a9cfea5bc0597ac254a04");
 
-  assert.match(html, /linear-gradient\(90deg,[\s\S]*48%[\s\S]*64%/);
+  assert.match(html, /linear-gradient\(\s*90deg,[\s\S]*48%[\s\S]*64%/);
   assert.match(html, /\.panel\s*\{[\s\S]*width: 42%/);
   assert.match(html, /url\("ArtWork\.png"\) center \/ cover no-repeat/);
   assert.equal([...html.matchAll(/src="icon\.ico"/g)].length, 2);
