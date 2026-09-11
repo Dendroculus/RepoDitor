@@ -116,15 +116,18 @@ jobs:
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: npm run package:installer:signed
 
-      - name: Verify installer Authenticode signature
+      - name: Verify installer and WebView2 host Authenticode signatures
         working-directory: desktop
         shell: pwsh
         env:
           AZURE_ARTIFACT_SIGNING_PUBLISHER_NAME: ${{ vars.AZURE_ARTIFACT_SIGNING_PUBLISHER_NAME }}
         run: |
-          $installer = Get-Item release/RepoDitor-Setup-*-x64.exe
+          $artifacts = @(
+            (Get-Item release/RepoDitor-Setup-*-x64.exe).FullName
+            (Get-Item build/installer-host/RepoDitorInstallerHost.exe).FullName
+          )
           ./scripts/verify-authenticode.ps1 `
-            -Path $installer.FullName `
+            -Path $artifacts `
             -ExpectedPublisher $env:AZURE_ARTIFACT_SIGNING_PUBLISHER_NAME
 
       - name: Create installer checksum
