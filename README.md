@@ -156,8 +156,10 @@ discovery.
 
 Updates are manual; RepoDitor installs no updater or background service.
 Uninstall through **Windows Settings → Apps → Installed apps → RepoDitor**.
-Uninstalling does not delete R.E.P.O. saves or RepoDitor-created `.bak-*`
-backups.
+An explicit uninstall removes RepoDitor state under
+`%APPDATA%\repoditor-desktop` and `%LOCALAPPDATA%\RepoDitor`. It never targets
+R.E.P.O.'s LocalLow tree, saves, MetaSave, settings, installation files, or
+RepoDitor-created `.bak-*` backups outside those two application-data roots.
 
 ## 🛡️ Save Safety
 

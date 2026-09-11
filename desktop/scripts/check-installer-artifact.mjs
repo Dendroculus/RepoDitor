@@ -19,7 +19,11 @@ const requiredOptions = {
   createStartMenuShortcut: true,
   shortcutName: "RepoDitor",
   installerIcon: "public/icon.ico",
+  installerHeader: "installer/installerHeader.bmp",
+  installerSidebar: "installer/installerSidebar.bmp",
   uninstallerIcon: "public/icon.ico",
+  uninstallerSidebar: "installer/installerSidebar.bmp",
+  include: "installer/installer.nsh",
   uninstallDisplayName: "RepoDitor",
 };
 
@@ -29,8 +33,10 @@ for (const [option, expected] of Object.entries(requiredOptions)) {
   }
 }
 
-if (nsis.include || nsis.script || nsis.deleteAppDataOnUninstall === true) {
-  throw new Error("Custom NSIS scripts and application-data deletion are not allowed.");
+if (nsis.script || nsis.deleteAppDataOnUninstall === true) {
+  throw new Error(
+    "The installer must use the focused include, not a replacement script or broad app-data deletion.",
+  );
 }
 
 const installerName = nsis.artifactName
