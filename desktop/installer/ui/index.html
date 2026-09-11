@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+    />
+    <title>RepoDitor Setup</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --gold: #d4aa66;
+        --gold-strong: #eac578;
+        --text: #f4f1ea;
+        --muted: #aaa8a2;
+        --panel: rgba(9, 12, 21, 0.9);
+        --panel-soft: rgba(13, 16, 27, 0.78);
+        --line: rgba(255, 255, 255, 0.1);
+        --field: rgba(255, 255, 255, 0.065);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background: #090b12;
+        font-family: "Segoe UI", Inter, system-ui, sans-serif;
+        color: var(--text);
+      }
+
+      body {
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 28px;
+      }
+
+      .stage {
+        width: min(1160px, 96vw);
+      }
+
+      .window {
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        min-height: 580px;
+        max-height: 740px;
+        position: relative;
+        overflow: hidden;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.13);
+        box-shadow: 0 30px 90px rgba(0, 0, 0, 0.58);
+        background:
+          linear-gradient(
+            90deg,
+            rgba(3, 5, 9, 0.03) 0%,
+            rgba(3, 5, 9, 0.08) 48%,
+            rgba(7, 9, 16, 0.52) 64%,
+            rgba(7, 9, 16, 0.92) 100%
+          ),
+          url("ArtWork.png") center / cover no-repeat;
+      }
+
+      .titlebar {
+        position: absolute;
+        z-index: 10;
+        inset: 0 0 auto 0;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 0 15px;
+        background: rgba(8, 10, 16, 0.86);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.065);
+      }
+
+      .titlebar img {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+        image-rendering: auto;
+      }
+
+      .titlebar .name {
+        font-size: 13px;
+        font-weight: 600;
+        color: #e9e7e1;
+      }
+
+      .window-controls {
+        margin-left: auto;
+        display: flex;
+        gap: 17px;
+        color: #b6b5b0;
+        font-size: 15px;
+        user-select: none;
+      }
+
+      .window-control {
+        width: 18px;
+        height: 28px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        cursor: pointer;
+      }
+
+      .panel {
+        position: absolute;
+        z-index: 5;
+        top: 42px;
+        right: 0;
+        bottom: 0;
+        width: 42%;
+        min-width: 410px;
+        padding: clamp(38px, 4.6vw, 64px) clamp(36px, 4vw, 58px) 38px;
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(180deg, rgba(12, 15, 25, 0.78), rgba(7, 9, 16, 0.94));
+        border-left: 1px solid rgba(255, 255, 255, 0.075);
+        backdrop-filter: blur(15px) saturate(0.9);
+        -webkit-backdrop-filter: blur(15px) saturate(0.9);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 50px;
+      }
+
+      .brand-icon {
+        width: 58px;
+        height: 58px;
+        flex: 0 0 58px;
+        display: grid;
+        place-items: center;
+      }
+
+      .brand-icon img {
+        width: 58px;
+        height: 58px;
+        object-fit: contain;
+        image-rendering: auto;
+        filter: drop-shadow(0 7px 18px rgba(0, 0, 0, 0.35));
+      }
+
+      .brand-copy strong {
+        display: block;
+        font-size: 28px;
+        line-height: 1;
+        letter-spacing: -0.025em;
+        font-weight: 680;
+      }
+
+      .brand-copy span {
+        display: block;
+        margin-top: 8px;
+        color: #b1aea7;
+        font-size: 13.5px;
+      }
+
+      h1 {
+        margin: 0 0 9px;
+        font-size: clamp(25px, 2.15vw, 31px);
+        letter-spacing: -0.035em;
+        font-weight: 650;
+      }
+
+      .intro {
+        margin: 0 0 32px;
+        color: #b9b6af;
+        font-size: 14px;
+        line-height: 1.55;
+        max-width: 34ch;
+      }
+
+      .group {
+        margin-bottom: 24px;
+      }
+
+      .label {
+        margin-bottom: 9px;
+        color: #c6c2bb;
+        font-size: 11.5px;
+        font-weight: 650;
+        letter-spacing: 0.055em;
+      }
+
+      .scope {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .scope input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .scope label {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 0 12px;
+        background: var(--field);
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        color: #dad7d0;
+        font-size: 13px;
+        cursor: pointer;
+      }
+
+      .scope label::before {
+        content: "";
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        border: 1px solid rgba(255, 255, 255, 0.42);
+        box-shadow: inset 0 0 0 3px transparent;
+      }
+
+      .scope input:checked + label {
+        border-color: rgba(212, 170, 102, 0.66);
+        background: rgba(212, 170, 102, 0.09);
+        color: #fff;
+      }
+
+      .scope input:checked + label::before {
+        border-color: var(--gold-strong);
+        background: var(--gold-strong);
+        box-shadow: inset 0 0 0 3px #181713;
+      }
+
+      .scope input:disabled + label {
+        cursor: default;
+        opacity: 0.62;
+      }
+
+      .location-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .path {
+        min-width: 0;
+        height: 44px;
+        display: flex;
+        align-items: center;
+        padding: 0 13px;
+        border-radius: 9px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.06);
+        color: #e8e5de;
+        font-size: 12.5px;
+        white-space: nowrap;
+        overflow-x: auto;
+        outline: none;
+      }
+
+      .path:focus {
+        border-color: rgba(212, 170, 102, 0.62);
+        box-shadow: 0 0 0 3px rgba(212, 170, 102, 0.08);
+      }
+
+      button {
+        font: inherit;
+      }
+
+      .change {
+        height: 44px;
+        padding: 0 15px;
+        border: 1px solid var(--line);
+        background: rgba(255, 255, 255, 0.07);
+        color: #eeeae3;
+        border-radius: 9px;
+        cursor: pointer;
+      }
+
+      .spacer {
+        flex: 1;
+      }
+
+      .actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 34px;
+      }
+
+      .btn {
+        height: 46px;
+        border-radius: 10px;
+        padding: 0 23px;
+        cursor: pointer;
+        font-weight: 650;
+        border: 1px solid transparent;
+      }
+
+      .btn.secondary {
+        background: rgba(255, 255, 255, 0.06);
+        border-color: var(--line);
+        color: #dad7d0;
+      }
+
+      .btn.primary {
+        min-width: 132px;
+        color: #17130c;
+        background: linear-gradient(180deg, #efc879, #d6a456);
+        border-color: rgba(255, 232, 184, 0.46);
+        box-shadow: 0 8px 24px rgba(212, 170, 102, 0.14);
+      }
+
+      button:focus-visible,
+      .scope input:focus-visible + label {
+        outline: 2px solid var(--gold-strong);
+        outline-offset: 2px;
+      }
+
+      button:disabled {
+        cursor: default;
+        opacity: 0.55;
+      }
+
+      .version {
+        position: absolute;
+        z-index: 4;
+        left: 22px;
+        bottom: 18px;
+        font-size: 11.5px;
+        color: rgba(255, 255, 255, 0.55);
+        text-shadow: 0 1px 8px rgba(0, 0, 0, 0.8);
+      }
+
+      .state-install,
+      .state-progress,
+      .state-done {
+        flex: 1;
+        flex-direction: column;
+      }
+
+      .state-progress,
+      .state-done {
+        display: none;
+      }
+
+      .progress-track {
+        width: 100%;
+        height: 8px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.09);
+        margin-top: 24px;
+      }
+
+      .progress-bar {
+        width: 36%;
+        height: 100%;
+        background: linear-gradient(90deg, #c89449, #efc776);
+        animation: install-progress 1.25s ease-in-out infinite alternate;
+      }
+
+      .status-note {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 12.5px;
+      }
+
+      .check {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        margin-bottom: 20px;
+        background: rgba(212, 170, 102, 0.13);
+        border: 1px solid rgba(212, 170, 102, 0.34);
+        color: var(--gold-strong);
+        font-size: 24px;
+      }
+
+      .state-done.is-error .check {
+        color: #f2a2a2;
+        background: rgba(183, 68, 68, 0.16);
+        border-color: rgba(230, 104, 104, 0.38);
+      }
+
+      [hidden] {
+        display: none !important;
+      }
+
+      @keyframes install-progress {
+        from {
+          transform: translateX(-15%);
+        }
+        to {
+          transform: translateX(190%);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .progress-bar {
+          animation: none;
+          width: 100%;
+          opacity: 0.72;
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="stage">
+      <main class="window" aria-label="RepoDitor installer">
+        <div class="titlebar" id="titlebar">
+          <img src="icon.ico" alt="" />
+          <span class="name" id="windowTitle">RepoDitor Setup</span>
+          <div class="window-controls">
+            <button class="window-control" type="button" id="minimizeButton" aria-label="Minimize">
+              —
+            </button>
+            <button class="window-control" type="button" id="maximizeButton" aria-label="Maximize">
+              □
+            </button>
+            <button class="window-control" type="button" id="windowCloseButton" aria-label="Close">
+              ×
+            </button>
+          </div>
+        </div>
+
+        <div class="version" id="version">RepoDitor</div>
+
+        <section class="panel" aria-live="polite">
+          <div class="brand">
+            <div class="brand-icon">
+              <img src="icon.ico" alt="RepoDitor icon" />
+            </div>
+            <div class="brand-copy">
+              <strong>RepoDitor</strong>
+              <span>R.E.P.O. save editor</span>
+            </div>
+          </div>
+
+          <div class="state-install" id="readyState">
+            <h1 id="readyHeading">Ready to install</h1>
+            <p class="intro" id="readyIntro">
+              Choose where RepoDitor should live. Your R.E.P.O. saves stay untouched.
+            </p>
+
+            <div class="group" id="scopeGroup">
+              <div class="label" id="scopeLabel">INSTALL FOR</div>
+              <div class="scope">
+                <input id="current" name="scope" type="radio" checked />
+                <label for="current">Current user</label>
+
+                <input id="all" name="scope" type="radio" />
+                <label for="all">All users</label>
+              </div>
+            </div>
+
+            <div class="group" id="locationGroup">
+              <label class="label" for="pathField">INSTALL LOCATION</label>
+              <div class="location-row">
+                <input
+                  id="pathField"
+                  class="path"
+                  type="text"
+                  value="Preparing installation…"
+                  readonly
+                />
+                <button class="change" type="button" id="changePath">Change</button>
+              </div>
+            </div>
+
+            <div class="spacer"></div>
+
+            <div class="actions">
+              <button class="btn secondary" type="button" id="cancelButton">Cancel</button>
+              <button class="btn primary" type="button" id="startButton" disabled>Install</button>
+            </div>
+          </div>
+
+          <div class="state-progress" id="progressState">
+            <h1 id="progressHeading">Installing RepoDitor</h1>
+            <p class="intro" id="progressIntro">
+              Setting up the application. Your game data is not being modified.
+            </p>
+            <div class="progress-track"><div class="progress-bar"></div></div>
+            <div class="status-note" id="progressText">Preparing…</div>
+            <div class="spacer"></div>
+          </div>
+
+          <div class="state-done" id="doneState">
+            <div class="check" id="resultIcon">✓</div>
+            <h1 id="doneHeading">RepoDitor is ready</h1>
+            <p class="intro" id="doneIntro">Installation finished successfully.</p>
+            <div class="spacer"></div>
+            <div class="actions">
+              <button class="btn secondary" type="button" id="closeButton">Close</button>
+              <button class="btn primary" type="button" id="resultButton">Launch RepoDitor</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const webview = window.chrome && window.chrome.webview;
+      const states = {
+        ready: document.getElementById("readyState"),
+        progress: document.getElementById("progressState"),
+        done: document.getElementById("doneState"),
+      };
+      const ui = {
+        windowTitle: document.getElementById("windowTitle"),
+        version: document.getElementById("version"),
+        readyHeading: document.getElementById("readyHeading"),
+        readyIntro: document.getElementById("readyIntro"),
+        scopeGroup: document.getElementById("scopeGroup"),
+        scopeLabel: document.getElementById("scopeLabel"),
+        current: document.getElementById("current"),
+        all: document.getElementById("all"),
+        locationGroup: document.getElementById("locationGroup"),
+        path: document.getElementById("pathField"),
+        changePath: document.getElementById("changePath"),
+        start: document.getElementById("startButton"),
+        progressHeading: document.getElementById("progressHeading"),
+        progressIntro: document.getElementById("progressIntro"),
+        progressText: document.getElementById("progressText"),
+        done: document.getElementById("doneState"),
+        resultIcon: document.getElementById("resultIcon"),
+        doneHeading: document.getElementById("doneHeading"),
+        doneIntro: document.getElementById("doneIntro"),
+        resultButton: document.getElementById("resultButton"),
+      };
+      let mode = "install";
+      let resultAction = "launch";
+
+      function post(command) {
+        if (webview) webview.postMessage(command);
+      }
+
+      function showState(name) {
+        Object.entries(states).forEach(([key, element]) => {
+          element.style.display = key === name ? "flex" : "none";
+        });
+      }
+
+      function initialize(message) {
+        mode = message.mode === "uninstall" ? "uninstall" : "install";
+        const updating = Boolean(message.updated);
+        ui.windowTitle.textContent =
+          mode === "uninstall" ? "RepoDitor Uninstall" : "RepoDitor Setup";
+        ui.version.textContent = `RepoDitor ${message.version || ""}`.trim();
+        ui.current.checked = message.scope !== "all";
+        ui.all.checked = message.scope === "all";
+        ui.current.disabled = updating || message.scopeLocked;
+        ui.all.disabled = updating || message.scopeLocked;
+        ui.scopeGroup.hidden = message.showScope === false;
+        ui.locationGroup.hidden = mode === "uninstall";
+        ui.scopeLabel.textContent = mode === "uninstall" ? "REMOVE INSTALLATION" : "INSTALL FOR";
+        ui.readyHeading.textContent =
+          mode === "uninstall"
+            ? "Uninstall RepoDitor?"
+            : updating
+              ? "Ready to update"
+              : "Ready to install";
+        ui.readyIntro.textContent =
+          mode === "uninstall"
+            ? "RepoDitor application data will be removed. R.E.P.O. saves and game data stay untouched."
+            : "Choose where RepoDitor should live. Your R.E.P.O. saves stay untouched.";
+        ui.start.textContent = mode === "uninstall" ? "Uninstall" : updating ? "Update" : "Install";
+        ui.start.disabled = false;
+        ui.changePath.disabled = updating;
+        if (message.path) {
+          ui.path.value = message.path;
+          ui.path.title = message.path;
+        }
+        showState("ready");
+      }
+
+      function updateState(message) {
+        if (message.state === "progress") {
+          ui.progressHeading.textContent =
+            mode === "uninstall" ? "Removing RepoDitor" : "Installing RepoDitor";
+          ui.progressIntro.textContent =
+            mode === "uninstall"
+              ? "Removing the application. Your R.E.P.O. saves and game data are not being modified."
+              : "Setting up the application. Your game data is not being modified.";
+          ui.progressText.textContent =
+            message.message ||
+            (mode === "uninstall" ? "Removing application…" : "Installing application…");
+          showState("progress");
+          return;
+        }
+
+        const failed = message.state === "error";
+        ui.done.classList.toggle("is-error", failed);
+        ui.resultIcon.textContent = failed ? "!" : "✓";
+        ui.doneHeading.textContent = failed
+          ? mode === "uninstall"
+            ? "Uninstall failed"
+            : "Installation failed"
+          : mode === "uninstall"
+            ? "Uninstall finished"
+            : "RepoDitor is ready";
+        ui.doneIntro.textContent =
+          message.message ||
+          (mode === "uninstall"
+            ? "RepoDitor application data was removed. R.E.P.O. saves and game data were not targeted."
+            : "Installation finished successfully.");
+        resultAction = failed ? "retry" : mode === "uninstall" ? "close" : "launch";
+        ui.resultButton.textContent = failed
+          ? "Retry"
+          : mode === "uninstall"
+            ? "Close"
+            : "Launch RepoDitor";
+        document.getElementById("closeButton").hidden = resultAction === "close";
+        showState("done");
+      }
+
+      document.getElementById("titlebar").addEventListener("pointerdown", (event) => {
+        if (!event.target.closest("button")) post("window:drag");
+      });
+      document
+        .getElementById("minimizeButton")
+        .addEventListener("click", () => post("window:minimize"));
+      document
+        .getElementById("maximizeButton")
+        .addEventListener("click", () => post("window:maximize"));
+      document
+        .getElementById("windowCloseButton")
+        .addEventListener("click", () => post("window:close"));
+      document.getElementById("cancelButton").addEventListener("click", () => post("cancel"));
+      document.getElementById("closeButton").addEventListener("click", () => post("close"));
+      ui.changePath.addEventListener("click", () => post("choose-path"));
+      ui.current.addEventListener("change", () => {
+        if (ui.current.checked) post("scope:current");
+      });
+      ui.all.addEventListener("change", () => {
+        if (ui.all.checked) post("scope:all");
+      });
+      ui.start.addEventListener("click", () => post("start"));
+      ui.resultButton.addEventListener("click", () => post(resultAction));
+
+      if (webview) {
+        webview.addEventListener("message", (event) => {
+          const message = event.data || {};
+          if (message.type === "initialize") initialize(message);
+          if (message.type === "path" && message.path) {
+            ui.path.value = message.path;
+            ui.path.title = message.path;
+          }
+          if (message.type === "state") updateState(message);
+        });
+        post("ready");
+      }
+    </script>
+  </body>
+</html>

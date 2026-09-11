@@ -1,6 +1,6 @@
 # Release checklist
 
-Official releases are assisted Windows x64 NSIS installers built from semantic tags that match
+Official releases are WebView2-hosted Windows x64 NSIS installers built from semantic tags that match
 the version in both `pyproject.toml` and `desktop/package.json`. The current procedure is generic;
 the measured v0.1.0 release-candidate data remains preserved as a historical baseline below.
 
@@ -63,20 +63,20 @@ signing provider is integrated and validated.
 The GitHub repository must have a protected environment named `release-signing`. Configure these
 environment variables after the Microsoft resources exist:
 
-| GitHub environment variable | Microsoft value |
-| --- | --- |
-| `AZURE_ARTIFACT_SIGNING_ENDPOINT` | Region endpoint for the Artifact Signing account, such as an official `https://<region>.codesigning.azure.net` endpoint |
-| `AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME` | Artifact Signing account name |
-| `AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE_NAME` | Public Trust certificate profile name |
-| `AZURE_ARTIFACT_SIGNING_PUBLISHER_NAME` | Exact certificate Common Name (CN) shown by the completed profile |
+| GitHub environment variable                       | Microsoft value                                                                                                         |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `AZURE_ARTIFACT_SIGNING_ENDPOINT`                 | Region endpoint for the Artifact Signing account, such as an official `https://<region>.codesigning.azure.net` endpoint |
+| `AZURE_ARTIFACT_SIGNING_ACCOUNT_NAME`             | Artifact Signing account name                                                                                           |
+| `AZURE_ARTIFACT_SIGNING_CERTIFICATE_PROFILE_NAME` | Public Trust certificate profile name                                                                                   |
+| `AZURE_ARTIFACT_SIGNING_PUBLISHER_NAME`           | Exact certificate Common Name (CN) shown by the completed profile                                                       |
 
 Configure these as environment secrets, not repository files or plain workflow values:
 
-| GitHub environment secret | Microsoft value |
-| --- | --- |
-| `AZURE_TENANT_ID` | Microsoft Entra tenant ID |
-| `AZURE_CLIENT_ID` | Application (client) ID of the dedicated signing app registration |
-| `AZURE_CLIENT_SECRET` | Client-secret value for that app registration, not the secret ID |
+| GitHub environment secret | Microsoft value                                                   |
+| ------------------------- | ----------------------------------------------------------------- |
+| `AZURE_TENANT_ID`         | Microsoft Entra tenant ID                                         |
+| `AZURE_CLIENT_ID`         | Application (client) ID of the dedicated signing app registration |
+| `AZURE_CLIENT_SECRET`     | Client-secret value for that app registration, not the secret ID  |
 
 The dedicated service principal needs only the **Artifact Signing Certificate Profile Signer**
 role, scoped to the selected certificate profile. It does not need Owner or Contributor access.
@@ -94,7 +94,7 @@ Before final wiring, the maintainer must obtain or complete:
 7. the protected GitHub `release-signing` environment and the variables/secrets above.
 
 The release job verifies Authenticode on `RepoDitor.exe`, the bundled
-`repoditor-backend.exe`, and the NSIS installer. Verification requires a signer certificate,
+`repoditor-backend.exe`, the WebView2 installer host, and the NSIS installer. Verification requires a signer certificate,
 `Status = Valid`, and an exact publisher Common Name match. Installer structure verification still
 runs. SHA-256 generation occurs only after all signature checks pass.
 
@@ -122,7 +122,7 @@ $signature.SignerCertificate |
   reduced motion, and 1600x900, 1200x800, and 960x640 layouts.
 - Windows package smoke: Python 3.13 sidecar build, Electron package, required
   file/license verification, and the same E2E journey against the unpacked production executable.
-- Windows installer: assisted current-user-first NSIS build, deterministic
+- Windows installer: WebView2-hosted single-window UI, current-user-first NSIS lifecycle, deterministic
   `RepoDitor-Setup-<version>-x64.exe` verification, valid expected Authenticode signatures, and
   post-signing SHA-256 generation.
 - Failed E2E jobs retain Playwright screenshots and traces for seven days.
@@ -144,6 +144,7 @@ and installer checksum generation before publishing.
    `package-lock.json`, `pyproject.toml`, Python `__version__`, and
    `uv.lock`. Renderer and E2E
    tests derive their expected version from package metadata and do not need release-specific edits.
+
 2. Confirm the RepoDitor icon, product name, current-version About information,
    signing-status notice, and native-menu removal are current.
 3. Run the complete local quality and package gates from the root README.
@@ -176,13 +177,70 @@ tag manually; the validated workflow creates `v0.1.1` at its exact checked-out c
 
 ## Installer acceptance gate
 
-This is a blocking manual release-candidate check. Do not treat the unpacked E2E as proof of installer behavior.
+This is a blocking manual release-candidate check. Do not treat the unpacked E2E as proof of
+install, upgrade, explicit-uninstall cleanup, save preservation, or reinstall behavior. Use an
+older installer and the candidate installer for the upgrade leg:
 
-1. Confirm RepoDitor is not installed and no stale test installation directory remains. Do not delete or move R.E.P.O. saves.
-2. Record SHA-256 hashes for a disposable save and any sibling `.bak-*` backup that must survive the lifecycle.
-3. Run `RepoDitor-Setup-<version>-x64.exe` normally. Confirm the assisted wizard identifies RepoDitor, defaults to current-user installation, shows the destination, and allows Browse to select a custom test path.
-4. Install to the custom path. Confirm the application files, generated uninstaller, Start Menu shortcut, Installed Apps entry, and RepoDitor icon are present.
-5. Query the actual uninstall registration without assuming a registry hive:
+```powershell
+$oldInstaller = "C:\path\to\previous\RepoDitor-Setup-<old-version>-x64.exe"
+$newInstaller = (Resolve-Path ".\desktop\release\RepoDitor-Setup-<version>-x64.exe").Path
+$repoTree = "$env:USERPROFILE\AppData\LocalLow\semiwork\Repo"
+$beforeHashes = "$env:TEMP\repoditor-repo-save-hashes-before.csv"
+$afterHashes = "$env:TEMP\repoditor-repo-save-hashes-after.csv"
+```
+
+1. Confirm RepoDitor is not installed and no stale test installation directory remains. Do not
+   delete or move R.E.P.O. saves. Both RepoDitor-owned root checks must initially be `False`, then
+   record the complete game-owned tree before installation:
+
+   ```powershell
+   Test-Path -LiteralPath "$env:APPDATA\repoditor-desktop"
+   Test-Path -LiteralPath "$env:LOCALAPPDATA\RepoDitor"
+   Get-ChildItem -LiteralPath $repoTree -Recurse -File |
+     Get-FileHash -Algorithm SHA256 |
+     Sort-Object Path |
+     Export-Csv -LiteralPath $beforeHashes -NoTypeInformation
+   ```
+
+2. Run the candidate installer normally:
+
+   ```powershell
+   Start-Process -FilePath $newInstaller -Wait
+   ```
+
+   Confirm one modern artwork-led window identifies RepoDitor with its real icon, defaults to a
+   current-user installation, shows the destination, and exposes **Change** and **Install** without
+   classic Next/Back wizard chrome. Use **Change** to select a custom test parent folder and confirm
+   the resulting destination ends in `RepoDitor`. Install to that custom path. Confirm the in-place
+   progress view and the completion view with **Launch RepoDitor**. Confirm the application files, generated
+   uninstaller, Start Menu shortcut, Installed Apps entry, and RepoDitor icon are present.
+
+3. Launch RepoDitor without repository tooling. Confirm the bundled backend, discovery, Overview,
+   Players, Upgrades, Run, Items refill-to-full, Cosmetics, Maps, and current-version About
+   information. With network access disabled, confirm local features still work; optional Steam
+   avatars may fail softly. Using only a disposable/generated save, confirm open → edit → pending
+   changes → save → backup → reopen, plus stale-file rejection.
+4. Explicitly uninstall this clean candidate installation through **Settings → Apps → Installed
+   apps**. Confirm the branded uninstaller and removal of application files, shortcuts,
+   registration, and both RepoDitor-owned roots using the `Test-Path` checks from step 7.
+5. Install the previous release, seed harmless sentinels inside both RepoDitor-owned roots, then
+   install the candidate over the existing installation:
+
+   ```powershell
+   Start-Process -FilePath $oldInstaller -Wait
+   New-Item -ItemType Directory -Force "$env:APPDATA\repoditor-desktop" | Out-Null
+   New-Item -ItemType Directory -Force "$env:LOCALAPPDATA\RepoDitor" | Out-Null
+   Set-Content -LiteralPath "$env:APPDATA\repoditor-desktop\upgrade-sentinel.txt" -Value "preserve"
+   Set-Content -LiteralPath "$env:LOCALAPPDATA\RepoDitor\upgrade-sentinel.txt" -Value "preserve"
+   Start-Process -FilePath $newInstaller -Wait
+   Test-Path -LiteralPath "$env:APPDATA\repoditor-desktop\upgrade-sentinel.txt"
+   Test-Path -LiteralPath "$env:LOCALAPPDATA\RepoDitor\upgrade-sentinel.txt"
+   ```
+
+   Both checks must be `True`. Launch the upgraded app and confirm required behavior/state remains
+   usable.
+
+6. Query the actual uninstall registration without assuming a registry hive:
 
    ```powershell
    $roots = @(
@@ -196,12 +254,52 @@ This is a blocking manual release-candidate check. Do not treat the unpacked E2E
    ```
 
    Confirm `DisplayName` is `RepoDitor`, `DisplayVersion` matches the release, and `UninstallString` targets the generated RepoDitor uninstaller.
-6. Launch from the installed application or Start Menu without repository tooling. Confirm the bundled backend, discovery, Overview, Players, Upgrades, Run, Items refill-to-full, Cosmetics, Maps, icon, and current-version About information.
-7. With network access disabled, confirm the app still launches and local save features work; optional Steam avatars may fail softly.
-8. Using only a disposable/generated save, confirm open → edit → pending changes → save → backup → reopen, plus stale-file rejection.
-9. Uninstall through Windows Installed Apps. Confirm the application files, custom installation directory, shortcuts, uninstaller, and uninstall registration are removed.
-10. Recalculate the save and backup hashes. They must match the expected pre-uninstall values; `%USERPROFILE%\AppData\LocalLow\semiwork\Repo` and all other discovered save locations must remain untouched.
-11. Reinstall to the default location, launch successfully, confirm discovery still works, then uninstall again if the workstation must return to a clean state.
+
+7. Open **Settings → Apps → Installed apps** and explicitly uninstall RepoDitor. Confirm the branded
+   uninstaller presentation, application files, custom installation directory, shortcuts,
+   uninstaller, and registration are removed. Then prove both owned roots are gone:
+
+   ```powershell
+   Test-Path -LiteralPath "$env:APPDATA\repoditor-desktop"
+   Test-Path -LiteralPath "$env:LOCALAPPDATA\RepoDitor"
+   ```
+
+   Both checks must be `False`.
+
+8. Recalculate and compare the complete R.E.P.O. tree:
+
+   ```powershell
+   Get-ChildItem -LiteralPath $repoTree -Recurse -File |
+     Get-FileHash -Algorithm SHA256 |
+     Sort-Object Path |
+     Export-Csv -LiteralPath $afterHashes -NoTypeInformation
+   Compare-Object `
+     (Import-Csv -LiteralPath $beforeHashes) `
+     (Import-Csv -LiteralPath $afterHashes) `
+     -Property Path,Hash
+   ```
+
+   `Compare-Object` must produce no output. The R.E.P.O. tree, Run saves, MetaSave, settings, and
+   backups outside the two RepoDitor roots must remain byte-identical.
+
+9. Reinstall the candidate to the default location:
+
+   ```powershell
+   Start-Process -FilePath $newInstaller -Wait
+   ```
+
+   Launch RepoDitor, confirm it starts with clean application state, rebuilds disposable presentation
+   caches as needed, and rediscovers the existing saves. Uninstall again through Installed Apps if
+   the workstation must return to a clean state.
+
+10. Repeat the landing, progress, completion, and uninstall visual inspection at Windows display
+    scaling values of 100%, 125%, 150%, and 200%. At each scale, the approved artwork must keep its
+    aspect ratio, the RepoDitor icon and all text must remain sharp, the read-only path must retain
+    its full selectable value and scroll horizontally without overlap, every control must remain
+    reachable by Tab/Shift+Tab, Enter must activate the
+    focused primary action, Escape/cancel must leave the machine unchanged, and no stock NSIS
+    header/sidebar or Next/Back page may appear. Do not mark visual acceptance complete until a
+    human has inspected the actual release-candidate installer.
 
 ## Historical v0.1.0 baseline
 
@@ -210,52 +308,52 @@ artifact measurements and must not be reused to validate a later version.
 
 ### Phase 10E automated installer baseline — 2026-08-09
 
-| Check | Result |
-| --- | --- |
-| Installer | `RepoDitor-Setup-0.1.0-x64.exe`, 102,691,116 bytes (97.93 MiB) |
-| Local SHA-256 | `fca6b30afadadb62afb967d68de41ed26dcbd28ac61b0ec6c96f46dd5941e425` |
-| Installer mode | NSIS assisted, current user selected by default, installation directory change enabled |
-| Updater artifacts | No elevation helper, differential blockmap, updater, service, scheduled task, or startup entry |
-| Custom path | Silent current-user install to an isolated non-default path passed; installed executable, backend, uninstaller, registration, and Start Menu shortcut verified |
-| Windows registration | `DisplayName=RepoDitor`, `DisplayVersion=0.1.0`, generated current-user `UninstallString` |
-| Installed application E2E | 1 passed with external networking blocked; launch 2.93 s, open 918 ms, safe write 942 ms |
-| Custom-path uninstall | Exit 0; installation directory, registration, and Start Menu shortcut removed |
-| Default-path reinstall/uninstall | Both exited 0; default installation directory removed |
-| Save preservation | 332 existing `.es3`/`.bak-*` files: zero missing, changed, or added after lifecycle tests |
-| Disposable preservation fixtures | Save and `.bak-*` sentinel SHA-256 values unchanged |
-| Code signing | Not signed; SmartScreen notice remains required |
-| Manual visual acceptance | Still required: assisted wizard pages/Browse control, icon rendering, Start Menu launch, Installed Apps UI, SmartScreen wording, and human-visible uninstall flow |
+| Check                            | Result                                                                                                                                                            |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Installer                        | `RepoDitor-Setup-0.1.0-x64.exe`, 102,691,116 bytes (97.93 MiB)                                                                                                    |
+| Local SHA-256                    | `fca6b30afadadb62afb967d68de41ed26dcbd28ac61b0ec6c96f46dd5941e425`                                                                                                |
+| Installer mode                   | NSIS assisted, current user selected by default, installation directory change enabled                                                                            |
+| Updater artifacts                | No elevation helper, differential blockmap, updater, service, scheduled task, or startup entry                                                                    |
+| Custom path                      | Silent current-user install to an isolated non-default path passed; installed executable, backend, uninstaller, registration, and Start Menu shortcut verified    |
+| Windows registration             | `DisplayName=RepoDitor`, `DisplayVersion=0.1.0`, generated current-user `UninstallString`                                                                         |
+| Installed application E2E        | 1 passed with external networking blocked; launch 2.93 s, open 918 ms, safe write 942 ms                                                                          |
+| Custom-path uninstall            | Exit 0; installation directory, registration, and Start Menu shortcut removed                                                                                     |
+| Default-path reinstall/uninstall | Both exited 0; default installation directory removed                                                                                                             |
+| Save preservation                | 332 existing `.es3`/`.bak-*` files: zero missing, changed, or added after lifecycle tests                                                                         |
+| Disposable preservation fixtures | Save and `.bak-*` sentinel SHA-256 values unchanged                                                                                                               |
+| Code signing                     | Not signed; SmartScreen notice remains required                                                                                                                   |
+| Manual visual acceptance         | Still required: assisted wizard pages/Browse control, icon rendering, Start Menu launch, Installed Apps UI, SmartScreen wording, and human-visible uninstall flow |
 
 ### Historical ZIP release-candidate baseline — 2026-08-09
 
 This baseline predates the NSIS installer and proves only the portable archive and unpacked application behavior. It does not satisfy the installer acceptance gate.
 
-| Check | Result |
-| --- | --- |
-| Python 3.11 | 92 passed |
-| Python 3.14 | 92 passed |
-| Renderer and Electron contracts | 41 passed |
-| Development Electron E2E | 1 passed |
-| Unpacked and clean-extracted Electron E2E | 1 passed each |
-| Responsive visual review | 1600x900, 1200x800, and 960x640 passed |
-| Renderer coverage | 72.97% statements / 74.18% lines; measured, no arbitrary threshold |
-| Bundle budget | 269.89 KiB raw / 77.25 KiB gzip; within budget |
-| Dependency audit | 0 vulnerabilities; four deprecated transitive packaging dependencies noted |
-| Windows archive | 145.11 MiB; sidecar, app ASAR, RepoDitor MIT, and Teko OFL licenses present |
-| Archive extraction | 5 required files present; no source/test/dev entries in ASAR |
-| Code signing | Not signed; Windows SmartScreen notice documented |
+| Check                                     | Result                                                                      |
+| ----------------------------------------- | --------------------------------------------------------------------------- |
+| Python 3.11                               | 92 passed                                                                   |
+| Python 3.14                               | 92 passed                                                                   |
+| Renderer and Electron contracts           | 41 passed                                                                   |
+| Development Electron E2E                  | 1 passed                                                                    |
+| Unpacked and clean-extracted Electron E2E | 1 passed each                                                               |
+| Responsive visual review                  | 1600x900, 1200x800, and 960x640 passed                                      |
+| Renderer coverage                         | 72.97% statements / 74.18% lines; measured, no arbitrary threshold          |
+| Bundle budget                             | 269.89 KiB raw / 77.25 KiB gzip; within budget                              |
+| Dependency audit                          | 0 vulnerabilities; four deprecated transitive packaging dependencies noted  |
+| Windows archive                           | 145.11 MiB; sidecar, app ASAR, RepoDitor MIT, and Teko OFL licenses present |
+| Archive extraction                        | 5 required files present; no source/test/dev entries in ASAR                |
+| Code signing                              | Not signed; Windows SmartScreen notice documented                           |
 
 Measured on the v0.1.0 release-candidate Windows workstation:
 
-| Operation | Time |
-| --- | ---: |
-| Development launch to discovery ready | 2.93 s |
-| Development save open | 385 ms |
-| Development backup + write + verification | 379 ms |
-| Unpacked packaged launch to discovery ready | 8.53 s |
+| Operation                                          |   Time |
+| -------------------------------------------------- | -----: |
+| Development launch to discovery ready              | 2.93 s |
+| Development save open                              | 385 ms |
+| Development backup + write + verification          | 379 ms |
+| Unpacked packaged launch to discovery ready        | 8.53 s |
 | Clean-extracted packaged launch to discovery ready | 3.55 s |
-| Clean-extracted packaged save open | 1.37 s |
-| Clean-extracted backup + write + verification | 1.42 s |
+| Clean-extracted packaged save open                 | 1.37 s |
+| Clean-extracted backup + write + verification      | 1.42 s |
 
 These measurements are an observational baseline, not hard pass/fail budgets.
 The short-lived JSON sidecar remains adequate at this scale; revisit its process
@@ -280,9 +378,14 @@ gate; correctness-critical save and desktop-boundary paths retain focused tests.
   temporary encrypted output, verification, atomic replacement, and recovery.
 - Automated E2E uses a generated encrypted save under a temporary fake profile;
   no real R.E.P.O. save is read or modified.
-- The installer uses electron-builder's standard assisted NSIS implementation;
-  there is no custom NSIS script or application-data deletion hook.
+- The installer renders `desktop/installer/ui/index.html` directly in a locked-down WebView2 host,
+  then runs electron-builder's standard NSIS engine silently for the actual install or uninstall.
+  No classic NSIS page, replacement installer script, or third-party skinning plugin is used.
+  Explicit uninstall removes only `%APPDATA%\repoditor-desktop` and
+  `%LOCALAPPDATA%\RepoDitor`; `${isUpdated}` preserves both roots during upgrades, and the cleanup
+  does not follow reparse points.
 - Current-user install is the default, the destination can be changed, and the
   updater-only elevation helper and differential package are disabled.
-- Automated lifecycle checks confirmed install/uninstall ownership stays inside
-  the selected application directory while 332 existing save/backup hashes remain unchanged.
+- Static installer checks enforce the exact cleanup targets and upgrade guard. The historical
+  lifecycle baseline above remains evidence only for v0.1.0; each release candidate must repeat
+  the full install/upgrade/uninstall/reinstall and R.E.P.O. hash matrix.

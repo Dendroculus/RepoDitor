@@ -46,6 +46,8 @@ jobs:
             --root-dir '${{ github.workspace }}'
             --exclude-loopback
             --exclude-private
+            --exclude 'file://.*/desktop/installer/ui/ArtWork\.png'
+            --exclude 'file://.*/desktop/installer/ui/icon\.ico'
             --max-retries 2
             --retry-wait-time 2
             --timeout 10
