@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "capabilities:check": "cd .. && uv run --project desktop/python --locked --group test python -m tools.capabilities check",
-    "capabilities:check:installed": "cd .. && uv run --project desktop/python --locked --group test python -m tools.capabilities check-installed",
-    "capabilities:update": "cd .. && uv run --project desktop/python --locked --group test python -m tools.capabilities update",
+    "capabilities:check": "cd .. && uv run --locked --group test python -m tools.capabilities check",
+    "capabilities:check:installed": "cd .. && uv run --locked --group test python -m tools.capabilities check-installed",
+    "capabilities:update": "cd .. && uv run --locked --group test python -m tools.capabilities update",
     "imports:check": "eslint src --quiet",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",

@@ -12,9 +12,9 @@ export function versionPaths(repoRoot) {
   return {
     packageJson: path.join(repoRoot, "desktop", "package.json"),
     packageLock: path.join(repoRoot, "desktop", "package-lock.json"),
-    pyproject: path.join(pythonRoot, "pyproject.toml"),
+    pyproject: path.join(repoRoot, "pyproject.toml"),
     pythonInit: path.join(pythonRoot, "repo_save_editor", "__init__.py"),
-    uvLock: path.join(pythonRoot, "uv.lock"),
+    uvLock: path.join(repoRoot, "uv.lock"),
   };
 }
 

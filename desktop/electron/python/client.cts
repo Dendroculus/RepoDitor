@@ -83,11 +83,11 @@ function getDesktopPythonRoot(): string {
 }
 
 function getDevelopmentPythonExecutable(): string {
-  const pythonRoot = getDesktopPythonRoot();
+  const repositoryRoot = path.resolve(getDesktopPythonRoot(), "..", "..");
   const executable =
     process.platform === "win32"
-      ? path.join(pythonRoot, ".venv", "Scripts", "python.exe")
-      : path.join(pythonRoot, ".venv", "bin", "python");
+      ? path.join(repositoryRoot, ".venv", "Scripts", "python.exe")
+      : path.join(repositoryRoot, ".venv", "bin", "python");
   return executable;
 }
 
