@@ -282,13 +282,12 @@ RepoDitor Desktop에서는 게임 및 세이브 의미 규칙에 대해 Python�
 package 내용, Vite 없는 packaged E2E 및 installer 구조를 확인합니다.
 
 ```powershell
-Set-Location desktop/python
-uv run ruff check repo_save_editor tests
-uv run ruff format --check repo_save_editor tests
+uv run ruff check .
+uv run ruff format --check .
 uv run mypy
 uv run --locked --no-dev --group test pytest
 
-Set-Location ..
+Set-Location desktop
 npm run imports:check
 npm run format:check
 npm run lint
@@ -306,10 +305,9 @@ npm run test:e2e
 ```powershell
 git clone https://github.com/Yoruxyv/RepoDitor.git
 Set-Location RepoDitor
-Set-Location desktop/python
 uv sync --locked
 
-Set-Location ..
+Set-Location desktop
 npm ci
 npm run dev
 ```

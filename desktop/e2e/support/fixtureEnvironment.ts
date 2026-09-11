@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 
 export const DESKTOP_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const PYTHON_ROOT = path.join(DESKTOP_ROOT, "python");
+const REPOSITORY_ROOT = path.resolve(DESKTOP_ROOT, "..");
 export const E2E_SAVE_ID = "REPO_SAVE_2026_08_08_10_20_30";
 export const EXPECTED_DESKTOP_VERSION = JSON.parse(
   readFileSync(path.join(DESKTOP_ROOT, "package.json"), "utf8"),
@@ -29,7 +30,7 @@ export function stringEnvironment(environment: NodeJS.ProcessEnv): Record<string
 
 export function getPythonExecutable(): string {
   const executable = path.join(
-    PYTHON_ROOT,
+    REPOSITORY_ROOT,
     ".venv",
     process.platform === "win32" ? "Scripts/python.exe" : "bin/python",
   );

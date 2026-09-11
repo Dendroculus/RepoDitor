@@ -35,10 +35,10 @@ jobs:
           node-version: 24
 
       - name: Sync locked capability dependencies
-        run: uv sync --project desktop/python --locked --group test
+        run: uv sync --project . --locked --group test
 
       - name: Capability automation tests
-        run: uv run --project desktop/python --locked --group test pytest tools/capabilities/tests
+        run: uv run --project . --locked --group test pytest tools/capabilities/tests
 
       - name: Desktop-Web capability alignment
         working-directory: web

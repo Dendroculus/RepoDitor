@@ -80,7 +80,7 @@ not become Steam-verified merely because their physical path resembles `steamapp
 
 Runtime selection is centralized in `desktop/electron/python/client.cts`:
 
-- development launches `desktop/python/.venv/Scripts/python.exe -m repo_save_editor.desktop_api`;
+- development launches the repository-root `.venv/Scripts/python.exe -m repo_save_editor.desktop_api`;
 - packaged Windows builds launch `process.resourcesPath/backend/repoditor-backend.exe` directly.
 
 The package command builds the sidecar with Python 3.13. The packaged application does not fall back to a system Python installation.

@@ -4,15 +4,16 @@ The renderer uses `@/` for `src` imports and `@electron/` for shared Electron co
 
 ## Development
 
+Run these commands from the repository root:
+
 ```powershell
-Set-Location python
 uv sync --locked
-Set-Location ..
+Set-Location desktop
 npm ci
 npm run dev
 ```
 
-Development launches the Python desktop API from `desktop/python/.venv`.
+Development launches the Python desktop API from the repository-root `.venv`.
 
 ## Quality gate
 

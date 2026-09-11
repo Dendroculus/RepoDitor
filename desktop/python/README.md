@@ -36,31 +36,32 @@ charge, battery-upgrade, purchase, or item lifecycle write rules.
 
 ```text
 desktop/python/
-├── README.md
-├── pyproject.toml
-├── uv.lock
-├── repo_save_editor/
-│   ├── core/         # crypto, schema validation, and shared save primitives
-│   ├── desktop_api/  # JSON command boundary used by Electron
-│   ├── services/     # domain semantics
-│   │   ├── game/     # installation and map discovery
-│   │   ├── items/    # item models, validation, discovery, and mutations
-│   │   ├── player/   # player state, Steam profiles, and upgrades
-│   │   ├── saves/    # save discovery and summaries
-│   │   └── run.py    # run stats and resume state
-│   └── storage/      # repository access, backups, verification, atomic writes
-└── tests/            # Python package and desktop API tests
+Γö£ΓöÇΓöÇ README.md
+Γö£ΓöÇΓöÇ pyproject.toml
+Γö£ΓöÇΓöÇ uv.lock
+Γö£ΓöÇΓöÇ repo_save_editor/
+Γöé   Γö£ΓöÇΓöÇ core/         # crypto, schema validation, and shared save primitives
+Γöé   Γö£ΓöÇΓöÇ desktop_api/  # JSON command boundary used by Electron
+Γöé   Γö£ΓöÇΓöÇ services/     # domain semantics
+Γöé   Γöé   Γö£ΓöÇΓöÇ game/     # installation and map discovery
+Γöé   Γöé   Γö£ΓöÇΓöÇ items/    # item models, validation, discovery, and mutations
+Γöé   Γöé   Γö£ΓöÇΓöÇ player/   # player state, Steam profiles, and upgrades
+Γöé   Γöé   Γö£ΓöÇΓöÇ saves/    # save discovery and summaries
+Γöé   Γöé   ΓööΓöÇΓöÇ run.py    # run stats and resume state
+Γöé   ΓööΓöÇΓöÇ storage/      # repository access, backups, verification, atomic writes
+ΓööΓöÇΓöÇ tests/            # Python package and desktop API tests
 ```
 
 ## Development
 
-Run Python commands from `desktop/python/`:
+Python dependency and tooling configuration lives in the repository-root
+`pyproject.toml` and `uv.lock`. Run Python commands from the repository root:
 
 ```powershell
 uv sync --locked --group package
 
-uv run ruff check repo_save_editor tests
-uv run ruff format --check repo_save_editor tests
+uv run ruff check .
+uv run ruff format --check .
 uv run --with "pytest>=8.3,<9" pytest
 ```
 
@@ -79,7 +80,7 @@ from desktop.python.repo_save_editor.services.player.state import get_players
 
 ## Desktop runtime
 
-During development, Electron launches `desktop/python/.venv` and
+During development, Electron launches the repository-root `.venv` and
 uses `repo_save_editor.desktop_api`.
 
 For packaged Windows builds, PyInstaller bundles this package into the

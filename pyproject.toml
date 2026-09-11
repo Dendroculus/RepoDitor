@@ -1,0 +1,138 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repo-save-editor"
+version = "0.2.1"
+description = "A desktop save editor for R.E.P.O. .es3 save files."
+readme = "desktop/python/README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+authors = [
+    {name = "Hans Valerie"}
+]
+dependencies = [
+    "cryptography>=43,<46",
+    "defusedxml>=0.7,<1",
+]
+keywords = ["repo", "save-editor", "es3", "unity", "easy-save-3"]
+
+[tool.setuptools.packages.find]
+where = ["desktop/python"]
+include = ["repo_save_editor*"]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "desktop/python/tests",
+    "tools/capabilities/tests",
+]
+pythonpath = [
+    ".",
+    "desktop/python",
+]
+
+[tool.mypy]
+python_version = "3.11"
+platform = "win32"
+mypy_path = [
+    ".",
+    "desktop/python",
+]
+files = [
+    "desktop/python/repo_save_editor",
+    "tools/capabilities",
+]
+strict = true
+warn_unreachable = true
+enable_error_code = ["ignore-without-code"]
+show_error_codes = true
+show_error_context = true
+pretty = true
+
+[dependency-groups]
+dev = [
+    "mypy==2.3.0",
+    "ruff>=0.16.1",
+    "types-defusedxml>=0.7.0.20260504",
+]
+test = [
+    "pytest>=8.3,<9",
+]
+package = [
+    "pyinstaller>=6,<7",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+src = [
+    ".",
+    "desktop/python",
+]
+extend-exclude = [
+    ".pytest_cache",
+    ".ruff_cache",
+    ".venv",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+select = [
+    "A",
+    "ARG",
+    "B",
+    "BLE",
+    "C4",
+    "C90",
+    "DTZ",
+    "E",
+    "F",
+    "I",
+    "PERF",
+    "PGH",
+    "PIE",
+    "PT",
+    "RET",
+    "RSE",
+    "S",
+    "RUF",
+    "SIM",
+    "TRY004",
+    "UP",
+    "W",
+    "PLE",
+    "PLC",
+    "PLW",
+    "ASYNC",
+    "G",
+    "LOG",
+    "TRY201",
+    "TRY203",
+    "TRY400",
+    "TRY401",
+    "N",
+    "PTH",
+    "T10",
+    "T20",
+]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"tools/capabilities/workflow.py" = ["T201"]
+"desktop/python/repo_save_editor/desktop_api/__main__.py" = ["T201"]
+"desktop/python/tests/**/*.py" = ["S101"]
+"tools/capabilities/tests/**/*.py" = ["S101"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 15
+
+[tool.ruff.lint.isort]
+known-first-party = ["repo_save_editor"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "auto"
+docstring-code-format = true

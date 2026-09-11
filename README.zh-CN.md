@@ -303,13 +303,12 @@ repository 会检查 Python 格式和测试、renderer import 边界、lint、Ty
 以及安装程序结构。
 
 ```powershell
-Set-Location desktop/python
-uv run ruff check repo_save_editor tests
-uv run ruff format --check repo_save_editor tests
+uv run ruff check .
+uv run ruff format --check .
 uv run mypy
 uv run --locked --no-dev --group test pytest
 
-Set-Location ..
+Set-Location desktop
 npm run imports:check
 npm run format:check
 npm run lint
@@ -327,10 +326,9 @@ npm run test:e2e
 ```powershell
 git clone https://github.com/Yoruxyv/RepoDitor.git
 Set-Location RepoDitor
-Set-Location desktop/python
 uv sync --locked
 
-Set-Location ..
+Set-Location desktop
 npm ci
 npm run dev
 ```

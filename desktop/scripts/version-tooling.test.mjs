@@ -38,7 +38,7 @@ async function createFixture(version = "0.1.1") {
     )}\n`,
   );
   await writeFile(
-    path.join(root, "desktop", "python", "pyproject.toml"),
+    path.join(root, "pyproject.toml"),
     `[project]\nname = "repo-save-editor"\nversion = "${version}"\n\n[tool.test]\nenabled = true\n`,
   );
   await writeFile(
@@ -46,7 +46,7 @@ async function createFixture(version = "0.1.1") {
     `"""Fixture."""\n\n__version__ = "${version}"\n`,
   );
   await writeFile(
-    path.join(root, "desktop", "python", "uv.lock"),
+    path.join(root, "uv.lock"),
     `version = 1\n\n[[package]]\nname = "repo-save-editor"\nversion = "${version}"\nsource = { editable = "." }\n`,
   );
   return root;
@@ -75,8 +75,8 @@ test("rejects malformed and v-prefixed versions", () => {
 
 test("synchronizes every managed source without changing dependency versions", async () => {
   await withFixture(async (root) => {
-    const refreshLock = (pythonRoot, version) => {
-      const lockPath = path.join(pythonRoot, "uv.lock");
+    const refreshLock = (projectRoot, version) => {
+      const lockPath = path.join(projectRoot, "uv.lock");
       const lock = readFileSync(lockPath, "utf8");
       writeFileSync(lockPath, lock.replace('version = "0.1.1"', `version = "${version}"`));
     };
@@ -111,7 +111,7 @@ test("release check reports each mismatched metadata source", async (context) =>
       await withFixture(async (root) => {
         const file =
           name === "pyproject"
-            ? path.join(root, "desktop", "python", "pyproject.toml")
+            ? path.join(root, "pyproject.toml")
             : name === "Python __version__"
               ? path.join(root, "desktop", "python", "repo_save_editor", "__init__.py")
               : path.join(root, "desktop", "package-lock.json");
