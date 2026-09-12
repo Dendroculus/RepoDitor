@@ -1,0 +1,152 @@
+name: Installer lifecycle
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "LICENSE"
+      - ".github/workflows/installer-lifecycle.yml"
+      - ".github/workflows/quality.yml"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/release-unsigned.yml"
+  push:
+    branches: [main]
+    paths:
+      - "desktop/**"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "LICENSE"
+      - ".github/workflows/installer-lifecycle.yml"
+      - ".github/workflows/quality.yml"
+      - ".github/workflows/release.yml"
+      - ".github/workflows/release-unsigned.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: installer-lifecycle-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  current-user-lifecycle:
+    name: Current-user production installer lifecycle
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    defaults:
+      run:
+        working-directory: desktop
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.13"
+
+      - name: Sync locked Python and packaging dependencies
+        working-directory: .
+        run: uv sync --locked --group package
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install desktop dependencies
+        run: npm ci
+
+      - name: Verify installer configuration
+        run: npm run release:check
+
+      - name: Build, package, and verify the production installer
+        run: npm run package
+
+      - name: Exercise the production installer as an unelevated user
+        shell: pwsh
+        run: |
+          $ciUser = "rdci$([Guid]::NewGuid().ToString('N').Substring(0, 12))"
+          $passwordText = "$([Guid]::NewGuid().ToString('N'))aA1!"
+          $stage = Join-Path $env:RUNNER_TEMP "repoditor-installer-lifecycle"
+          New-Item -ItemType Directory -Path $stage -Force | Out-Null
+          Copy-Item scripts/test-installer-lifecycle.ps1 (Join-Path $stage "lifecycle.ps1")
+          Copy-Item (Get-Item release/RepoDitor-Setup-*-x64.exe).FullName (Join-Path $stage "setup.exe")
+
+          $userCreated = $false
+          $sid = $null
+          try {
+            & net.exe user $ciUser $passwordText /add /passwordchg:no
+            if ($LASTEXITCODE -ne 0) { throw "Could not create isolated standard lifecycle user." }
+            $userCreated = $true
+            $sid = (Get-LocalUser -Name $ciUser).SID.Value
+
+            & icacls.exe $stage /grant "${ciUser}:(OI)(CI)M" /T /Q
+            if ($LASTEXITCODE -ne 0) { throw "Could not grant the lifecycle user access to its QA stage." }
+
+            $credential = [PSCredential]::new(
+              "$env:COMPUTERNAME\$ciUser",
+              (ConvertTo-SecureString $passwordText -AsPlainText -Force)
+            )
+            $profileRoot = Join-Path $env:SystemDrive "Users\$ciUser"
+            $workerEnvironment = @{
+              USERPROFILE = $profileRoot
+              HOMEDRIVE = $env:SystemDrive
+              HOMEPATH = "\Users\$ciUser"
+              APPDATA = Join-Path $profileRoot "AppData\Roaming"
+              LOCALAPPDATA = Join-Path $profileRoot "AppData\Local"
+              TEMP = Join-Path $profileRoot "AppData\Local\Temp"
+              TMP = Join-Path $profileRoot "AppData\Local\Temp"
+            }
+            $worker = Start-Process powershell.exe `
+              -Credential $credential `
+              -LoadUserProfile `
+              -Environment $workerEnvironment `
+              -WindowStyle Hidden `
+              -ArgumentList @(
+                "-NoProfile",
+                "-ExecutionPolicy Bypass",
+                "-File $stage\lifecycle.ps1",
+                "-SetupPath $stage\setup.exe",
+                "-ResultsPath $stage\results",
+                "-RequireUnelevated"
+              ) `
+              -RedirectStandardOutput (Join-Path $stage "worker.stdout.log") `
+              -RedirectStandardError (Join-Path $stage "worker.stderr.log") `
+              -PassThru `
+              -Wait
+
+            Get-Content (Join-Path $stage "worker.stdout.log") -ErrorAction SilentlyContinue
+            Get-Content (Join-Path $stage "worker.stderr.log") -ErrorAction SilentlyContinue
+            if ($worker.ExitCode -ne 0) {
+              throw "Installer lifecycle worker exited $($worker.ExitCode)."
+            }
+          }
+          finally {
+            if ($userCreated) { & net.exe user $ciUser /delete | Out-Null }
+            if ($sid) {
+              Get-CimInstance Win32_UserProfile -Filter "SID='$sid'" -ErrorAction SilentlyContinue |
+                Remove-CimInstance -ErrorAction SilentlyContinue
+            }
+          }
+
+      - name: Upload installer lifecycle diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-lifecycle-diagnostics
+          path: |
+            ${{ runner.temp }}/repoditor-installer-lifecycle/results
+            ${{ runner.temp }}/repoditor-installer-lifecycle/worker.stdout.log
+            ${{ runner.temp }}/repoditor-installer-lifecycle/worker.stderr.log
+          if-no-files-found: warn
+          retention-days: 14

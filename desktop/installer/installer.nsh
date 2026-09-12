@@ -14,15 +14,7 @@ Var RepoDitor.Scope
   StrCpy $RepoDitor.StageDirectory "$TEMP\RepoDitorInstaller-$0"
   CreateDirectory "$RepoDitor.StageDirectory"
   SetOutPath "$RepoDitor.StageDirectory"
-  File /oname=RepoDitorInstallerHost.exe "${REPODITOR_HOST_DIR}\RepoDitorInstallerHost.exe"
-  File /oname=Microsoft.Web.WebView2.Core.dll "${REPODITOR_HOST_DIR}\Microsoft.Web.WebView2.Core.dll"
-  File /oname=Microsoft.Web.WebView2.WinForms.dll "${REPODITOR_HOST_DIR}\Microsoft.Web.WebView2.WinForms.dll"
-  File /oname=WebView2Loader.dll "${REPODITOR_HOST_DIR}\WebView2Loader.dll"
-  File /oname=Microsoft.Web.WebView2.LICENSE.txt "${REPODITOR_HOST_DIR}\Microsoft.Web.WebView2.LICENSE.txt"
-  File /oname=Microsoft.Web.WebView2.NOTICE.txt "${REPODITOR_HOST_DIR}\Microsoft.Web.WebView2.NOTICE.txt"
-  File /oname=index.html "${PROJECT_DIR}\installer\ui\index.html"
-  File /oname=ArtWork.png "${PROJECT_DIR}\installer\assets\ArtWork.png"
-  File /oname=icon.ico "${PROJECT_DIR}\public\icon.ico"
+  File /r "${REPODITOR_HOST_DIR}\*"
 !macroend
 
 !ifndef BUILD_UNINSTALLER
@@ -186,8 +178,20 @@ Var RepoDitor.Scope
       ${EndIf}
 
       !insertmacro RepoDitorStageWebViewHost
-      StrCpy $RepoDitor.HostArguments '--mode uninstall --engine "$EXEPATH" --path "$INSTDIR" --current-path "$INSTDIR" --all-path "$INSTDIR" --scope "$RepoDitor.Scope" --version "${VERSION}" --parent-pid "$RepoDitor.ParentProcessId" --updated "false" --scope-locked "false" --show-scope "$RepoDitor.ShowScope" --cleanup "true"'
-      ${StdUtils.ExecShellAsUser} $0 "$RepoDitor.StageDirectory\RepoDitorInstallerHost.exe" "open" "$RepoDitor.HostArguments"
+      ; NSIS keeps the installed outer uninstaller alive briefly after this temporary inner exits.
+      ; Wait for that outer PID so electron-builder's broad app-running check cannot mistake it for RepoDitor.
+      ${GetProcessInfo} 0 $0 $1 $2 $3 $4
+      ${If} $1 != ""
+        StrCpy $RepoDitor.ParentProcessId "$1"
+      ${EndIf}
+      ; Always relaunch the protected installed entry point. NSIS owns its temporary inner copy;
+      ; the host verifies registry and payload removal after that process handoff.
+      StrCpy $RepoDitor.HostArguments '--mode uninstall --engine "$INSTDIR\${UNINSTALL_FILENAME}" --registry-key "${UNINSTALL_REGISTRY_KEY}" --path "$INSTDIR" --current-path "$INSTDIR" --all-path "$INSTDIR" --scope "$RepoDitor.Scope" --version "${VERSION}" --parent-pid "$RepoDitor.ParentProcessId" --updated "false" --scope-locked "false" --show-scope "$RepoDitor.ShowScope" --cleanup "true"'
+      ${If} ${UAC_IsAdmin}
+        ${StdUtils.ExecShellAsUser} $0 "$RepoDitor.StageDirectory\RepoDitorInstallerHost.exe" "open" "$RepoDitor.HostArguments"
+      ${Else}
+        Exec '"$RepoDitor.StageDirectory\RepoDitorInstallerHost.exe" $RepoDitor.HostArguments'
+      ${EndIf}
       Quit
     ${EndIf}
   !macroend

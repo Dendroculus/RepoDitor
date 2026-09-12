@@ -181,6 +181,17 @@ This is a blocking manual release-candidate check. Do not treat the unpacked E2E
 install, upgrade, explicit-uninstall cleanup, save preservation, or reinstall behavior. Use an
 older installer and the candidate installer for the upgrade leg:
 
+The dedicated `Installer lifecycle` workflow complements this gate with fresh-package,
+current-user default/custom-path, registered reinstall, explicit-cleanup, and synthetic LocalLow
+fingerprint coverage through the real WebView2 **Uninstall** action. It runs the lifecycle under an
+isolated standard Windows user because GitHub-hosted Windows jobs otherwise run as administrators
+with UAC disabled. Exit code 0 is never sufficient: both HKCU registration keys and installed
+payload entry points must be gone.
+
+All-users secure-desktop UAC approval/cancellation, Windows Settings launch, and visual/scaling QA
+remain manual. GitHub-hosted Windows runners disable UAC, so automating those paths there would not
+exercise the production privilege boundary.
+
 ```powershell
 $oldInstaller = "C:\path\to\previous\RepoDitor-Setup-<old-version>-x64.exe"
 $newInstaller = (Resolve-Path ".\desktop\release\RepoDitor-Setup-<version>-x64.exe").Path
@@ -378,9 +389,10 @@ gate; correctness-critical save and desktop-boundary paths retain focused tests.
   temporary encrypted output, verification, atomic replacement, and recovery.
 - Automated E2E uses a generated encrypted save under a temporary fake profile;
   no real R.E.P.O. save is read or modified.
-- The installer renders `desktop/installer/ui/index.html` directly in a locked-down WebView2 host,
-  then runs electron-builder's standard NSIS engine silently for the actual install or uninstall.
-  No classic NSIS page, replacement installer script, or third-party skinning plugin is used.
+- The installer builds `desktop/installer/ui/` with Vite and renders only that local production
+  output in a locked-down WebView2 host, then runs electron-builder's standard NSIS engine silently
+  for the actual install or uninstall. No classic NSIS page, replacement installer script, or
+  third-party skinning plugin is used.
   Explicit uninstall removes only `%APPDATA%\repoditor-desktop` and
   `%LOCALAPPDATA%\RepoDitor`; `${isUpdated}` preserves both roots during upgrades, and the cleanup
   does not follow reparse points.

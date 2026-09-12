@@ -9,10 +9,26 @@ $sdkVersion = "1.0.4191.47"
 $sdkSha256 = "F492BBF547D0DA329553B6727435B677579B1E9F91CC9E4A1AD029366D5F23D0"
 $desktopRoot = Split-Path $PSScriptRoot -Parent
 $buildRoot = Join-Path $desktopRoot "build\installer-host"
+$uiBuildRoot = Join-Path $desktopRoot "build\installer-ui"
 $dependencyRoot = Join-Path $desktopRoot "build\webview2-$sdkVersion"
 $packagePath = Join-Path $desktopRoot "build\microsoft.web.webview2.$sdkVersion.nupkg"
 $packageUrl = "https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/$sdkVersion/microsoft.web.webview2.$sdkVersion.nupkg"
 $compiler = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
+
+Push-Location $desktopRoot
+try {
+    & npm.cmd run installer:ui:build
+    if ($LASTEXITCODE -ne 0) {
+        throw "RepoDitor installer UI build failed with exit code $LASTEXITCODE."
+    }
+}
+finally {
+    Pop-Location
+}
+
+if (-not (Test-Path -LiteralPath (Join-Path $uiBuildRoot "index.html"))) {
+    throw "The RepoDitor installer UI production output is missing."
+}
 
 if (-not (Test-Path -LiteralPath $packagePath)) {
     [IO.Directory]::CreateDirectory((Split-Path $packagePath -Parent)) | Out-Null
@@ -50,7 +66,15 @@ if (-not (Test-Path -LiteralPath $compiler)) {
     throw "The 64-bit .NET Framework C# compiler is required: $compiler"
 }
 
-[IO.Directory]::CreateDirectory($buildRoot) | Out-Null
+$buildParent = [IO.Path]::GetFullPath((Join-Path $desktopRoot "build"))
+$resolvedBuildRoot = [IO.Path]::GetFullPath($buildRoot)
+if (-not $resolvedBuildRoot.StartsWith($buildParent + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)) {
+    throw "Refusing to clean installer-host output outside the desktop build directory."
+}
+if (Test-Path -LiteralPath $resolvedBuildRoot) {
+    Remove-Item -LiteralPath $resolvedBuildRoot -Recurse -Force
+}
+[IO.Directory]::CreateDirectory($resolvedBuildRoot) | Out-Null
 $hostPath = Join-Path $buildRoot "RepoDitorInstallerHost.exe"
 $coreAssembly = Join-Path $dependencyRoot "lib\net462\Microsoft.Web.WebView2.Core.dll"
 $formsAssembly = Join-Path $dependencyRoot "lib\net462\Microsoft.Web.WebView2.WinForms.dll"
@@ -77,8 +101,7 @@ Copy-Item -LiteralPath $formsAssembly -Destination $buildRoot -Force
 Copy-Item -LiteralPath $loader -Destination $buildRoot -Force
 Copy-Item -LiteralPath $license -Destination (Join-Path $buildRoot "Microsoft.Web.WebView2.LICENSE.txt") -Force
 Copy-Item -LiteralPath $notice -Destination (Join-Path $buildRoot "Microsoft.Web.WebView2.NOTICE.txt") -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot "ui\index.html") -Destination $buildRoot -Force
-Copy-Item -LiteralPath (Join-Path $PSScriptRoot "assets\ArtWork.png") -Destination $buildRoot -Force
+Get-ChildItem -LiteralPath $uiBuildRoot | Copy-Item -Destination $buildRoot -Recurse -Force
 Copy-Item -LiteralPath $icon -Destination $buildRoot -Force
 
 if ($Sign) {
