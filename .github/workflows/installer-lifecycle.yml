@@ -73,6 +73,7 @@ jobs:
         run: npm run package
 
       - name: Exercise the production installer as an unelevated user
+        timeout-minutes: 12
         shell: pwsh
         run: |
           $ciUser = "rdci$([Guid]::NewGuid().ToString('N').Substring(0, 12))"

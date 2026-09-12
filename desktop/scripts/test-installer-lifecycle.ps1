@@ -129,7 +129,26 @@ function Invoke-Setup([string] $Scenario, [string] $ExpectedPath) {
   # authoritative selected path, including the normal default location.
   $arguments = @('/S', '/currentuser', "/D=$ExpectedPath")
   Write-LifecycleLog "$Scenario | setup start | executable=$script:setupPath arguments=$($arguments -join ' ')"
-  $process = Start-Process -FilePath $script:setupPath -ArgumentList $arguments -PassThru -Wait
+  $process = Start-Process -FilePath $script:setupPath -ArgumentList $arguments -PassThru
+
+  if (-not $process.WaitForExit(180000)) {
+    Write-LifecycleLog "$Scenario | setup timeout | pid=$($process.Id)"
+
+    $children = @(
+      Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
+        Where-Object { $_.ParentProcessId -eq $process.Id } |
+        ForEach-Object { "$($_.Name) pid=$($_.ProcessId)" }
+    )
+
+    if ($children.Count -gt 0) {
+      Write-LifecycleLog "$Scenario | setup timeout children | $($children -join ', ')"
+    }
+
+    & taskkill.exe /PID $process.Id /T /F | Out-Null
+    throw "$Scenario setup timed out after 180 seconds."
+  }
+
+  $process.Refresh()
   Add-Observation $Scenario 'setup exit' ([string]$process.ExitCode)
   if ($process.ExitCode -ne 0) {
     $payload = if (Test-Path -LiteralPath $ExpectedPath) {
