@@ -17,9 +17,9 @@ def test_players(sample_save):
 def test_player_health_round_trip(sample_save):
     assert get_player_health(sample_save, "111") == 80
 
-    set_player_health(sample_save, "111", 120)
+    set_player_health(sample_save, "111", 100)
 
-    assert get_player_health(sample_save, "111") == 120
+    assert get_player_health(sample_save, "111") == 100
 
 
 def test_player_max_health_uses_base_and_health_upgrades(sample_save):
@@ -39,7 +39,15 @@ def test_player_max_health_defaults_safely_for_missing_or_invalid_upgrades(sampl
     assert get_player_max_health(sample_save, "222") == 100
 
 
-@pytest.mark.parametrize("value", [-1, SAVE_INT32_MAX + 1, True, 1.5, "1"])
-def test_player_health_rejects_values_outside_storage_representation(sample_save, value):
-    with pytest.raises(ValueError, match="between 0 and 2,147,483,647"):
+@pytest.mark.parametrize("value", [-1, 101, SAVE_INT32_MAX + 1, True, 1.5, "1"])
+def test_player_health_rejects_values_outside_player_bounds(sample_save, value):
+    with pytest.raises(ValueError, match="between 0 and 100"):
         set_player_health(sample_save, "111", value)
+
+
+def test_reading_malformed_health_does_not_normalize_the_save(sample_save):
+    values = sample_save["dictionaryOfDictionaries"]["value"]["playerHealth"]
+    values["111"] = 676_761
+
+    assert get_player_health(sample_save, "111") == 676_761
+    assert values["111"] == 676_761

@@ -270,6 +270,84 @@ def test_supported_integer_scalars_still_mutate_through_production_path(
     assert dictionaries["runStats"]["currency"] == 20
 
 
+def test_health_mutation_rejects_above_max_without_changing_unknown_data(
+    sample_save: SaveData,
+) -> None:
+    data = deepcopy(sample_save)
+    data["futurePlayerData"] = {"111": {"futureFlag": "preserve-me"}}
+    original = deepcopy(data)
+
+    with pytest.raises(ValueError, match="between 0 and 100"):
+        apply_run_save_changes(
+            data,
+            [{"feature": "players", "entity": "111", "field": "health", "after": 101}],
+        )
+
+    assert data == original
+
+
+def test_valid_health_mutation_preserves_unrelated_and_unknown_player_data(
+    sample_save: SaveData,
+) -> None:
+    data = deepcopy(sample_save)
+    data["futurePlayerData"] = {"111": {"futureFlag": "preserve-me"}}
+    unrelated = deepcopy(data["futurePlayerData"])
+    original_health = deepcopy(data["dictionaryOfDictionaries"]["value"]["playerHealth"])
+
+    apply_run_save_changes(
+        data,
+        [{"feature": "players", "entity": "111", "field": "health", "after": 100}],
+    )
+
+    health = data["dictionaryOfDictionaries"]["value"]["playerHealth"]
+    assert health["111"] == 100
+    assert {key: value for key, value in health.items() if key != "111"} == {
+        key: value for key, value in original_health.items() if key != "111"
+    }
+    assert data["futurePlayerData"] == unrelated
+
+
+def test_health_mutation_uses_max_health_after_upgrade_changes(sample_save: SaveData) -> None:
+    data = deepcopy(sample_save)
+    dictionaries = data["dictionaryOfDictionaries"]["value"]
+    dictionaries["playerUpgradeHealth"] = {"111": 0}
+
+    apply_run_save_changes(
+        data,
+        [
+            {"feature": "players", "entity": "111", "field": "health", "after": 120},
+            {
+                "feature": "upgrades",
+                "entity": "111",
+                "field": "playerUpgradeHealth",
+                "after": 1,
+            },
+        ],
+    )
+
+    assert dictionaries["playerHealth"]["111"] == 120
+
+
+def test_health_mutation_rejects_max_reduced_in_the_same_batch(sample_save: SaveData) -> None:
+    data = deepcopy(sample_save)
+    dictionaries = data["dictionaryOfDictionaries"]["value"]
+    dictionaries["playerUpgradeHealth"] = {"111": 1}
+
+    with pytest.raises(ValueError, match="between 0 and 100"):
+        apply_run_save_changes(
+            data,
+            [
+                {"feature": "players", "entity": "111", "field": "health", "after": 120},
+                {
+                    "feature": "upgrades",
+                    "entity": "111",
+                    "field": "playerUpgradeHealth",
+                    "after": 0,
+                },
+            ],
+        )
+
+
 def test_missing_supported_upgrade_entry_can_still_be_created_through_production_path(
     sample_save: SaveData,
 ) -> None:

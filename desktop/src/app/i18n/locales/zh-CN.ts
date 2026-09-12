@@ -140,7 +140,7 @@ export const zhCN: Record<keyof typeof en, string> = {
   "players.healthHelper": "这会创建内存中的待处理更改，不会写入存档文件。",
   "players.maximumHealth": "最大生命值 {value}",
   "players.healFull": "恢复至满血",
-  "players.healthError": "生命值必须是 0 到 2,147,483,647 之间的整数。",
+  "players.healthError": "生命值必须是 0 到 {max} 之间的整数。",
   "players.noPendingHealth": "没有待处理的生命值更改",
   "players.avatar": "{player} 的头像",
   "upgrades.loading": "正在加载升级…",

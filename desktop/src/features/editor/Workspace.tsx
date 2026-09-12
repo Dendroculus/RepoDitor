@@ -23,6 +23,7 @@ import { formatDateTime } from "@/features/discovery/formatters";
 import { MapsView } from "@/features/maps/MapsView";
 import { useMaps } from "@/features/maps/useMaps";
 import { PlayersView } from "@/features/players/PlayersView";
+import { usePlayerAvatars } from "@/features/players/usePlayerAvatars";
 import { usePlayers } from "@/features/players/usePlayers";
 import { RunView } from "@/features/run/RunView";
 import { useRunState } from "@/features/run/useRunState";
@@ -90,9 +91,10 @@ export function Workspace({
   const observedArtworkPreparation = useRef(false);
   const { locale, t } = usePreferences();
   const [editVersion, setEditVersion] = useState(0);
-  const players = usePlayers(
+  const players = usePlayers(session.id, initialEntryData?.players ?? null);
+  const avatars = usePlayerAvatars(
     session.id,
-    initialEntryData?.players ?? null,
+    players.selectedPlayerId,
     initialEntryData?.avatarUrls ?? {},
   );
   const upgrades = useUpgrades(session.id, initialEntryData?.upgrades ?? null);
@@ -354,35 +356,41 @@ export function Workspace({
           ) : null}
           {activeSection === "players" ? (
             <PlayersView
-              key={`players-${editVersion}`}
-              avatarUrls={players.avatarUrls}
+              avatarUrls={avatars.avatarUrls}
               error={players.error}
               loading={players.loading}
               pendingByPlayer={players.pendingByPlayer}
               players={players.players}
               selectedPlayerId={players.selectedPlayerId}
               onHealthChange={players.updateHealth}
-              onRejectAvatar={players.rejectAvatar}
+              resetVersion={editVersion}
+              onRejectAvatar={avatars.rejectAvatar}
               onRetry={players.reload}
               onRevertHealth={players.revertHealth}
-              onSelect={players.setSelectedPlayerId}
+              onSelect={(playerId) => {
+                players.setSelectedPlayerId(playerId);
+                void avatars.loadAvatar(playerId);
+              }}
             />
           ) : null}
           {activeSection === "upgrades" ? (
             <UpgradesView
-              key={`upgrades-${editVersion}`}
               error={upgrades.error}
               loading={upgrades.loading}
               pendingByUpgrade={upgrades.pendingByUpgrade}
-              avatarUrls={players.avatarUrls}
+              avatarUrls={avatars.avatarUrls}
               players={players.players}
               selectedPlayerId={players.selectedPlayerId}
               upgrades={upgrades.upgrades}
               onChange={upgrades.update}
-              onRejectAvatar={players.rejectAvatar}
+              resetVersion={editVersion}
+              onRejectAvatar={avatars.rejectAvatar}
               onRetry={() => void upgrades.reload()}
               onRevert={upgrades.revert}
-              onSelectPlayer={players.setSelectedPlayerId}
+              onSelectPlayer={(playerId) => {
+                players.setSelectedPlayerId(playerId);
+                void avatars.loadAvatar(playerId);
+              }}
             />
           ) : null}
           {activeSection === "run" ? (

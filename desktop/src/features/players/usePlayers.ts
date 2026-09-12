@@ -1,8 +1,5 @@
 /**
- * Owns player projection loading plus bounded optional avatar retries.
- *
- * Health edits remain parent-owned pending changes. Avatar failures are cached only
- * for the session and never block or mutate save-derived player state.
+ * Owns mutable player projection loading and pending health edits.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -21,11 +18,6 @@ interface PlayersState {
   loading: boolean;
 }
 
-interface AvatarAttempt {
-  readonly requests: number;
-  readonly failedAt: number | null;
-}
-
 const INITIAL_STATE: PlayersState = {
   players: [],
   error: null,
@@ -38,13 +30,9 @@ function initialState(result: DesktopOperationResult<PlayerDto[]> | null): Playe
     ? { players: result.data, error: null, loading: false }
     : { players: [], error: operationErrorKey(result.error.code), loading: false };
 }
-const AVATAR_RETRY_COOLDOWN_MS = 30_000;
-const MAX_AVATAR_REQUESTS = 2;
-
 export function usePlayers(
   saveId: string,
   initialResult: DesktopOperationResult<PlayerDto[]> | null = null,
-  initialAvatarUrls: Readonly<Record<string, string | null>> = {},
 ) {
   const { t } = usePreferences();
   const [state, setState] = useState<PlayersState>(() => initialState(initialResult));
@@ -53,64 +41,8 @@ export function usePlayers(
     initialResult?.ok ? (initialResult.data[0]?.id ?? null) : null,
   );
   const [pendingByPlayer, setPendingByPlayer] = useState<Record<string, PlayerHealthEdit>>({});
-  const [avatarUrls, setAvatarUrls] = useState<Record<string, string | null>>(() => ({
-    ...initialAvatarUrls,
-  }));
   const mounted = useRef(false);
   const playerRequestInFlight = useRef(false);
-  const avatarRequests = useRef(new Set<string>());
-  const avatarAttempts = useRef(new Map<string, AvatarAttempt>());
-
-  const markAvatarFailure = useCallback((playerId: string) => {
-    const attempt = avatarAttempts.current.get(playerId);
-    avatarAttempts.current.set(playerId, {
-      requests: Math.max(attempt?.requests ?? 0, 1),
-      failedAt: Date.now(),
-    });
-    if (mounted.current) {
-      setAvatarUrls((current) => ({ ...current, [playerId]: null }));
-    }
-  }, []);
-
-  const loadAvatar = useCallback(
-    async (playerId: string) => {
-      const previous = avatarAttempts.current.get(playerId);
-      if (
-        avatarRequests.current.has(playerId) ||
-        (previous?.requests ?? 0) >= MAX_AVATAR_REQUESTS ||
-        previous?.failedAt === null ||
-        (previous?.failedAt !== undefined &&
-          Date.now() - previous.failedAt < AVATAR_RETRY_COOLDOWN_MS)
-      ) {
-        return;
-      }
-      avatarRequests.current.add(playerId);
-      avatarAttempts.current.set(playerId, {
-        requests: (previous?.requests ?? 0) + 1,
-        failedAt: null,
-      });
-      if (mounted.current && previous?.failedAt !== undefined) {
-        setAvatarUrls((current) => {
-          const next = { ...current };
-          delete next[playerId];
-          return next;
-        });
-      }
-      try {
-        const result = await window.repoditor.players.avatar(saveId, playerId);
-        if (!result.ok || result.data.avatarUrl === null) {
-          markAvatarFailure(playerId);
-        } else if (mounted.current) {
-          setAvatarUrls((current) => ({ ...current, [playerId]: result.data.avatarUrl }));
-        }
-      } catch {
-        markAvatarFailure(playerId);
-      } finally {
-        avatarRequests.current.delete(playerId);
-      }
-    },
-    [markAvatarFailure, saveId],
-  );
 
   const loadPlayers = useCallback(
     async (preserveExisting = false): Promise<boolean> => {
@@ -164,17 +96,11 @@ export function usePlayers(
     };
   }, [loadPlayers]);
 
-  useEffect(() => {
-    for (const player of state.players) {
-      if (avatarUrls[player.id] === undefined) {
-        void loadAvatar(player.id);
-      }
-    }
-  }, [avatarUrls, loadAvatar, state.players]);
-
   function updateHealth(player: PlayerDto, health: number): void {
+    if (!Number.isSafeInteger(health)) return;
+    const validHealth = Math.min(Math.max(health, 0), player.maxHealth);
     setPendingByPlayer((current) => {
-      if (health === player.health) {
+      if (validHealth === player.health) {
         const next = { ...current };
         delete next[player.id];
         return next;
@@ -186,7 +112,7 @@ export function usePlayers(
           entity: player.id,
           field: "health",
           before: player.health,
-          after: health,
+          after: validHealth,
           label: "Health",
           subject: player.name,
         },
@@ -202,15 +128,8 @@ export function usePlayers(
     });
   }
 
-  function rejectAvatar(playerId: string): void {
-    markAvatarFailure(playerId);
-  }
-
   function selectPlayer(playerId: string): void {
     setSelectedPlayerId(playerId);
-    if (avatarUrls[playerId] === null) {
-      void loadAvatar(playerId);
-    }
   }
 
   function reload(): void {
@@ -245,9 +164,6 @@ export function usePlayers(
     setSelectedPlayerId: selectPlayer,
     pendingByPlayer,
     pendingEdits: Object.values(pendingByPlayer),
-    avatarUrls,
-    loadAvatar,
-    rejectAvatar,
     updateHealth,
     revertHealth,
     revertAll,

@@ -1,11 +1,10 @@
 /** Player selection and health editing from Python-calculated player DTOs. */
 import { ArrowClockwiseIcon, HeartIcon, UserIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { PlayerDto } from "@electron/contracts";
 import { usePreferences } from "@/app/preferences";
 import { Skeleton, SkeletonRegion } from "@/components/Skeleton";
-import { SAVE_INT32_MAX } from "@/features/editor/saveValueBounds";
 import type { PlayerHealthEdit } from "@/features/pending-changes/pendingEdits";
 import { SelectedPlayerIdentity } from "@/components/player/SelectedPlayerIdentity";
 
@@ -16,6 +15,7 @@ interface PlayersViewProps {
   readonly selectedPlayerId: string | null;
   readonly pendingByPlayer: Record<string, PlayerHealthEdit>;
   readonly avatarUrls: Record<string, string | null>;
+  readonly resetVersion?: number;
   readonly onSelect: (playerId: string) => void;
   readonly onRejectAvatar: (playerId: string) => void;
   readonly onHealthChange: (player: PlayerDto, health: number) => void;
@@ -37,7 +37,7 @@ function deriveHealthPresentation(
 ): HealthPresentation {
   const parsed = Number(input);
   const invalid =
-    input.trim() === "" || !Number.isSafeInteger(parsed) || parsed < 0 || parsed > SAVE_INT32_MAX;
+    input.trim() === "" || !Number.isSafeInteger(parsed) || parsed < 0 || parsed > maximum;
   const effective = invalid ? fallback : parsed;
   const value = Math.min(Math.max(effective, 0), maximum);
   const percent = maximum > 0 ? Math.round((value / maximum) * 100) : 0;
@@ -97,6 +97,7 @@ export function PlayersView({
   selectedPlayerId,
   pendingByPlayer,
   avatarUrls,
+  resetVersion,
   onSelect,
   onRejectAvatar,
   onHealthChange,
@@ -110,10 +111,13 @@ export function PlayersView({
   const pending = player ? pendingByPlayer[player.id] : undefined;
   const health = pending?.after ?? player?.health ?? 0;
   const [healthInputs, setHealthInputs] = useState<Record<string, string>>({});
+  useEffect(() => setHealthInputs({}), [resetVersion]);
   const healthInput = player ? (healthInputs[player.id] ?? String(health)) : String(health);
   const healthPresentation = deriveHealthPresentation(healthInput, health, player?.maxHealth ?? 0);
   const parsedHealth = healthPresentation.parsed;
-  const healthError = healthPresentation.invalid ? t("players.healthError") : null;
+  const healthError = healthPresentation.invalid
+    ? t("players.healthError", { max: player?.maxHealth ?? 0 })
+    : null;
   const visualHealth = healthPresentation.value;
   const healthPercent = healthPresentation.percent;
   const isAtFullHealth = !healthError && parsedHealth === player?.maxHealth;
@@ -166,11 +170,17 @@ export function PlayersView({
       return;
     }
     setHealthInputs((current) => ({ ...current, [player.id]: value }));
-    const next = Number(value);
-    if (value.trim() === "" || !Number.isSafeInteger(next) || next < 0 || next > SAVE_INT32_MAX) {
-      onRevertHealth(player.id);
+  }
+
+  function commitHealth(): void {
+    if (!player || healthInputs[player.id] === undefined) return;
+    const parsed = Number(healthInputs[player.id]);
+    if (!Number.isSafeInteger(parsed)) {
+      setHealthInputs((current) => ({ ...current, [player.id]: String(health) }));
       return;
     }
+    const next = Math.min(Math.max(parsed, 0), player.maxHealth);
+    setHealthInputs((current) => ({ ...current, [player.id]: String(next) }));
     onHealthChange(player, next);
   }
 
@@ -246,11 +256,12 @@ export function PlayersView({
                 className="w-28 rounded-sm border border-control bg-surface px-3 py-2 font-mono text-sm text-ink focus:border-accent"
                 id="player-health"
                 inputMode="numeric"
-                max={SAVE_INT32_MAX}
+                max={player.maxHealth}
                 min="0"
                 step="1"
                 type="number"
                 value={healthInput}
+                onBlur={commitHealth}
                 onChange={(event) => editHealth(event.target.value)}
               />
               <span
@@ -264,7 +275,13 @@ export function PlayersView({
               className="rounded-sm border border-control px-3 py-2 text-sm font-semibold text-secondary hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-control disabled:hover:text-secondary"
               disabled={isAtFullHealth}
               type="button"
-              onClick={() => editHealth(String(player.maxHealth))}
+              onClick={() => {
+                setHealthInputs((current) => ({
+                  ...current,
+                  [player.id]: String(player.maxHealth),
+                }));
+                onHealthChange(player, player.maxHealth);
+              }}
             >
               {t("players.healFull")}
             </button>

@@ -69,6 +69,7 @@ describe("run-save workspace integration", () => {
     ).toBeNull();
     await user.clear(health);
     await user.type(health, "42");
+    fireEvent.blur(health);
     expect(screen.getByTestId("pending-health-edit").textContent).toContain("0 → 42");
     expect(health.getAttribute("aria-describedby")).toContain("player-health-pending");
     expect(screen.getByTestId("workspace-pending-edit-count").textContent).toBe("1 pending change");
@@ -83,6 +84,7 @@ describe("run-save workspace integration", () => {
 
     await user.clear(health);
     await user.type(health, "0");
+    fireEvent.blur(health);
     expect(screen.queryByTestId("pending-health-edit")).toBeNull();
     expect(screen.getByTestId("workspace-pending-edit-count").textContent).toBe(
       "No pending changes",
@@ -118,7 +120,7 @@ describe("run-save workspace integration", () => {
     const health = await screen.findByRole("spinbutton", { name: "Current health" });
     fireEvent.change(health, { target: { value: "-1" } });
 
-    expect(screen.getByRole("alert").textContent).toContain("between 0 and 2,147,483,647");
+    expect(screen.getByRole("alert").textContent).toContain("between 0 and 100");
     expect(health.getAttribute("aria-describedby")).toContain("player-health-error");
     expect(screen.getByTestId("workspace-pending-edit-count").textContent).toBe(
       "No pending changes",
@@ -308,6 +310,79 @@ describe("run-save workspace integration", () => {
     expect(screen.getByTestId("workspace-pending-edit-count").textContent).toBe(
       "No pending changes",
     );
+  });
+
+  it("keeps cached avatar media mounted and unfetched across player and unrelated saves", async () => {
+    const avatarUrl = "https://avatars.fastly.steamstatic.com/avatar.jpg";
+    const avatar = vi.fn((_saveId: string, playerId: string) =>
+      Promise.resolve({ ok: true as const, data: { playerId, avatarUrl } }),
+    );
+    const write = vi.fn().mockResolvedValue({
+      ok: true as const,
+      data: {
+        backupPath: "C:\\fixture\\save.es3.bak-20260808-102100",
+        session: { ...session, fingerprint: "b".repeat(64) },
+      },
+    });
+    window.repoditor = bridge(vi.fn().mockResolvedValue(openResult()), players, avatar, write);
+    window.repoditor.players.list = vi
+      .fn()
+      .mockImplementation(() =>
+        Promise.resolve({ ok: true as const, data: players.map((player) => ({ ...player })) }),
+      );
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(await screen.findByRole("button", { name: /Open workspace/ }));
+    await user.click(await screen.findByRole("tab", { name: "Players" }));
+    const playerImage = document.querySelector<HTMLImageElement>(`img[src="${avatarUrl}"]`)!;
+    expect(playerImage).toBeTruthy();
+    const initialFetchCount = avatar.mock.calls.length;
+
+    const health = screen.getByRole("spinbutton", { name: "Current health" });
+    await user.clear(health);
+    await user.type(health, "90");
+    fireEvent.blur(health);
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(screen.getByTestId("workspace-pending-edit-count").textContent).toBe(
+        "No pending changes",
+      ),
+    );
+    expect(avatar).toHaveBeenCalledTimes(initialFetchCount);
+    expect(document.querySelector(`img[src="${avatarUrl}"]`)).toBe(playerImage);
+
+    await user.click(screen.getByRole("tab", { name: "Upgrades" }));
+    const upgradeImage = document.querySelector<HTMLImageElement>(`img[src="${avatarUrl}"]`)!;
+    const strength = screen.getByRole("spinbutton", { name: "Strength for Alpha" });
+    await user.clear(strength);
+    await user.type(strength, "3");
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(screen.getByTestId("workspace-pending-edit-count").textContent).toBe(
+        "No pending changes",
+      ),
+    );
+    expect(avatar).toHaveBeenCalledTimes(initialFetchCount);
+    expect(document.querySelector(`img[src="${avatarUrl}"]`)).toBe(upgradeImage);
+
+    await user.click(screen.getByRole("tab", { name: "Run" }));
+    const currency = screen.getByRole("spinbutton", { name: "Currency" });
+    await user.clear(currency);
+    await user.type(currency, "20");
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(3));
+    expect(avatar).toHaveBeenCalledTimes(initialFetchCount);
+
+    await user.click(screen.getByRole("tab", { name: "Items" }));
+    await user.click(
+      screen.getByRole("button", { name: "Recharge Melee Inflatable Hammer, tool 1" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => expect(write).toHaveBeenCalledTimes(4));
+    expect(avatar).toHaveBeenCalledTimes(initialFetchCount);
   });
 
   it("applies canonical Players state without a post-save players reread", async () => {
@@ -749,6 +824,7 @@ describe("run-save workspace integration", () => {
     const health = await screen.findByRole("spinbutton", { name: "Current health" });
     await user.clear(health);
     await user.type(health, "95");
+    fireEvent.blur(health);
     expect(screen.getByTestId("pending-health-edit")).toBeTruthy();
 
     const image = await waitFor(() => {

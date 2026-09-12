@@ -66,6 +66,7 @@ def apply_run_save_changes(
     upgrades = {upgrade.key for upgrade in discover_player_upgrades(data)}
     run_fields = {key for _, key, _ in get_available_run_stats(data)}
     seen: set[tuple[str, str, str]] = set()
+    health_changes: list[tuple[str, int]] = []
 
     for change in changes:
         if not isinstance(change, dict) or set(change) != {
@@ -88,7 +89,7 @@ def apply_run_save_changes(
         seen.add(signature)
 
         if feature == "players" and entity in players and field == "health":
-            set_player_health(data, entity, _integer(after))
+            health_changes.append((entity, _integer(after)))
         elif feature == "upgrades" and entity in players and field in upgrades:
             set_player_upgrade(data, entity, field, _integer(after))
         elif feature == "run" and entity == "run" and field == "resumeLocation":
@@ -112,5 +113,8 @@ def apply_run_save_changes(
             refill_item_to_full(data, entity)
         else:
             raise ValueError("A pending change is not supported by this save.")
+
+    for player_id, health in health_changes:
+        set_player_health(data, player_id, health)
 
     validate_run_save(data)

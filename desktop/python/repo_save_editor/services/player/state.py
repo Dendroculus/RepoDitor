@@ -59,8 +59,9 @@ def get_player_max_health(data: SaveData, player_id: str) -> int:
 
 def set_player_health(data: SaveData, player_id: str, value: int) -> None:
     """Set a player's current HP."""
-    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= SAVE_INT32_MAX:
-        raise ValueError(f"Current Health must be between 0 and {SAVE_INT32_MAX:,}.")
+    maximum = min(get_player_max_health(data, player_id), SAVE_INT32_MAX)
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= maximum:
+        raise ValueError(f"Current Health must be between 0 and {maximum:,}.")
 
     dictionaries = get_dictionaries(data)
     values = dictionaries.setdefault("playerHealth", {})
