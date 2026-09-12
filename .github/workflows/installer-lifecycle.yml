@@ -106,6 +106,7 @@ jobs:
               LOCALAPPDATA = Join-Path $profileRoot "AppData\Local"
               TEMP = Join-Path $profileRoot "AppData\Local\Temp"
               TMP = Join-Path $profileRoot "AppData\Local\Temp"
+              PSModulePath = "$env:WINDIR\System32\WindowsPowerShell\v1.0\Modules;$env:PSModulePath"
             }
             $worker = Start-Process powershell.exe `
               -Credential $credential `
