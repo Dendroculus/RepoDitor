@@ -145,7 +145,7 @@ export const en = {
     "This creates an in-memory pending edit. It does not write to the save file.",
   "players.maximumHealth": "Maximum health {value}",
   "players.healFull": "Heal to Full",
-  "players.healthError": "Health must be between 0 and 2,147,483,647.",
+  "players.healthError": "Health must be between 0 and {max}.",
   "players.noPendingHealth": "No pending health edit",
   "players.avatar": "{player} avatar",
   "upgrades.loading": "Loading upgrades…",

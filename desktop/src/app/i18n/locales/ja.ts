@@ -143,7 +143,7 @@ export const ja: Record<keyof typeof en, string> = {
   "players.healthHelper": "メモリ内の保留変更を作成します。セーブファイルにはまだ書き込みません。",
   "players.maximumHealth": "最大体力 {value}",
   "players.healFull": "全回復",
-  "players.healthError": "体力は 0 から 2,147,483,647 の整数で入力してください。",
+  "players.healthError": "体力は 0 から {max} の整数で入力してください。",
   "players.noPendingHealth": "保留中の体力変更はありません",
   "players.avatar": "{player} のアバター",
   "upgrades.loading": "アップグレードを読み込み中…",

@@ -5,7 +5,7 @@
  * but do not define catalog membership or mutation authority.
  */
 import { ArrowClockwiseIcon } from "@phosphor-icons/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { PlayerDto, PlayerUpgradeDto } from "@electron/contracts";
 import { usePreferences } from "@/app/preferences";
@@ -25,6 +25,7 @@ interface UpgradesViewProps {
   readonly error: string | null;
   readonly pendingByUpgrade: Record<string, UpgradeValueEdit>;
   readonly avatarUrls: Record<string, string | null>;
+  readonly resetVersion?: number;
   readonly onSelectPlayer: (playerId: string) => void;
   readonly onRejectAvatar: (playerId: string) => void;
   readonly onChange: (upgrade: PlayerUpgradeDto, player: PlayerDto, value: number) => void;
@@ -85,6 +86,7 @@ export function UpgradesView({
   error,
   pendingByUpgrade,
   avatarUrls,
+  resetVersion,
   onSelectPlayer,
   onRejectAvatar,
   onChange,
@@ -93,6 +95,7 @@ export function UpgradesView({
 }: UpgradesViewProps) {
   const { t } = usePreferences();
   const [inputs, setInputs] = useState<Record<string, string>>({});
+  useEffect(() => setInputs({}), [resetVersion]);
   const player = players.find((item) => item.id === selectedPlayerId) ?? players[0] ?? null;
 
   if (loading && upgrades.length === 0) {

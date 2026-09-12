@@ -145,7 +145,7 @@ export const ko: Record<keyof typeof en, string> = {
     "메모리에 대기 중인 변경 사항을 만듭니다. 세이브 파일에는 아직 쓰지 않습니다.",
   "players.maximumHealth": "최대 체력 {value}",
   "players.healFull": "완전히 회복",
-  "players.healthError": "체력은 0에서 2,147,483,647 사이의 정수여야 합니다.",
+  "players.healthError": "체력은 0에서 {max} 사이의 정수여야 합니다.",
   "players.noPendingHealth": "대기 중인 체력 변경 없음",
   "players.avatar": "{player} 아바타",
   "upgrades.loading": "업그레이드 불러오는 중…",

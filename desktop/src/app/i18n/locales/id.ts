@@ -146,7 +146,7 @@ export const id: Record<keyof typeof en, string> = {
   "players.healthHelper": "Ini membuat perubahan tertunda di memori. File save belum ditulis.",
   "players.maximumHealth": "Kesehatan maksimum {value}",
   "players.healFull": "Pulihkan Penuh",
-  "players.healthError": "Kesehatan harus antara 0 dan 2.147.483.647.",
+  "players.healthError": "Kesehatan harus antara 0 dan {max}.",
   "players.noPendingHealth": "Tidak ada perubahan kesehatan tertunda",
   "players.avatar": "Avatar {player}",
   "upgrades.loading": "Memuat upgrade…",
