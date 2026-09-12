@@ -231,7 +231,7 @@ test("native install, update, elevation, and uninstall contracts remain unchange
   assert.match(host, /!File\.Exists\(Path\.Combine\(_selectedPath, "RepoDitor\.exe"\)\)/);
   assert.match(host, /The uninstaller did not complete\./);
   const parentWait = host.match(
-    /private async Task WaitForParentAsync\(\)(?<body>[\s\S]*?)\n {4}}\n\n {4}private void LaunchRepoDitor/,
+    /private async Task WaitForParentAsync\(\)(?<body>[\s\S]*?)\n {4}}\n\n {4}private async Task WaitForUninstallCompletionAsync/,
   )?.groups?.body;
   assert.ok(parentWait);
   assert.doesNotMatch(parentWait, /\.HasExited/);
