@@ -130,6 +130,14 @@ function Invoke-Setup([string] $Scenario, [string] $ExpectedPath, [bool] $Custom
   Write-LifecycleLog "$Scenario | setup start | executable=$script:setupPath arguments=$($arguments -join ' ')"
   $process = Start-Process -FilePath $script:setupPath -ArgumentList $arguments -PassThru -Wait
   Add-Observation $Scenario 'setup exit' ([string]$process.ExitCode)
+  if ($process.ExitCode -ne 0) {
+    $payload = if (Test-Path -LiteralPath $ExpectedPath) {
+      @(Get-ChildItem -LiteralPath $ExpectedPath -Force | ForEach-Object Name) -join ', '
+    } else {
+      '<destination absent>'
+    }
+    Write-LifecycleLog "$Scenario | failed destination | path=$ExpectedPath contents=$payload"
+  }
   Assert-True ($process.ExitCode -eq 0) "$Scenario setup exited $($process.ExitCode)."
   Assert-Installed $Scenario $ExpectedPath
   Assert-GameData "$Scenario setup"
@@ -257,6 +265,11 @@ try {
       throw "Safety preflight refused existing state: $path"
     }
   }
+
+  foreach ($directory in @($roaming, $local, (Join-Path $local 'Temp'))) {
+    New-Item -ItemType Directory -Path $directory -Force | Out-Null
+  }
+  Write-LifecycleLog "profile=$profile roaming=$roaming local=$local temp=$(Join-Path $local 'Temp')"
 
   New-Item -ItemType Directory -Path (Join-Path $gameDataRoot 'Saves\qa-slot') -Force | Out-Null
   New-Item -ItemType Directory -Path (Join-Path $gameDataRoot 'settings') -Force | Out-Null
