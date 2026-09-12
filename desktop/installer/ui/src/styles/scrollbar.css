@@ -1,0 +1,58 @@
+/* Installer-local adaptation of RepoDitor's compact application scrollbar. */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #090b12;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+::-webkit-scrollbar-thumb:active {
+  background: var(--gold);
+}
+
+::-webkit-scrollbar-corner {
+  background: #090b12;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+.path {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+
+.path::-webkit-scrollbar {
+  height: 4px;
+}
+
+.path::-webkit-scrollbar-track,
+.path::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.path::-webkit-scrollbar-thumb {
+  background: transparent;
+}
+
+.path:hover,
+.path:focus {
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+.path:hover::-webkit-scrollbar-thumb,
+.path:focus::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+}

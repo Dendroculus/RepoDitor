@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using System.Web.Script.Serialization;
 using System.Windows.Forms;
+using Microsoft.Win32;
 using Microsoft.Web.WebView2.Core;
 using Microsoft.Web.WebView2.WinForms;
 
@@ -42,6 +43,7 @@ internal sealed class Arguments
 {
     internal string Mode = "install";
     internal string Engine = string.Empty;
+    internal string RegistryKey = string.Empty;
     internal string Path = string.Empty;
     internal string CurrentPath = string.Empty;
     internal string AllPath = string.Empty;
@@ -69,6 +71,7 @@ internal sealed class Arguments
         var result = new Arguments();
         result.Mode = Get(values, "mode", result.Mode);
         result.Engine = Get(values, "engine", result.Engine);
+        result.RegistryKey = Get(values, "registry-key", result.RegistryKey);
         result.Path = Get(values, "path", result.Path);
         result.CurrentPath = Get(values, "current-path", result.Path);
         result.AllPath = Get(values, "all-path", result.Path);
@@ -360,7 +363,7 @@ internal sealed class InstallerWindow : Form
             }
 
             await WaitForParentAsync();
-            var arguments = "/S /" + (_scope == "all" ? "allusers" : "currentuser");
+            var arguments = "/" + (_scope == "all" ? "allusers" : "currentuser") + " /S";
             if (_options.Mode != "uninstall")
             {
                 if (_options.Updated)
@@ -396,6 +399,11 @@ internal sealed class InstallerWindow : Form
                 }
             }
 
+            if (_options.Mode == "uninstall")
+            {
+                await WaitForUninstallCompletionAsync();
+            }
+
             _busy = false;
             SendState("done", string.Empty);
         }
@@ -413,24 +421,80 @@ internal sealed class InstallerWindow : Form
         }
     }
 
-    private Task WaitForParentAsync()
+    private async Task WaitForParentAsync()
     {
         if (_parentProcess == null)
         {
-            return Task.Delay(750);
+            await Task.Delay(750);
+            return;
         }
 
         try
         {
-            if (_parentProcess.HasExited)
+            await Task.Run(delegate { _parentProcess.WaitForExit(); });
+            return;
+        }
+        catch (Win32Exception error)
+        {
+            if (error.NativeErrorCode != 5)
             {
-                return Task.FromResult(0);
+                throw;
             }
         }
-        catch (Win32Exception) { return Task.Delay(750); }
-        catch (InvalidOperationException) { return Task.Delay(750); }
+        catch (InvalidOperationException)
+        {
+            return;
+        }
+        // A hardened parent may deny even SYNCHRONIZE. Never race it with a fixed delay.
+        while (true)
+        {
+            try
+            {
+                using (Process.GetProcessById(_options.ParentProcessId)) { }
+            }
+            catch (ArgumentException)
+            {
+                return;
+            }
+            catch (InvalidOperationException)
+            {
+                return;
+            }
+            await Task.Delay(100);
+        }
+    }
 
-        return Task.Run(delegate { _parentProcess.WaitForExit(); });
+    private async Task WaitForUninstallCompletionAsync()
+    {
+        var timeout = Stopwatch.StartNew();
+        while (!IsUninstallComplete())
+        {
+            if (timeout.Elapsed >= TimeSpan.FromSeconds(30))
+            {
+                throw new InvalidOperationException("The uninstaller did not complete.");
+            }
+            await Task.Delay(100);
+        }
+    }
+
+    private bool IsUninstallComplete()
+    {
+        if (string.IsNullOrWhiteSpace(_options.RegistryKey))
+        {
+            return false;
+        }
+
+        var registry = _scope == "all" ? Registry.LocalMachine : Registry.CurrentUser;
+        using (var key = registry.OpenSubKey(_options.RegistryKey))
+        {
+            if (key != null)
+            {
+                return false;
+            }
+        }
+
+        return !File.Exists(_options.Engine) &&
+            !File.Exists(Path.Combine(_selectedPath, "RepoDitor.exe"));
     }
 
     private void LaunchRepoDitor()

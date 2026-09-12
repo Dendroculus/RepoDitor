@@ -30,6 +30,7 @@ const interactionHandlers = [
 export default defineConfig([
   globalIgnores([
     ".vite-cache",
+    "build",
     "coverage",
     "dist",
     "dist-electron",
@@ -117,7 +118,7 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}", "installer/ui/src/**/*.{ts,tsx}"],
     plugins: {
       react,
       "react-hooks": reactHooks,

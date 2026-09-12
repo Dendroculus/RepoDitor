@@ -1,16 +1,30 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { readFile, readdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 const require = createRequire(import.meta.url);
 const packageJson = require("../package.json");
-const installerUrl = new URL("../installer/", import.meta.url);
+const desktopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const installerRoot = path.join(desktopRoot, "installer");
+const uiSourceRoot = path.join(installerRoot, "ui");
+const uiBuildRoot = path.join(desktopRoot, "build", "installer-ui");
 const builderRoot = path.dirname(require.resolve("app-builder-lib/package.json"));
 const builderTemplate = (...segments) => path.join(builderRoot, "templates", "nsis", ...segments);
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
+
+async function collectFiles(directory) {
+  const files = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) files.push(...(await collectFiles(entryPath)));
+    else files.push(entryPath);
+  }
+  return files;
+}
 
 test("electron-builder keeps ownership of the x64 NSIS lifecycle", () => {
   const nsisTarget = packageJson.build.win.target.find(({ target }) => target === "nsis");
@@ -29,39 +43,50 @@ test("electron-builder keeps ownership of the x64 NSIS lifecycle", () => {
   assert.equal(nsis.uninstallerSidebar, undefined);
   assert.notEqual(nsis.deleteAppDataOnUninstall, true);
   assert.equal(nsis.script, undefined);
+  assert.match(packageJson.scripts["installer:ui:build"], /tsc.*vite build/s);
   assert.match(packageJson.scripts["package:installer"], /npm run installer:host/);
   assert.match(packageJson.scripts["package:installer:signed"], /npm run installer:host:signed/);
 });
 
-test("the approved artwork and exact HTML composition are production assets", async () => {
-  const [artwork, html] = await Promise.all([
-    readFile(new URL("assets/ArtWork.png", installerUrl)),
-    readFile(new URL("ui/index.html", installerUrl), "utf8"),
+test("approved composition and assets remain installer-owned source", async () => {
+  const [artwork, icon, css, chrome, states] = await Promise.all([
+    readFile(path.join(installerRoot, "assets", "ArtWork.png")),
+    readFile(path.join(desktopRoot, "public", "icon.ico")),
+    readFile(path.join(uiSourceRoot, "src", "styles", "installer.css"), "utf8"),
+    readFile(path.join(uiSourceRoot, "src", "InstallerChrome.tsx"), "utf8"),
+    readFile(path.join(uiSourceRoot, "src", "InstallerStates.tsx"), "utf8"),
   ]);
 
   assert.equal(artwork.toString("hex", 0, 8), "89504e470d0a1a0a");
   assert.equal(artwork.readUInt32BE(16), 1672);
   assert.equal(artwork.readUInt32BE(20), 941);
   assert.equal(sha256(artwork), "d72487503d259d659900df058114f6d30a6e1ed5bf7a9cfea5bc0597ac254a04");
+  assert.ok(icon.length > 0);
 
-  assert.match(html, /linear-gradient\(\s*90deg,[\s\S]*48%[\s\S]*64%/);
-  assert.match(html, /\.panel\s*\{[\s\S]*width: 42%/);
-  assert.match(html, /url\("ArtWork\.png"\) center \/ cover no-repeat/);
-  assert.equal([...html.matchAll(/src="icon\.ico"/g)].length, 2);
-  assert.match(html, /<strong>RepoDitor<\/strong>[\s\S]*R\.E\.P\.O\. save editor/);
-  assert.match(html, /name="scope"[\s\S]*Current user[\s\S]*All users/);
-  assert.match(html, /id="pathField"[\s\S]*readonly/);
-  assert.match(html, /id="changePath"[\s\S]*Change/);
-  assert.match(html, /id="startButton"[\s\S]*Install/);
-  assert.doesNotMatch(html, /reference-note|setInterval|data:image|Codex/i);
+  assert.match(css, /linear-gradient\([\s\S]*90deg[\s\S]*48%[\s\S]*64%/);
+  assert.match(css, /\.panel\s*\{[\s\S]*?width:\s*42%/);
+  assert.match(css, /ArtWork\.png["')]?\)\s*center\s*\/\s*cover\s+no-repeat/);
+  assert.match(chrome, /RepoDitor icon/);
+  assert.match(states, /Current user[\s\S]*All users/);
+  assert.match(states, /INSTALL LOCATION[\s\S]*readOnly/);
+  assert.match(states, /Change/);
+  assert.match(states, /Install/);
 });
 
-test("the HTML talks only through the WebView2 message bridge", async () => {
-  const html = await readFile(new URL("ui/index.html", installerUrl), "utf8");
+test("the typed bridge is the only raw WebView2 access point", async () => {
+  const sourceRoot = path.join(uiSourceRoot, "src");
+  const files = (await collectFiles(sourceRoot)).filter(
+    (file) => /\.(?:ts|tsx)$/.test(file) && !file.endsWith(".test.tsx"),
+  );
+  const sources = await Promise.all(
+    files.map(async (file) => [file, await readFile(file, "utf8")]),
+  );
+  const rawAccess = sources
+    .filter(([, source]) => /chrome\??\.webview/.test(source))
+    .map(([file]) => path.relative(sourceRoot, file).replaceAll("\\", "/"));
+  assert.deepEqual(rawAccess, ["bridge/webview.ts"]);
 
-  assert.match(html, /window\.chrome\s*&&\s*window\.chrome\.webview/);
-  assert.match(html, /webview\.postMessage\(command\)/);
-  assert.match(html, /webview\.addEventListener\("message"/);
+  const bridge = await readFile(path.join(sourceRoot, "bridge", "webview.ts"), "utf8");
   for (const command of [
     "ready",
     "choose-path",
@@ -71,42 +96,85 @@ test("the HTML talks only through the WebView2 message bridge", async () => {
     "retry",
     "launch",
     "cancel",
+    "close",
     "window:drag",
     "window:minimize",
     "window:maximize",
     "window:close",
   ]) {
-    assert.ok(html.includes(`"${command}"`), `Missing WebView2 command: ${command}`);
+    assert.ok(bridge.includes(`"${command}"`), `Missing WebView2 command: ${command}`);
   }
-  assert.match(html, /message\.type === "initialize"/);
-  assert.match(html, /message\.type === "path"/);
-  assert.match(html, /message\.type === "state"/);
+  assert.match(bridge, /type:\s*"initialize"/);
+  assert.match(bridge, /type:\s*"path"/);
+  assert.match(bridge, /type:\s*"state"/);
+  assert.match(bridge, /postMessage\(command\)/);
+  assert.match(bridge, /addEventListener\("message"/);
 });
 
-test("the native host locks WebView2 to local production assets and allowlisted commands", async () => {
-  const [host, build] = await Promise.all([
-    readFile(new URL("host/Program.cs", installerUrl), "utf8"),
-    readFile(new URL("build-host.ps1", installerUrl), "utf8"),
+test("the Vite build contains only local production UI and approved assets", async () => {
+  const outputFiles = await collectFiles(uiBuildRoot);
+  const relativeFiles = outputFiles.map((file) =>
+    path.relative(uiBuildRoot, file).replaceAll("\\", "/"),
+  );
+  assert.ok(relativeFiles.includes("index.html"));
+  assert.ok(relativeFiles.some((file) => /^assets\/.+\.js$/.test(file)));
+  assert.ok(relativeFiles.some((file) => /^assets\/.+\.css$/.test(file)));
+  assert.equal(
+    relativeFiles.some((file) => /\.(?:map|ts|tsx)$/.test(file)),
+    false,
+  );
+
+  const [html, artwork, icon, ...output] = await Promise.all([
+    readFile(path.join(uiBuildRoot, "index.html"), "utf8"),
+    readFile(path.join(installerRoot, "assets", "ArtWork.png")),
+    readFile(path.join(desktopRoot, "public", "icon.ico")),
+    ...outputFiles.map((file) => readFile(file)),
+  ]);
+  const outputHashes = new Set(output.map(sha256));
+  assert.ok(outputHashes.has(sha256(artwork)), "Approved artwork is absent from Vite output");
+  assert.ok(outputHashes.has(sha256(icon)), "RepoDitor icon is absent from Vite output");
+
+  assert.match(html, /Content-Security-Policy/);
+  assert.match(html, /default-src 'none'/);
+  assert.match(html, /script-src 'self'/);
+  assert.doesNotMatch(html, /unsafe-inline|unsafe-eval/);
+  assert.doesNotMatch(
+    html,
+    /(?:src|href)=["']https?:|localhost:5173|@vite\/client|\/src\/main\.tsx/,
+  );
+  assert.match(html, /(?:src|href)=["']\.\/assets\//);
+});
+
+test("long paths stay semantic, single-line, and cannot displace Change", async () => {
+  const [states, css, scrollbar] = await Promise.all([
+    readFile(path.join(uiSourceRoot, "src", "InstallerStates.tsx"), "utf8"),
+    readFile(path.join(uiSourceRoot, "src", "styles", "installer.css"), "utf8"),
+    readFile(path.join(uiSourceRoot, "src", "styles", "scrollbar.css"), "utf8"),
   ]);
 
-  assert.match(host, /private const string AppOrigin = "https:\/\/repoditor-installer\.local"/);
-  assert.match(host, /SetVirtualHostNameToFolderMapping[\s\S]*DenyCors/);
-  assert.match(host, /eventArgs\.Source\.Equals\(AppOrigin \+ "\/index\.html"/);
-  assert.match(host, /AreDevToolsEnabled = false/);
-  assert.match(host, /AreHostObjectsAllowed = false/);
-  assert.match(host, /PermissionRequested[\s\S]*CoreWebView2PermissionState\.Deny/);
-  assert.match(host, /DownloadStarting[\s\S]*args\.Cancel = true/);
-  assert.match(host, /command == "choose-path"/);
-  assert.match(host, /command == "scope:current"/);
-  assert.match(host, /command == "scope:all"/);
-  assert.match(host, /command == "start" \|\| command == "retry"/);
-  assert.match(host, /var arguments = "\/S \/"/);
-  assert.match(host, /if \(_options\.Updated\)[\s\S]*arguments \+= " --updated"/);
-  assert.match(host, /arguments \+= " \/D=" \+ _selectedPath/);
-  assert.match(host, /startInfo\.Verb = "runas"/);
-  assert.match(host, /await WaitForParentAsync\(\)/);
-  assert.doesNotMatch(host, /AddHostObjectToScript|ExecuteScriptAsync/);
+  assert.match(states, /<input[\s\S]*?id="pathField"[\s\S]*?value=\{path\}[\s\S]*?readOnly/);
+  assert.match(states, /title=\{path\}/);
+  assert.match(css, /\.location-row\s*\{[\s\S]*?height:\s*44px[\s\S]*?minmax\(0,\s*1fr\)\s+auto/);
+  assert.match(css, /\.path\s*\{[\s\S]*?white-space:\s*nowrap[\s\S]*?overflow-x:\s*auto/);
+  assert.match(css, /\.change\s*\{[\s\S]*?height:\s*44px[\s\S]*?flex:\s*0 0 auto/);
+  assert.match(scrollbar, /::-webkit-scrollbar[\s\S]*?6px/);
+  assert.match(scrollbar, /\.path:hover[\s\S]*?\.path:focus/);
 
+  const allSource = `${states}\n${css}\n${scrollbar}`;
+  assert.doesNotMatch(allSource, /setInterval|setTimeout|fake.?progress|progressPercent/i);
+});
+
+test("host building refreshes and stages Vite output before NSIS", async () => {
+  const [host, build, include] = await Promise.all([
+    readFile(path.join(installerRoot, "host", "Program.cs"), "utf8"),
+    readFile(path.join(installerRoot, "build-host.ps1"), "utf8"),
+    readFile(path.join(installerRoot, "installer.nsh"), "utf8"),
+  ]);
+
+  assert.match(build, /npm\.cmd run installer:ui:build/);
+  assert.match(build, /Remove-Item -LiteralPath \$resolvedBuildRoot -Recurse -Force/);
+  assert.match(build, /Get-ChildItem -LiteralPath \$uiBuildRoot[\s\S]*Copy-Item/);
+  assert.doesNotMatch(build, /installer[\\/]ui[\\/]index\.html|assets[\\/]ArtWork\.png/);
   assert.match(build, /\$sdkVersion = "1\.0\.4191\.47"/);
   assert.match(
     build,
@@ -117,35 +185,80 @@ test("the native host locks WebView2 to local production assets and allowlisted 
   assert.match(build, /WebView2Loader\.dll/);
   assert.match(build, /Invoke-TrustedSigning/);
   assert.match(build, /-Files \$hostPath/);
-});
-
-test("NSIS stages the WebView2 bootstrapper and exposes no classic custom pages", async () => {
-  const include = await readFile(new URL("installer.nsh", installerUrl), "utf8");
 
   assert.match(include, /!macro RepoDitorStageWebViewHost/);
-  for (const asset of [
-    "RepoDitorInstallerHost.exe",
-    "Microsoft.Web.WebView2.Core.dll",
-    "Microsoft.Web.WebView2.WinForms.dll",
-    "WebView2Loader.dll",
-    "Microsoft.Web.WebView2.LICENSE.txt",
-    "Microsoft.Web.WebView2.NOTICE.txt",
-    "index.html",
-    "ArtWork.png",
-    "icon.ico",
-  ]) {
-    assert.ok(include.includes(asset), `NSIS does not stage ${asset}`);
-  }
-  assert.match(include, /!macro customInit[\s\S]*\$\{If\} \$\{Silent\}/);
-  assert.match(include, /--mode install --engine "\$EXEPATH"/);
-  assert.match(include, /Exec '"\$RepoDitor\.StageDirectory\\RepoDitorInstallerHost\.exe"/);
-  assert.match(include, /!macro customUnInit[\s\S]*\$\{StdUtils\.ExecShellAsUser\}/);
-  assert.match(include, /--mode uninstall --engine "\$EXEPATH"/);
+  assert.match(include, /File \/r "\$\{REPODITOR_HOST_DIR\}\\\*"/);
+  assert.doesNotMatch(include, /PROJECT_DIR\}\\installer\\ui|PROJECT_DIR\}\\installer\\assets/);
   assert.doesNotMatch(
     include,
     /\b(?:Uninst)?Page custom\b|nsDialogs|MUI_PAGE_WELCOME|MUI_PAGE_DIRECTORY/,
   );
 
+  assert.match(host, /private const string AppOrigin = "https:\/\/repoditor-installer\.local"/);
+  assert.match(host, /SetVirtualHostNameToFolderMapping[\s\S]*DenyCors/);
+  assert.match(host, /eventArgs\.Source\.Equals\(AppOrigin \+ "\/index\.html"/);
+  assert.match(host, /AreDevToolsEnabled = false/);
+  assert.match(host, /AreHostObjectsAllowed = false/);
+  assert.match(host, /PermissionRequested[\s\S]*CoreWebView2PermissionState\.Deny/);
+  assert.match(host, /DownloadStarting[\s\S]*args\.Cancel = true/);
+  assert.doesNotMatch(host, /AddHostObjectToScript|ExecuteScriptAsync/);
+});
+
+test("native install, update, elevation, and uninstall contracts remain unchanged", async () => {
+  const [host, include] = await Promise.all([
+    readFile(path.join(installerRoot, "host", "Program.cs"), "utf8"),
+    readFile(path.join(installerRoot, "installer.nsh"), "utf8"),
+  ]);
+
+  assert.match(host, /command == "choose-path"/);
+  assert.match(host, /command == "scope:current"/);
+  assert.match(host, /command == "scope:all"/);
+  assert.match(host, /command == "start" \|\| command == "retry"/);
+  assert.match(
+    host,
+    /var arguments = "\/" \+ \(_scope == "all" \? "allusers" : "currentuser"\) \+ " \/S"/,
+  );
+  assert.match(host, /if \(_options\.Updated\)[\s\S]*arguments \+= " --updated"/);
+  assert.match(host, /arguments \+= " \/D=" \+ _selectedPath/);
+  assert.match(host, /startInfo\.Verb = "runas"/);
+  assert.match(host, /await WaitForParentAsync\(\)/);
+  assert.doesNotMatch(host, /DirectEngine|direct-engine| _\?=/);
+  assert.doesNotMatch(host, /attempt <|for \(var attempt/);
+  assert.match(host, /await WaitForUninstallCompletionAsync\(\)/);
+  assert.match(host, /Registry\.LocalMachine : Registry\.CurrentUser/);
+  assert.match(host, /registry\.OpenSubKey\(_options\.RegistryKey\)/);
+  assert.match(host, /!File\.Exists\(_options\.Engine\)/);
+  assert.match(host, /!File\.Exists\(Path\.Combine\(_selectedPath, "RepoDitor\.exe"\)\)/);
+  assert.match(host, /The uninstaller did not complete\./);
+  const parentWait = host.match(
+    /private async Task WaitForParentAsync\(\)(?<body>[\s\S]*?)\r?\n {4}}\r?\n\r?\n {4}private async Task WaitForUninstallCompletionAsync/,
+  )?.groups?.body;
+  assert.ok(parentWait);
+  assert.doesNotMatch(parentWait, /\.HasExited/);
+  assert.match(parentWait, /await Task\.Run\(delegate \{ _parentProcess\.WaitForExit\(\); }\)/);
+  assert.match(parentWait, /NativeErrorCode != 5/);
+  assert.match(parentWait, /Process\.GetProcessById\(_options\.ParentProcessId\)/);
+  assert.doesNotMatch(parentWait, /return Task\.Delay/);
+
+  assert.match(include, /!macro customInit[\s\S]*\$\{If\} \$\{Silent\}/);
+  assert.match(include, /--mode install --engine "\$EXEPATH"/);
+  assert.match(include, /Exec '"\$RepoDitor\.StageDirectory\\RepoDitorInstallerHost\.exe"/);
+  assert.match(include, /!macro customUnInit[\s\S]*\$\{StdUtils\.ExecShellAsUser\}/);
+  assert.match(
+    include,
+    /\$\{If\} \$\{UAC_IsAdmin\}[\s\S]*ExecShellAsUser[\s\S]*\$\{Else\}[\s\S]*Exec '/,
+  );
+  assert.match(include, /--mode uninstall --engine "\$INSTDIR\\\$\{UNINSTALL_FILENAME\}"/);
+  assert.doesNotMatch(include, /RepoDitor\.DirectEngine|--direct-engine/);
+  assert.match(include, /--registry-key "\$\{UNINSTALL_REGISTRY_KEY\}"/);
+  assert.match(
+    include,
+    /\$\{GetProcessInfo\} 0 \$0 \$1 \$2 \$3 \$4[\s\S]*StrCpy \$RepoDitor\.ParentProcessId "\$1"/,
+  );
+  assert.doesNotMatch(
+    include.match(/!macro customUnInit[\s\S]*?!macroend/)?.[0] ?? "",
+    /--mode uninstall --engine "\$EXEPATH"/,
+  );
   assert.match(include, /PathIsNetworkPathW/);
   assert.match(include, /PathIsRootW/);
   assert.match(include, /PathIsPrefixW\(w "\$PROFILE\\AppData\\LocalLow\\semiwork\\Repo"/);
@@ -161,7 +274,7 @@ test("NSIS stages the WebView2 bootstrapper and exposes no classic custom pages"
 });
 
 test("uninstall cleanup is exact, upgrade-guarded, and reparse-aware", async () => {
-  const include = await readFile(new URL("installer.nsh", installerUrl), "utf8");
+  const include = await readFile(path.join(installerRoot, "installer.nsh"), "utf8");
   const cleanup = include.match(/!macro customUnInstall(?<body>[\s\S]*?)!macroend/)?.groups?.body;
   assert.ok(cleanup);
   assert.deepEqual(
@@ -177,7 +290,7 @@ test("uninstall cleanup is exact, upgrade-guarded, and reparse-aware", async () 
   assert.doesNotMatch(cleanup, /Push "\$(?:APPDATA|LOCALAPPDATA|PROFILE|USERPROFILE)"/);
 });
 
-test("electron-builder keeps payload, upgrade, rollback, and uninstall registration ownership", async () => {
+test("electron-builder keeps payload, upgrade, rollback, and registration ownership", async () => {
   const [assisted, installSection, installer, installUtil] = await Promise.all([
     readFile(builderTemplate("assistedInstaller.nsh"), "utf8"),
     readFile(builderTemplate("installSection.nsh"), "utf8"),
