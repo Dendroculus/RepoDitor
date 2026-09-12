@@ -185,21 +185,21 @@ function Invoke-WebViewUninstall([string] $Scenario, [string] $InstallPath) {
   Write-LifecycleLog "$Scenario | uninstall UI start | executable=$uninstaller arguments=/currentuser"
   $entryProcess = Start-Process -FilePath $uninstaller -ArgumentList '/currentuser' -PassThru
 
-  $host = $null
+  $installerHost = $null
   $deadline = [DateTime]::UtcNow.AddSeconds(30)
-  while ($null -eq $host -and [DateTime]::UtcNow -lt $deadline) {
-    $host = Get-Process -Name RepoDitorInstallerHost -ErrorAction SilentlyContinue |
+  while ($null -eq $installerHost -and [DateTime]::UtcNow -lt $deadline) {
+    $installerHost = Get-Process -Name RepoDitorInstallerHost -ErrorAction SilentlyContinue |
       Where-Object { $_.Id -notin $existingHosts } |
       Select-Object -First 1
-    if ($null -eq $host) { Start-Sleep -Milliseconds 100 }
+    if ($null -eq $installerHost) { Start-Sleep -Milliseconds 100 }
   }
-  Assert-True ($null -ne $host) "$Scenario WebView2 uninstall host did not start."
-  Add-Observation $Scenario 'WebView2 host' "pid=$($host.Id)"
+  Assert-True ($null -ne $installerHost) "$Scenario WebView2 uninstall host did not start."
+  Add-Observation $Scenario 'WebView2 host' "pid=$($installerHost.Id)"
 
   $root = [System.Windows.Automation.AutomationElement]::RootElement
   $pidCondition = [System.Windows.Automation.PropertyCondition]::new(
     [System.Windows.Automation.AutomationElement]::ProcessIdProperty,
-    [int]$host.Id
+    [int]$installerHost.Id
   )
   $window = $null
   $uninstallButton = $null
