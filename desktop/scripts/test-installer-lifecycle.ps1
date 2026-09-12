@@ -124,9 +124,10 @@ function Assert-Uninstalled([string] $Scenario, [string] $InstallPath) {
   Add-Observation $Scenario 'uninstall postconditions' 'registration and payload gone'
 }
 
-function Invoke-Setup([string] $Scenario, [string] $ExpectedPath, [bool] $CustomPath) {
-  $arguments = @('/S', '/currentuser')
-  if ($CustomPath) { $arguments += "/D=$ExpectedPath" }
+function Invoke-Setup([string] $Scenario, [string] $ExpectedPath) {
+  # Mirror InstallerWindow.RunEngine(): production installs always pass the
+  # authoritative selected path, including the normal default location.
+  $arguments = @('/S', '/currentuser', "/D=$ExpectedPath")
   Write-LifecycleLog "$Scenario | setup start | executable=$script:setupPath arguments=$($arguments -join ' ')"
   $process = Start-Process -FilePath $script:setupPath -ArgumentList $arguments -PassThru -Wait
   Add-Observation $Scenario 'setup exit' ([string]$process.ExitCode)
@@ -280,13 +281,13 @@ try {
   $gameFingerprint = Get-GameFingerprint $gameDataRoot | ConvertTo-Json -Compress
   Add-Observation 'game-data' 'baseline' $gameFingerprint
 
-  Invoke-Setup 'current-user-default-install' $defaultInstallPath $false
+  Invoke-Setup 'current-user-default-install' $defaultInstallPath
 
   foreach ($root in $ownedDataRoots) {
     New-Item -ItemType Directory -Path $root -Force | Out-Null
     [IO.File]::WriteAllText((Join-Path $root 'upgrade-sentinel.txt'), 'preserve-on-update')
   }
-  Invoke-Setup 'current-user-default-update' $defaultInstallPath $false
+  Invoke-Setup 'current-user-default-update' $defaultInstallPath
   foreach ($root in $ownedDataRoots) {
     Assert-True (Test-Path -LiteralPath (Join-Path $root 'upgrade-sentinel.txt') -PathType Leaf) `
       "Update removed RepoDitor-owned AppData sentinel: $root"
@@ -300,7 +301,7 @@ try {
   }
   Add-Observation 'current-user-default-uninstall' 'AppData' 'owned roots removed'
 
-  Invoke-Setup 'current-user-custom-install' $customInstallPath $true
+  Invoke-Setup 'current-user-custom-install' $customInstallPath
   Invoke-WebViewUninstall 'current-user-custom-uninstall' $customInstallPath
   $succeeded = $true
 }
