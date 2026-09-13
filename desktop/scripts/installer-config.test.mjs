@@ -26,6 +26,63 @@ async function collectFiles(directory) {
   return files;
 }
 
+async function readHostSources() {
+  const files = (await collectFiles(path.join(installerRoot, "host")))
+    .filter((file) => file.endsWith(".cs"))
+    .sort();
+  assert.ok(files.length > 0, "The native host source set is empty");
+  return Promise.all(files.map(async (file) => [file, await readFile(file, "utf8")]));
+}
+
+function classSource(sources, name) {
+  const matches = sources.filter(([, source]) => new RegExp(`\\bclass ${name}\\b`).test(source));
+  assert.equal(matches.length, 1, `Expected one owner of ${name}`);
+  return matches[0][1];
+}
+
+test("native responsibilities remain cohesive and the bridge allowlist matches the UI", async () => {
+  const [sources, uiBridge] = await Promise.all([
+    readHostSources(),
+    readFile(path.join(uiSourceRoot, "src", "bridge", "webview.ts"), "utf8"),
+  ]);
+  const program = classSource(sources, "Program");
+  assert.equal([...program.matchAll(/\bclass \w+/g)].length, 1);
+  assert.match(program, /Arguments\.Parse\(args\)/);
+  assert.match(program, /Application\.Run\(window\)/);
+  assert.doesNotMatch(program, /ProcessStartInfo|CoreWebView2|Registry\.|Task\.Delay/);
+
+  const window = classSource(sources, "InstallerWindow");
+  assert.match(window, /Controls\.Add\(_bridge\.View\)/);
+  assert.match(window, /await _bridge\.InitializeAsync\(\)/);
+  assert.match(window, /await _engine\.RunAsync\(_scope, _selectedPath\)/);
+  assert.match(window, /_engine\.Dispose\(\)/);
+  assert.doesNotMatch(window, /CoreWebView2|WaitForExit|Registry\.|"runas"/);
+  assert.doesNotMatch(classSource(sources, "InstallerEngine"), /WebView2|MessageBox|\bForm\b/);
+  assert.doesNotMatch(classSource(sources, "Arguments"), /internal (?:string|bool|int) \w+\s*[=;]/);
+
+  const bridge = classSource(sources, "WebViewBridge");
+  const nativeCommands = [...bridge.matchAll(/case "([^"]+)":/g)].map((match) => match[1]);
+  const uiCommands = uiBridge.match(/installerCommands = \[(?<commands>[\s\S]*?)\] as const/)
+    ?.groups?.commands;
+  assert.ok(uiCommands);
+  assert.deepEqual(
+    nativeCommands.sort(),
+    [...uiCommands.matchAll(/"([^"]+)"/g)].map((match) => match[1]).sort(),
+  );
+  assert.match(bridge, /TryGetWebMessageAsString\(\)/);
+  assert.match(bridge, /catch \(ArgumentException\) \{ return; \}/);
+  assert.match(bridge, /if \(_ready && _webView\.CoreWebView2 != null\)/);
+  assert.match(bridge, /PostWebMessageAsJson\(_json\.Serialize\(message\)\)/);
+
+  const cleanup = classSource(sources, "Cleanup");
+  assert.match(program, /Cleanup\.Schedule\(AppDomain\.CurrentDomain\.BaseDirectory\)/);
+  assert.match(cleanup, /MoveFileEx/);
+  assert.doesNotMatch(
+    cleanup,
+    /ApplicationData|LocalApplicationData|LocalLow|semiwork|Directory\.Delete/,
+  );
+});
+
 test("electron-builder keeps ownership of the x64 NSIS lifecycle", () => {
   const nsisTarget = packageJson.build.win.target.find(({ target }) => target === "nsis");
   const nsis = packageJson.build.nsis;
@@ -165,8 +222,8 @@ test("long paths stay semantic, single-line, and cannot displace Change", async 
 });
 
 test("host building refreshes and stages Vite output before NSIS", async () => {
-  const [host, build, include] = await Promise.all([
-    readFile(path.join(installerRoot, "host", "Program.cs"), "utf8"),
+  const [sources, build, include] = await Promise.all([
+    readHostSources(),
     readFile(path.join(installerRoot, "build-host.ps1"), "utf8"),
     readFile(path.join(installerRoot, "installer.nsh"), "utf8"),
   ]);
@@ -185,6 +242,11 @@ test("host building refreshes and stages Vite output before NSIS", async () => {
   assert.match(build, /WebView2Loader\.dll/);
   assert.match(build, /Invoke-TrustedSigning/);
   assert.match(build, /-Files \$hostPath/);
+  assert.match(build, /Get-ChildItem[^\n]*-Filter "\*\.cs"[^\n]*-Recurse/);
+  assert.match(build, /Sort-Object FullName/);
+  assert.match(build, /\$sources\.Count -eq 0/);
+  assert.match(build, /\$sources\s*\r?\nif \(\$LASTEXITCODE -ne 0\)/);
+  assert.doesNotMatch(build, /host[\\/]Program\.cs/);
 
   assert.match(include, /!macro RepoDitorStageWebViewHost/);
   assert.match(include, /File \/r "\$\{REPODITOR_HOST_DIR\}\\\*"/);
@@ -194,6 +256,10 @@ test("host building refreshes and stages Vite output before NSIS", async () => {
     /\b(?:Uninst)?Page custom\b|nsDialogs|MUI_PAGE_WELCOME|MUI_PAGE_DIRECTORY/,
   );
 
+  const host = classSource(sources, "WebViewBridge");
+  const rawAccess = sources.filter(([, source]) => /CoreWebView2|\bnew WebView2\(/.test(source));
+  assert.equal(rawAccess.length, 1, "Raw native WebView2 access must have one owner");
+  assert.equal(rawAccess[0][1], host);
   assert.match(host, /private const string AppOrigin = "https:\/\/repoditor-installer\.local"/);
   assert.match(host, /SetVirtualHostNameToFolderMapping[\s\S]*DenyCors/);
   assert.match(host, /eventArgs\.Source\.Equals\(AppOrigin \+ "\/index\.html"/);
@@ -201,14 +267,20 @@ test("host building refreshes and stages Vite output before NSIS", async () => {
   assert.match(host, /AreHostObjectsAllowed = false/);
   assert.match(host, /PermissionRequested[\s\S]*CoreWebView2PermissionState\.Deny/);
   assert.match(host, /DownloadStarting[\s\S]*args\.Cancel = true/);
-  assert.doesNotMatch(host, /AddHostObjectToScript|ExecuteScriptAsync/);
+  assert.doesNotMatch(
+    sources.map(([, source]) => source).join("\n"),
+    /AddHostObjectToScript|ExecuteScriptAsync/,
+  );
 });
 
 test("native install, update, elevation, and uninstall contracts remain unchanged", async () => {
-  const [host, include] = await Promise.all([
-    readFile(path.join(installerRoot, "host", "Program.cs"), "utf8"),
+  const [sources, include] = await Promise.all([
+    readHostSources(),
     readFile(path.join(installerRoot, "installer.nsh"), "utf8"),
   ]);
+  const host = sources.map(([, source]) => source).join("\n");
+  const engine = classSource(sources, "InstallerEngine");
+  const parentWait = classSource(sources, "ParentProcessSynchronizer");
 
   assert.match(host, /command == "choose-path"/);
   assert.match(host, /command == "scope:current"/);
@@ -216,28 +288,28 @@ test("native install, update, elevation, and uninstall contracts remain unchange
   assert.match(host, /command == "start" \|\| command == "retry"/);
   assert.match(
     host,
-    /var arguments = "\/" \+ \(_scope == "all" \? "allusers" : "currentuser"\) \+ " \/S"/,
+    /var arguments = "\/" \+ \(scope == "all" \? "allusers" : "currentuser"\) \+ " \/S"/,
   );
   assert.match(host, /if \(_options\.Updated\)[\s\S]*arguments \+= " --updated"/);
-  assert.match(host, /arguments \+= " \/D=" \+ _selectedPath/);
+  assert.match(host, /arguments \+= " \/D=" \+ selectedPath/);
   assert.match(host, /startInfo\.Verb = "runas"/);
-  assert.match(host, /await WaitForParentAsync\(\)/);
+  assert.match(engine, /await _parent\.WaitAsync\(\)/);
+  assert.match(
+    engine,
+    /if \(scope == "all"\)\s*\{\s*startInfo\.UseShellExecute = true;\s*startInfo\.Verb = "runas";\s*\}\s*else\s*\{\s*startInfo\.UseShellExecute = false;\s*startInfo\.CreateNoWindow = true;/,
+  );
   assert.doesNotMatch(host, /DirectEngine|direct-engine| _\?=/);
   assert.doesNotMatch(host, /attempt <|for \(var attempt/);
-  assert.match(host, /await WaitForUninstallCompletionAsync\(\)/);
+  assert.match(host, /await WaitForUninstallCompletionAsync\(scope, selectedPath\)/);
   assert.match(host, /Registry\.LocalMachine : Registry\.CurrentUser/);
   assert.match(host, /registry\.OpenSubKey\(_options\.RegistryKey\)/);
   assert.match(host, /!File\.Exists\(_options\.Engine\)/);
-  assert.match(host, /!File\.Exists\(Path\.Combine\(_selectedPath, "RepoDitor\.exe"\)\)/);
+  assert.match(host, /!File\.Exists\(Path\.Combine\(selectedPath, "RepoDitor\.exe"\)\)/);
   assert.match(host, /The uninstaller did not complete\./);
-  const parentWait = host.match(
-    /private async Task WaitForParentAsync\(\)(?<body>[\s\S]*?)\r?\n {4}}\r?\n\r?\n {4}private async Task WaitForUninstallCompletionAsync/,
-  )?.groups?.body;
-  assert.ok(parentWait);
-  assert.doesNotMatch(parentWait, /\.HasExited/);
+  assert.doesNotMatch(host, /\.HasExited/);
   assert.match(parentWait, /await Task\.Run\(delegate \{ _parentProcess\.WaitForExit\(\); }\)/);
   assert.match(parentWait, /NativeErrorCode != 5/);
-  assert.match(parentWait, /Process\.GetProcessById\(_options\.ParentProcessId\)/);
+  assert.match(parentWait, /Process\.GetProcessById\(_parentProcessId\)/);
   assert.doesNotMatch(parentWait, /return Task\.Delay/);
 
   assert.match(include, /!macro customInit[\s\S]*\$\{If\} \$\{Silent\}/);
