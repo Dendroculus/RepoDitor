@@ -125,7 +125,7 @@ function Assert-Uninstalled([string] $Scenario, [string] $InstallPath) {
 }
 
 function Invoke-Setup([string] $Scenario, [string] $ExpectedPath) {
-  # Mirror InstallerWindow.RunEngine(): production installs always pass the
+  # Mirror InstallerEngine.RunAsync(): production installs always pass the
   # authoritative selected path, including the normal default location.
   $arguments = @('/S', '/currentuser', "/D=$ExpectedPath")
   Write-LifecycleLog "$Scenario | setup start | executable=$script:setupPath arguments=$($arguments -join ' ')"

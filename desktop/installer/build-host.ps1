@@ -81,7 +81,11 @@ $formsAssembly = Join-Path $dependencyRoot "lib\net462\Microsoft.Web.WebView2.Wi
 $loader = Join-Path $dependencyRoot "build\native\x64\WebView2Loader.dll"
 $license = Join-Path $dependencyRoot "LICENSE.txt"
 $notice = Join-Path $dependencyRoot "NOTICE.txt"
-$source = Join-Path $PSScriptRoot "host\Program.cs"
+$sources = @(Get-ChildItem -LiteralPath (Join-Path $PSScriptRoot "host") -Filter "*.cs" -File -Recurse |
+    Sort-Object FullName | ForEach-Object FullName)
+if ($sources.Count -eq 0) {
+    throw "The RepoDitor installer host source set is empty."
+}
 $icon = Join-Path $desktopRoot "public\icon.ico"
 
 & $compiler "/nologo" "/target:winexe" "/platform:x64" "/optimize+" `
@@ -91,7 +95,7 @@ $icon = Join-Path $desktopRoot "public\icon.ico"
     "/reference:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Drawing.dll" `
     "/reference:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Windows.Forms.dll" `
     "/reference:$env:WINDIR\Microsoft.NET\Framework64\v4.0.30319\System.Web.Extensions.dll" `
-    $source
+    $sources
 if ($LASTEXITCODE -ne 0) {
     throw "RepoDitorInstallerHost compilation failed with exit code $LASTEXITCODE."
 }
